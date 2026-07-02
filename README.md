@@ -34,6 +34,7 @@ The following are explicitly out of scope for MVP 1:
 
 - [MVP 1 Specification](docs/MVP1_SPEC.md)
 - [Data Model and Storage Specification](docs/DATA_MODEL.md)
+- [Workspace, Profile, Account, and Site Tab Specification](docs/WORKSPACE_PROFILE_SPEC.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Product principle
@@ -41,6 +42,10 @@ The following are explicitly out of scope for MVP 1:
 > Capture deep metadata for the system, but show users only the decisions they need.
 
 Internally the tool may keep raw snapshots, normalized JSON, hashes, RAG chunks, error reports, and plugin asset captures. User-facing output should remain simple: site summary, app summary, plugin summary, dependency map, AI context, and scan result status.
+
+## UX principle
+
+The app should work as a multi-site desktop workspace. Users should be able to create reusable auth profiles/accounts, open each site in a separate tab, set a separate local folder per site, open the folder from the UI, and configure scan/browser/output settings per site.
 
 ## Security principle
 
