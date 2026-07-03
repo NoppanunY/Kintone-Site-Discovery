@@ -2,6 +2,8 @@
 
 This plan turns the MVP 1 spec into development work that Codex can execute incrementally.
 
+MVP 1 is a read-only kintone data extraction and local export tool. It must not include built-in AI features.
+
 ## 1. Recommended repository structure
 
 Start with a TypeScript workspace. Exact package manager can be chosen during implementation, but `pnpm` is recommended.
@@ -16,6 +18,7 @@ repo-root/
   docs/
     MVP1_SPEC.md
     DATA_MODEL.md
+    WORKSPACE_PROFILE_SPEC.md
     IMPLEMENTATION_PLAN.md
 
   packages/
@@ -25,7 +28,8 @@ repo-root/
         collectors/
         normalizers/
         redaction/
-        rag/
+        reports/
+        exports/
         dependencies/
         storage/
         types/
@@ -47,15 +51,15 @@ Keep core behavior in `packages/core`. Desktop and CLI should call the same core
 
 ## 2. Milestone overview
 
-### Milestone 1A: Foundation and scan model
+### Milestone 1A: Foundation, profile model, and scan model
 
-Goal: establish project structure, domain types, capture options, redaction, and normalization.
+Goal: establish project structure, domain types, profile/site workspace types, capture options, redaction, and normalization.
 
 Deliverables:
 
 - TypeScript workspace.
 - Core package.
-- Domain types for project, site, scan job, collector result, app model, plugin model, RAG chunk.
+- Domain types for project, auth profile, site workspace, site tab state, scan job, collector result, app model, plugin model, structured export record.
 - Capture option defaults.
 - Redaction utility.
 - Deterministic JSON normalization utility.
@@ -65,6 +69,7 @@ Exit criteria:
 
 - `pnpm test` or equivalent passes.
 - Capture option defaults match `docs/MVP1_SPEC.md`.
+- Auth profile/site workspace models match `docs/WORKSPACE_PROFILE_SPEC.md`.
 - Redaction tests prove no obvious secrets leak.
 - Normalization output is deterministic.
 
@@ -88,23 +93,24 @@ Exit criteria:
 - Collector failures are partial-success friendly.
 - No write/update REST endpoints are implemented.
 
-### Milestone 1C: Knowledge output and RAG builder
+### Milestone 1C: Reports and structured export builder
 
-Goal: generate markdown and JSONL chunks from normalized captures.
+Goal: generate markdown reports and structured JSONL export files from normalized captures.
 
 Deliverables:
 
-- Markdown knowledge generator.
-- RAG chunk generator.
-- Index manifest generator.
+- Markdown report generator.
+- Structured export JSONL generator.
+- Export manifest generator.
 - Dependency extraction heuristics for fields, lookups, related records, permissions, views, process, app actions, customization metadata.
 - Tests against fixture input.
 
 Exit criteria:
 
-- `knowledge/site-summary.md`, `apps-summary.md`, `plugins-summary.md`, `dependency-map.md`, and `ai-context.md` are generated from fixture data.
-- `.kintone/rag/chunks.jsonl` is valid JSONL.
-- Every chunk has source metadata.
+- `reports/site-summary.md`, `apps-summary.md`, `plugins-summary.md`, `dependency-report.md`, and `scan-report.md` are generated from fixture data.
+- `exports/structured-data.jsonl` is valid JSONL.
+- `exports/export-manifest.json` is generated.
+- Every structured export record has source metadata.
 
 ### Milestone 1D: Browser runtime plugin config collector
 
@@ -153,27 +159,21 @@ Goal: provide usable entry points.
 
 Deliverables:
 
-- CLI commands for development/testing:
-  - `ksd init`
-  - `ksd add-site`
-  - `ksd list-apps`
-  - `ksd scan`
-  - `ksd build-knowledge`
-- Desktop flow:
-  - Create project.
-  - Add site.
-  - Test connection.
-  - List/select apps.
-  - Choose scan options.
-  - Run scan.
-  - Show scan summary.
-  - Open knowledge output.
+- CLI commands for development/testing.
+- Desktop profile/account manager.
+- Desktop site workspace manager.
+- SourceTree-like site tabs.
+- Per-site local folders and settings.
+- Scan flow wired to the active site workspace.
+- Scan history and export package output.
 
 Exit criteria:
 
 - A user can complete a scan without editing config files manually.
 - Required/recommended/additional defaults match spec.
 - Error report is visible after scan.
+- User can open the site's local folder.
+- No built-in AI, chat, or recommendation UI exists.
 
 ## 3. Capture option defaults
 
@@ -232,7 +232,7 @@ export interface KintoneDiscoveryCore {
   testConnection(input: TestConnectionInput): Promise<TestConnectionResult>;
   listApps(input: ListAppsInput): Promise<ListAppsResult>;
   runScan(input: RunScanInput): Promise<ScanResult>;
-  buildKnowledge(input: BuildKnowledgeInput): Promise<KnowledgeBuildResult>;
+  buildReportsAndExports(input: BuildReportsAndExportsInput): Promise<BuildReportsAndExportsResult>;
 }
 ```
 
@@ -288,7 +288,7 @@ Create `browser:plugin-get-config`.
 
 Inputs:
 
-- Site profile.
+- Site workspace.
 - Credential reference.
 - App ID.
 - Plugin IDs.
@@ -376,32 +376,25 @@ Test cases:
 - JavaScript source containing hardcoded `apiToken`.
 - Do not redact ordinary field codes like `Status` or `CustomerName`.
 
-## 9. RAG builder tasks
+## 9. Report and export builder tasks
 
-RAG builder should create chunks for:
+Report/export builder should create:
 
 - Site summary.
 - App summary.
-- Fields.
-- Views.
-- Processes.
-- Permissions.
-- Notifications.
-- Customization metadata/code summaries.
-- Plugin inventory.
-- Plugin saved config.
-- Plugin asset summaries.
-- Dependencies.
-- Preview/live differences.
-- Errors/warnings.
+- Plugin summary.
+- Dependency report.
+- Scan report.
+- Structured export JSONL.
+- Export manifest.
 
 Implementation steps:
 
 1. Load normalized model.
 2. Build dependency candidates.
-3. Generate markdown files.
-4. Generate JSONL chunks.
-5. Generate index manifest.
+3. Generate markdown reports.
+4. Generate JSONL structured export records.
+5. Generate export manifest.
 6. Validate JSONL.
 
 ## 10. CLI command behavior
@@ -412,11 +405,15 @@ Suggested commands:
 
 ```bash
 ksd init ./my-project
-ksd add-site --project ./my-project --name Production --domain example.cybozu.com
-ksd test-connection --project ./my-project --site Production
+ksd auth add --name "Production Admin" --username admin@example.com
+ksd auth list
+ksd auth test --auth "Production Admin" --domain example.cybozu.com
+ksd site add --name "Production" --domain example.cybozu.com --auth "Production Admin" --folder ./production
+ksd site list
+ksd site open-folder --site "Production"
 ksd list-apps --project ./my-project --site Production
 ksd scan --project ./my-project --site Production --apps 101,102 --profile deep
-ksd build-knowledge --project ./my-project --scan scan_...
+ksd build-export --project ./my-project --scan scan_...
 ```
 
 CLI must never print secrets.
@@ -428,20 +425,41 @@ CLI must never print secrets.
 - Create/open project.
 - Show recent projects.
 
-### 11.2 Sites screen
+### 11.2 Account/Profile screen
 
-- Add site.
-- Test connection.
+- Create Auth Profile.
+- Edit profile display name.
+- Update username/password.
+- Test auth against a domain.
 - Forget credential.
-- Show last scan summary.
 
-### 11.3 App selection screen
+### 11.3 Site tabs
+
+- Open site workspace in tab.
+- Create new tab.
+- Close tab without deleting data.
+- Persist open tabs after restart.
+
+### 11.4 Site overview screen
+
+- Domain.
+- Linked Auth Profile.
+- Local folder.
+- Last connection status.
+- Last scan summary.
+- Quick actions:
+  - Test connection.
+  - Fetch apps.
+  - Run scan.
+  - Open local folder.
+
+### 11.5 App selection screen
 
 - Fetch apps.
 - Search/filter.
 - Multi-select.
 
-### 11.4 Scan options screen
+### 11.6 Scan options screen
 
 Three sections:
 
@@ -451,7 +469,7 @@ Three sections:
 
 Plugin asset capture appears in Additional.
 
-### 11.5 Scan progress screen
+### 11.7 Scan progress screen
 
 - Overall progress.
 - Current app.
@@ -459,7 +477,7 @@ Plugin asset capture appears in Additional.
 - Warnings.
 - Cancellable.
 
-### 11.6 Results screen
+### 11.8 Results screen
 
 - Apps scanned.
 - Data captured.
@@ -467,7 +485,7 @@ Plugin asset capture appears in Additional.
 - Optional assets captured.
 - Redactions applied.
 - Failures/warnings.
-- Buttons: Open knowledge, open report, export.
+- Buttons: Open reports, open exports, open local folder.
 
 ## 12. Testing strategy
 
@@ -478,8 +496,9 @@ Required:
 - Redaction.
 - Normalization.
 - Capture option defaults.
+- AuthProfile/SiteWorkspace/SiteTab models.
 - Dependency extraction.
-- RAG chunk generation.
+- Structured export generation.
 - Error classification.
 
 ### 12.2 Fixture tests
@@ -515,25 +534,30 @@ Never run real-domain tests in default CI.
 
 MVP 1 is done when:
 
+- User can create Auth Profiles.
+- User can create Site Workspaces linked to Auth Profiles.
+- User can open sites as tabs.
+- User can set local folders per site.
 - User can scan selected apps from a kintone site.
 - Required data is captured and normalized.
 - Recommended plugin saved config capture works where possible.
 - Optional plugin asset capture exists and is unchecked by default.
-- Knowledge markdown and RAG chunks are generated.
+- Markdown reports and structured export files are generated.
 - Secrets are redacted.
 - Error report is clear.
 - No write/deploy code exists.
+- No built-in AI features exist.
 - Docs and tests match the implemented behavior.
 
 ## 14. Future implementation notes
 
 Do not add safe deploy prematurely. Safe deploy should wait until scan/versioning and metadata capture are stable.
 
-Future phases will reuse this knowledge base to implement:
+Future phases will reuse this local data capture foundation to implement:
 
 - scan diff
 - cloud drift detection
 - pre-deploy snapshots
 - safe deploy protocol
 - central deploy ledger
-- AI-assisted impact analysis
+- impact analysis based on captured data
