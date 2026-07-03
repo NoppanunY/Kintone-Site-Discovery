@@ -19,8 +19,9 @@ Build a production-usable MVP that can:
 9. Pull plugin inventory through REST APIs.
 10. Pull plugin saved config through the kintone browser runtime where possible.
 11. Optionally pull plugin asset files such as desktop runtime JS/CSS and plugin config page JS/CSS/HTML through browser/network collection.
-12. Normalize, redact, summarize, and export the captured data.
-13. Create local snapshots and readable reports that users can inspect or use with any external tool.
+12. Preserve JavaScript/CSS file order exactly when pulling customization or plugin assets.
+13. Normalize, redact, summarize, and export the captured data.
+14. Create local snapshots and readable reports that users can inspect or use with any external tool.
 
 ## MVP 1 non-goals
 
@@ -41,13 +42,14 @@ The following are explicitly out of scope for MVP 1:
 - [MVP 1 Specification](docs/MVP1_SPEC.md)
 - [Data Model and Storage Specification](docs/DATA_MODEL.md)
 - [Workspace, Profile, Account, and Site Tab Specification](docs/WORKSPACE_PROFILE_SPEC.md)
+- [JavaScript and CSS File Order Preservation Specification](docs/FILE_ORDER_SPEC.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Product principle
 
 > Pull kintone data safely, store it locally, and make the exported files easy to inspect.
 
-Internally the tool may keep raw snapshots, normalized JSON, hashes, structured export files, error reports, and plugin asset captures. User-facing output should remain simple: site summary, app summary, plugin summary, dependency report, scan history, and export package status.
+Internally the tool may keep raw snapshots, normalized JSON, hashes, structured export files, error reports, ordered customization file lists, and plugin asset captures. User-facing output should remain simple: site summary, app summary, plugin summary, dependency report, scan history, and export package status.
 
 ## UX principle
 
