@@ -2,7 +2,7 @@
 
 This document defines the SourceTree-like workspace model for Kintone Site Discovery.
 
-MVP 1 remains a read-only discovery and RAG knowledge-capture tool. This spec adds how users manage multiple kintone sites, credentials, folders, tabs, and per-site settings.
+MVP 1 remains a read-only kintone data extraction and local export tool. This spec adds how users manage multiple kintone sites, credentials, folders, tabs, and per-site settings.
 
 ## 1. Product intent
 
@@ -14,11 +14,11 @@ Users should be able to:
 - Connect different kintone sites with different credentials.
 - Open each site in a separate tab.
 - Create a new tab for another site or another local project folder.
-- Open the local folder where discovery output is stored.
+- Open the local folder where extracted data is stored.
 - Configure scan/browser/storage settings separately per site.
 - Switch between sites without re-entering credentials every time.
 
-The UI inspiration is similar to SourceTree's accounts/profiles and repository tabs, but this app is not a Git client in MVP 1.
+The UI inspiration is similar to SourceTree's accounts/profiles and repository tabs, but this app is not a Git client and does not include AI features in MVP 1.
 
 ## 2. Terminology
 
@@ -54,7 +54,7 @@ A Site Workspace combines:
 - Scan settings.
 - Browser capture settings.
 - Last scan state.
-- Knowledge output location.
+- Reports and exports location.
 
 Example:
 
@@ -75,16 +75,15 @@ Users can close a tab without deleting the Site Workspace or local data.
 
 ### 2.4 Local Folder
 
-The Local Folder is where this site's discovery output is stored.
+The Local Folder is where this site's extracted data is stored.
 
 It contains:
 
 ```text
-knowledge/
+reports/
+exports/
 .kintone/
 ```
-
-Users can open the Local Folder from the UI.
 
 ## 3. Required UX model
 
@@ -107,7 +106,8 @@ Suggested layout:
 | - Overview                |                                                    |
 | - Apps                    |                                                    |
 | - Scan                    |                                                    |
-| - Knowledge               |                                                    |
+| - Reports                 |                                                    |
+| - Exports                 |                                                    |
 | - History                 |                                                    |
 | - Settings                |                                                    |
 +--------------------------------------------------------------------------------+
@@ -120,7 +120,7 @@ The `+ New Tab` action should let the user choose:
 1. Open existing Site Workspace.
 2. Create new Site Workspace.
 3. Open local project folder.
-4. Import/export knowledge project later, not required for first MVP.
+4. Import/export project later, not required for first MVP.
 
 ### 3.3 Site tab title
 
@@ -225,7 +225,7 @@ Optional fields:
 
 - Default scan profile.
 - Browser mode: headless/headed.
-- Knowledge output language.
+- Report language.
 - Default app selection behavior.
 - Plugin asset capture preferences.
 
@@ -272,10 +272,11 @@ Plugin asset capture must remain opt-in by default.
 
 #### Output
 
-- Knowledge folder path.
+- Reports folder path.
+- Exports folder path.
 - Raw data retention.
 - Snapshot retention.
-- RAG chunk output enabled.
+- Structured export enabled.
 - Open folder action.
 
 #### Privacy/redaction
@@ -283,14 +284,15 @@ Plugin asset capture must remain opt-in by default.
 - Redaction enabled: always true for MVP 1.
 - Custom sensitive key patterns.
 - Whether to store raw redacted API payloads.
-- Whether to include sample records in markdown.
+- Whether to include sample records in markdown reports.
 
 ### 5.3 Open folder behavior
 
 Every Site Workspace should expose:
 
 - `Open Local Folder`
-- `Open Knowledge Folder`
+- `Open Reports Folder`
+- `Open Exports Folder`
 - `Open Internal Data Folder` only in advanced mode
 
 Opening `.kintone/` should be considered advanced.
@@ -344,16 +346,26 @@ Shows:
 - Current collector.
 - Warnings/errors.
 
-### 6.4 Knowledge
+### 6.4 Reports
 
-Shows:
+Shows generated markdown reports:
 
-- Generated markdown outputs.
-- Open AI context.
-- Open dependency map.
-- Export knowledge pack.
+- Site summary.
+- Apps summary.
+- Plugins summary.
+- Dependency report.
+- Scan report.
 
-### 6.5 History
+### 6.5 Exports
+
+Shows generated structured export files:
+
+- Structured data JSONL.
+- Export manifest.
+- Raw/normalized output status.
+- Export package action.
+
+### 6.6 History
 
 Shows:
 
@@ -364,7 +376,7 @@ Shows:
 - Error count.
 - Open report.
 
-### 6.6 Settings
+### 6.7 Settings
 
 Shows per-site settings from section 5.2.
 
@@ -396,7 +408,8 @@ Do not add password/token/cookie fields.
   "domain": "client-a.cybozu.com",
   "authProfileId": "auth_client_a_admin",
   "localFolder": "/Users/user/KintoneDiscovery/client-a-production",
-  "knowledgeFolder": "/Users/user/KintoneDiscovery/client-a-production/knowledge",
+  "reportsFolder": "/Users/user/KintoneDiscovery/client-a-production/reports",
+  "exportsFolder": "/Users/user/KintoneDiscovery/client-a-production/exports",
   "internalFolder": "/Users/user/KintoneDiscovery/client-a-production/.kintone",
   "settings": {
     "defaultScanProfile": "deep-scan",
@@ -439,46 +452,6 @@ Do not add password/token/cookie fields.
 
 This is UI state, not scan data.
 
-### 7.4 ProjectConfig extension
-
-`.kintone/project.json` should include:
-
-```json
-{
-  "schemaVersion": 1,
-  "projectId": "ksd_01H...",
-  "projectName": "Kintone Discovery Project",
-  "authProfiles": [
-    {
-      "authProfileId": "auth_prod_admin_01",
-      "displayName": "Production Admin",
-      "authType": "password",
-      "username": "admin@example.com",
-      "credentialRef": "keychain:kintone-site-discovery/auth_prod_admin_01/password"
-    }
-  ],
-  "siteWorkspaces": [
-    {
-      "siteWorkspaceId": "site_ws_prod",
-      "displayName": "Production",
-      "domain": "example.cybozu.com",
-      "authProfileId": "auth_prod_admin_01",
-      "localFolder": "/Users/user/KintoneDiscovery/production"
-    }
-  ],
-  "ui": {
-    "openTabs": [
-      {
-        "tabId": "tab_prod",
-        "siteWorkspaceId": "site_ws_prod",
-        "route": "overview"
-      }
-    ],
-    "activeTabId": "tab_prod"
-  }
-}
-```
-
 ## 8. CLI impact
 
 CLI should support the same model, even if tabs are desktop-only.
@@ -511,11 +484,13 @@ MVP desktop is acceptable when:
 7. User can close a tab without deleting workspace data.
 8. Open tabs persist after restart.
 9. User can open the local folder from the UI.
-10. User can configure scan/browser/output/privacy settings per site.
-11. Site-specific settings affect scans for that site only.
-12. Changing an Auth Profile updates authentication for linked Site Workspaces.
-13. Required scan options remain enforced even when per-site defaults are edited.
-14. Secrets never appear in project files or logs.
+10. User can open reports and exports folders from the UI.
+11. User can configure scan/browser/output/privacy settings per site.
+12. Site-specific settings affect scans for that site only.
+13. Changing an Auth Profile updates authentication for linked Site Workspaces.
+14. Required scan options remain enforced even when per-site defaults are edited.
+15. Secrets never appear in project files or logs.
+16. No built-in AI features exist.
 
 ## 10. Implementation order
 
