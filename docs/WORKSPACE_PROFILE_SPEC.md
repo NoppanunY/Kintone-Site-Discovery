@@ -1,12 +1,12 @@
 # Workspace, Profile, Account, and Site Tab Specification
 
-This document defines the SourceTree-like workspace model for Kintone Site Discovery.
+This document defines the workspace, profile/account, site tab, page, and menu requirements for Kintone Site Discovery.
 
-MVP 1 remains a read-only kintone data extraction and local export tool. This spec adds how users manage multiple kintone sites, credentials, folders, tabs, and per-site settings.
+MVP 1 remains a read-only kintone data extraction and local export tool. This document does not prescribe visual layout, wireframes, spacing, panel placement, or exact screen design. It only defines what pages and menus must exist and what each page/menu is responsible for.
 
 ## 1. Product intent
 
-The app should feel like a multi-workspace desktop tool rather than a one-time scan wizard.
+The app should work as a reusable multi-site desktop workspace rather than a one-time scan wizard.
 
 Users should be able to:
 
@@ -18,11 +18,33 @@ Users should be able to:
 - Configure scan/browser/storage settings separately per site.
 - Switch between sites without re-entering credentials every time.
 
-The UI inspiration is similar to SourceTree's accounts/profiles and repository tabs, but this app is not a Git client and does not include AI features in MVP 1.
+The UI inspiration is similar to SourceTree's account/profile and tab concepts, but this app is not a Git client and does not include AI features in MVP 1.
 
-## 2. Terminology
+## 2. UI specification boundary
 
-### 2.1 Auth Profile / Account
+This spec intentionally avoids:
+
+- Wireframes.
+- Exact layout.
+- Pixel-level design.
+- Panel placement.
+- Sidebar/header/footer requirements.
+- Exact component library decisions.
+- Exact iconography.
+
+This spec defines only:
+
+- Required pages.
+- Required menus/actions.
+- Responsibilities of each page and menu.
+- Required data each page must display or edit.
+- Required safety behavior.
+
+Implementation may choose any layout as long as these functional requirements are met.
+
+## 3. Terminology
+
+### 3.1 Auth Profile / Account
 
 An Auth Profile is a reusable credential identity used to authenticate to kintone.
 
@@ -42,7 +64,7 @@ An Auth Profile stores:
 
 An Auth Profile must never store the actual password/token in project files.
 
-### 2.2 Site Workspace
+### 3.2 Site Workspace
 
 A Site Workspace is one configured kintone site inside a project.
 
@@ -65,7 +87,7 @@ Auth Profile: Client A Admin
 Local Folder: ~/KintoneDiscovery/client-a-production
 ```
 
-### 2.3 Site Tab
+### 3.3 Site Tab
 
 A Site Tab is an open UI tab for a Site Workspace.
 
@@ -73,7 +95,7 @@ A tab is not the source of truth. It is a view into a Site Workspace.
 
 Users can close a tab without deleting the Site Workspace or local data.
 
-### 2.4 Local Folder
+### 3.4 Local Folder
 
 The Local Folder is where this site's extracted data is stored.
 
@@ -85,155 +107,252 @@ exports/
 .kintone/
 ```
 
-## 3. Required UX model
+## 4. Required pages
 
-### 3.1 App shell
+The desktop app must provide these pages. The implementation may place them in tabs, a sidebar, a top menu, or any other navigation structure.
 
-The desktop app should have a persistent app shell with:
+### 4.1 Project Home page
 
-- Top tab bar.
-- Left navigation per active tab.
-- Main content area.
-- Site/account status area.
+Purpose:
 
-Suggested layout:
+- Let users create or open a local project.
+- Show recent projects.
+- Provide access to project-level settings.
 
-```text
-+--------------------------------------------------------------------------------+
-| [Client A Prod] [Client A Dev] [ + New Tab ]                     Account status |
-+--------------------------------------------------------------------------------+
-| Site nav                  | Main content                                        |
-| - Overview                |                                                    |
-| - Apps                    |                                                    |
-| - Scan                    |                                                    |
-| - Reports                 |                                                    |
-| - Exports                 |                                                    |
-| - History                 |                                                    |
-| - Settings                |                                                    |
-+--------------------------------------------------------------------------------+
-```
+Required actions:
 
-### 3.2 New tab behavior
+- Create project.
+- Open project folder.
+- Open recent project.
+- Remove recent project entry without deleting local data.
 
-The `+ New Tab` action should let the user choose:
+Required information:
 
-1. Open existing Site Workspace.
-2. Create new Site Workspace.
-3. Open local project folder.
-4. Import/export project later, not required for first MVP.
+- Project name.
+- Project local path.
+- Last opened time, if available.
 
-### 3.3 Site tab title
+### 4.2 Accounts / Auth Profiles page
 
-Tab title should prefer:
+Purpose:
 
-```text
-<site display name>
-```
-
-Fallback:
-
-```text
-<domain>
-```
-
-If there are duplicate titles, append a short domain/account hint.
-
-### 3.4 Tab persistence
-
-The app should remember open tabs across restarts.
-
-Persist:
-
-- Open site workspace IDs.
-- Active tab ID.
-- Last selected left-nav route per tab.
-
-Do not persist secrets.
-
-## 4. Auth Profile / Account management
-
-### 4.1 Account manager screen
-
-The app should include an Account/Profile manager similar in spirit to tools that manage remote accounts.
+- Manage reusable authentication identities.
 
 Required actions:
 
 - Create Auth Profile.
-- Edit display name.
+- Edit profile display name.
 - Update username.
 - Update password.
-- Test authentication.
-- Forget/delete credential.
+- Test authentication against a selected domain.
+- Forget/delete stored credential.
+- Delete Auth Profile.
 - View which Site Workspaces use the profile.
 
-### 4.2 Supported MVP auth type
+Required information:
 
-MVP 1 supports:
+- Profile display name.
+- Auth type.
+- Username.
+- Credential status, for example `saved`, `missing`, or `needs update`.
+- Linked Site Workspaces.
 
-```text
-password
-```
+Safety behavior:
 
-The UI should label this clearly as:
+- Never show password values.
+- Never write password/token/cookie into project files.
+- Warn before deleting a profile used by one or more Site Workspaces.
 
-```text
-Username/password authentication
-```
+### 4.3 Site Workspaces page
 
-Future auth types may include:
+Purpose:
 
-- OAuth.
-- API token for limited collectors.
-- Session/cookie import for advanced cases.
+- Manage configured kintone sites.
 
-### 4.3 Credential storage
+Required actions:
 
-Credential storage rules:
+- Create Site Workspace.
+- Edit Site Workspace.
+- Delete/remove Site Workspace.
+- Open Site Workspace in a tab.
+- Test connection.
+- Open Local Folder.
+- Open Reports Folder.
+- Open Exports Folder.
 
-- Store password only in OS keychain or secure credential provider.
-- Project files store only `credentialRef`.
-- Logs must never include username/password headers or cookies.
-- Browser sessions must not be serialized to project files unless a future encrypted session store is designed.
-
-### 4.4 Account reuse
-
-A single Auth Profile may be reused by multiple Site Workspaces.
-
-Example:
-
-```text
-Auth Profile: Internal Admin
-  used by:
-  - Dev Site Workspace
-  - Staging Site Workspace
-```
-
-If deleting an Auth Profile that is still used, UI must warn and require reassignment or confirmation.
-
-## 5. Site Workspace management
-
-### 5.1 Create Site Workspace
-
-Required fields:
+Required information:
 
 - Site display name.
 - Domain.
-- Auth Profile.
+- Linked Auth Profile.
 - Local folder.
+- Last connection status.
+- Last scan status.
 
-Optional fields:
+Safety behavior:
 
-- Default scan profile.
-- Browser mode: headless/headed.
-- Report language.
-- Default app selection behavior.
-- Plugin asset capture preferences.
+- Deleting/removing a Site Workspace must not silently delete local data.
+- Default delete behavior should remove the workspace from the app while keeping local files.
+- If local files will be moved to trash, require explicit confirmation.
 
-### 5.2 Site Workspace settings
+### 4.4 Site Overview page
 
-Each site must have separate settings.
+Purpose:
 
-Settings groups:
+- Show the current state of one Site Workspace.
+- Provide quick access to common actions.
+
+Required actions:
+
+- Test connection.
+- Fetch app list.
+- Run scan.
+- Open Local Folder.
+- Open Reports Folder.
+- Open Exports Folder.
+
+Required information:
+
+- Site display name.
+- Domain.
+- Linked Auth Profile display name.
+- Local folder path.
+- Last connection status.
+- Last scan summary.
+- Output folders status.
+
+### 4.5 Apps page
+
+Purpose:
+
+- Show apps available on the selected kintone site.
+- Let the user choose which apps to scan.
+
+Required actions:
+
+- Fetch/reload app list.
+- Search apps.
+- Filter apps.
+- Select apps.
+- Select all visible apps.
+- Clear selection.
+
+Required information:
+
+- App name.
+- App ID.
+- Space or guest space information when available.
+- Last captured status per app, if available.
+- Whether the app has plugins/customization when known.
+
+### 4.6 Scan page
+
+Purpose:
+
+- Configure and run data pull operations for the active Site Workspace.
+
+Required actions:
+
+- Choose apps to scan.
+- Review required capture options.
+- Enable/disable recommended capture options.
+- Enable/disable additional capture options.
+- Start scan.
+- Cancel running scan.
+
+Required information:
+
+- Required data categories.
+- Recommended data categories.
+- Additional data categories.
+- Scan profile.
+- Selected apps.
+- Current scan progress.
+- Current collector.
+- Warnings and errors.
+
+Safety behavior:
+
+- Required data options must be checked and disabled.
+- Plugin asset capture must be additional and unchecked by default.
+- Sample records and full records must be additional and unchecked by default.
+- No scan option may update kintone.
+
+### 4.7 Reports page
+
+Purpose:
+
+- Let users view generated human-readable reports.
+
+Required actions:
+
+- Open site summary report.
+- Open apps summary report.
+- Open plugins summary report.
+- Open dependency report.
+- Open scan report.
+- Open Reports Folder.
+
+Required information:
+
+- Report name.
+- Generated time.
+- Related scan ID.
+- File path.
+- Missing/stale report status, if applicable.
+
+### 4.8 Exports page
+
+Purpose:
+
+- Let users view generated structured export files.
+
+Required actions:
+
+- Open structured data export.
+- Open export manifest.
+- Open Exports Folder.
+- Create/export package.
+
+Required information:
+
+- Export file name.
+- Generated time.
+- Related scan ID.
+- File path.
+- File size.
+- Redaction status.
+
+### 4.9 History page
+
+Purpose:
+
+- Show previous scan runs for the active Site Workspace.
+
+Required actions:
+
+- View scan report.
+- Open reports for a scan.
+- Open exports for a scan.
+- Open internal scan data in advanced mode.
+
+Required information:
+
+- Scan ID.
+- Scan start/end time.
+- Scan status.
+- Apps scanned.
+- Collector success/failure count.
+- Redaction count.
+- Error/warning count.
+
+### 4.10 Site Settings page
+
+Purpose:
+
+- Configure settings for one Site Workspace.
+
+Required settings groups:
 
 #### General
 
@@ -246,7 +365,7 @@ Settings groups:
 
 - Linked Auth Profile.
 - Test connection.
-- Change linked profile.
+- Change linked Auth Profile.
 - Forget credential if profile is site-specific.
 
 #### Scan defaults
@@ -286,7 +405,218 @@ Plugin asset capture must remain opt-in by default.
 - Whether to store raw redacted API payloads.
 - Whether to include sample records in markdown reports.
 
-### 5.3 Open folder behavior
+### 4.11 Advanced Internal Data page
+
+Purpose:
+
+- Provide advanced access to internal machine-managed data for debugging.
+
+This page is optional for MVP 1 and should not be prominent for normal users.
+
+Allowed actions:
+
+- Open `.kintone/` folder.
+- View raw/normalized output status.
+- View collector result files.
+
+Safety behavior:
+
+- This page must warn that `.kintone/` is machine-managed.
+- No editing of internal files is required or expected through the app.
+
+## 5. Required menus and actions
+
+The app must expose the following menus or action groups. Exact visual placement is not specified.
+
+### 5.1 Project menu
+
+Purpose:
+
+- Manage local projects.
+
+Required actions:
+
+- New Project.
+- Open Project.
+- Open Recent Project.
+- Project Settings.
+- Close Project.
+
+### 5.2 Account menu
+
+Purpose:
+
+- Manage authentication profiles.
+
+Required actions:
+
+- Manage Auth Profiles.
+- Add Auth Profile.
+- Test Auth Profile.
+- Forget Credential.
+
+### 5.3 Site menu
+
+Purpose:
+
+- Manage kintone site workspaces.
+
+Required actions:
+
+- Add Site Workspace.
+- Open Site Workspace in Tab.
+- Close Site Tab.
+- Test Connection.
+- Site Settings.
+- Remove Site Workspace.
+
+### 5.4 Scan menu
+
+Purpose:
+
+- Run and manage data pull operations.
+
+Required actions:
+
+- Fetch Apps.
+- Run Scan.
+- Cancel Scan.
+- Open Latest Scan Report.
+- Open Scan History.
+
+### 5.5 Folder menu
+
+Purpose:
+
+- Open generated local folders.
+
+Required actions:
+
+- Open Local Folder.
+- Open Reports Folder.
+- Open Exports Folder.
+- Open Internal Data Folder, advanced only.
+
+### 5.6 Export menu
+
+Purpose:
+
+- Open or package generated export files.
+
+Required actions:
+
+- Open Structured Export.
+- Open Export Manifest.
+- Create Export Package.
+
+### 5.7 Help menu
+
+Purpose:
+
+- Provide support and documentation access.
+
+Required actions:
+
+- Open Documentation.
+- View App Version.
+- View Security Notes.
+
+## 6. Tab behavior requirements
+
+### 6.1 New tab behavior
+
+The New Tab action should let the user choose:
+
+1. Open existing Site Workspace.
+2. Create new Site Workspace.
+3. Open local project folder.
+4. Import/export project later, not required for first MVP.
+
+### 6.2 Site tab title
+
+Tab title should prefer:
+
+```text
+<site display name>
+```
+
+Fallback:
+
+```text
+<domain>
+```
+
+If there are duplicate titles, append a short domain/account hint.
+
+### 6.3 Tab persistence
+
+The app should remember open tabs across restarts.
+
+Persist:
+
+- Open site workspace IDs.
+- Active tab ID.
+- Last selected route/page per tab.
+
+Do not persist secrets.
+
+## 7. Auth Profile / Account management
+
+### 7.1 Supported MVP auth type
+
+MVP 1 supports:
+
+```text
+password
+```
+
+The UI should label this clearly as:
+
+```text
+Username/password authentication
+```
+
+Future auth types may include:
+
+- OAuth.
+- API token for limited collectors.
+- Session/cookie import for advanced cases.
+
+### 7.2 Credential storage
+
+Credential storage rules:
+
+- Store password only in OS keychain or secure credential provider.
+- Project files store only `credentialRef`.
+- Logs must never include username/password headers or cookies.
+- Browser sessions must not be serialized to project files unless a future encrypted session store is designed.
+
+### 7.3 Account reuse
+
+A single Auth Profile may be reused by multiple Site Workspaces.
+
+If deleting an Auth Profile that is still used, UI must warn and require reassignment or confirmation.
+
+## 8. Site Workspace management
+
+### 8.1 Create Site Workspace
+
+Required fields:
+
+- Site display name.
+- Domain.
+- Auth Profile.
+- Local folder.
+
+Optional fields:
+
+- Default scan profile.
+- Browser mode: headless/headed.
+- Report language.
+- Default app selection behavior.
+- Plugin asset capture preferences.
+
+### 8.2 Open folder behavior
 
 Every Site Workspace should expose:
 
@@ -297,7 +627,7 @@ Every Site Workspace should expose:
 
 Opening `.kintone/` should be considered advanced.
 
-### 5.4 Site delete behavior
+### 8.3 Site delete behavior
 
 Deleting a Site Workspace should not silently delete local data.
 
@@ -308,81 +638,9 @@ Options:
 
 Default should keep local folder.
 
-## 6. Tab-specific views
+## 9. Data model additions
 
-Each Site Tab should provide these left-nav pages.
-
-### 6.1 Overview
-
-Shows:
-
-- Domain.
-- Linked Auth Profile display name.
-- Local folder.
-- Last connection status.
-- Last scan summary.
-- Quick actions:
-  - Test connection.
-  - Fetch apps.
-  - Run scan.
-  - Open local folder.
-
-### 6.2 Apps
-
-Shows:
-
-- App list.
-- Search/filter.
-- App selection.
-- Last captured status per app.
-
-### 6.3 Scan
-
-Shows:
-
-- Required/recommended/additional scan categories.
-- Start scan.
-- Scan progress.
-- Current collector.
-- Warnings/errors.
-
-### 6.4 Reports
-
-Shows generated markdown reports:
-
-- Site summary.
-- Apps summary.
-- Plugins summary.
-- Dependency report.
-- Scan report.
-
-### 6.5 Exports
-
-Shows generated structured export files:
-
-- Structured data JSONL.
-- Export manifest.
-- Raw/normalized output status.
-- Export package action.
-
-### 6.6 History
-
-Shows:
-
-- Previous scans for this Site Workspace.
-- Scan status.
-- Captured app count.
-- Redaction count.
-- Error count.
-- Open report.
-
-### 6.7 Settings
-
-Shows per-site settings from section 5.2.
-
-## 7. Data model additions
-
-### 7.1 AuthProfile
+### 9.1 AuthProfile
 
 ```json
 {
@@ -399,7 +657,7 @@ Shows per-site settings from section 5.2.
 
 Do not add password/token/cookie fields.
 
-### 7.2 SiteWorkspace
+### 9.2 SiteWorkspace
 
 ```json
 {
@@ -435,7 +693,7 @@ Do not add password/token/cookie fields.
 }
 ```
 
-### 7.3 SiteTabState
+### 9.3 SiteTabState
 
 ```json
 {
@@ -452,7 +710,7 @@ Do not add password/token/cookie fields.
 
 This is UI state, not scan data.
 
-## 8. CLI impact
+## 10. CLI impact
 
 CLI should support the same model, even if tabs are desktop-only.
 
@@ -471,7 +729,7 @@ ksd site settings set --site "Production" --key browser.mode --value headed
 
 CLI output must never print secrets.
 
-## 9. Desktop acceptance criteria
+## 11. Desktop acceptance criteria
 
 MVP desktop is acceptable when:
 
@@ -492,7 +750,7 @@ MVP desktop is acceptable when:
 15. Secrets never appear in project files or logs.
 16. No built-in AI features exist.
 
-## 10. Implementation order
+## 12. Implementation order
 
 Recommended order:
 
@@ -503,11 +761,11 @@ Recommended order:
 5. Implement Site Workspace manager core functions.
 6. Implement tab state persistence.
 7. Add CLI commands for auth/site management.
-8. Build desktop shell with tabs.
-9. Wire existing scan flow into active Site Workspace.
-10. Add per-site settings UI.
+8. Implement required pages and menus from this document.
+9. Wire scan flow into active Site Workspace.
+10. Add per-site settings behavior.
 
-## 11. Boundary with future deploy features
+## 13. Boundary with future deploy features
 
 These profiles and site tabs are read-only discovery contexts in MVP 1.
 
