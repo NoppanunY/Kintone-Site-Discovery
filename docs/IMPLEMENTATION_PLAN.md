@@ -19,6 +19,7 @@ repo-root/
     MVP1_SPEC.md
     DATA_MODEL.md
     WORKSPACE_PROFILE_SPEC.md
+    FILE_ORDER_SPEC.md
     IMPLEMENTATION_PLAN.md
 
   packages/
@@ -163,6 +164,7 @@ Deliverables:
 - Desktop profile/account manager.
 - Desktop site workspace manager.
 - SourceTree-like site tabs.
+- Required pages and menus from `docs/WORKSPACE_PROFILE_SPEC.md`.
 - Per-site local folders and settings.
 - Scan flow wired to the active site workspace.
 - Scan history and export package output.
@@ -173,6 +175,7 @@ Exit criteria:
 - Required/recommended/additional defaults match spec.
 - Error report is visible after scan.
 - User can open the site's local folder.
+- User can access required pages and menus.
 - No built-in AI, chat, or recommendation UI exists.
 
 ## 3. Capture option defaults
@@ -347,6 +350,7 @@ Shared requirements:
 - Redact before writing body.
 - Store manifest even when no assets captured.
 - Record capture page and matching heuristic.
+- Preserve JavaScript/CSS/HTML asset order according to `docs/FILE_ORDER_SPEC.md`.
 
 ## 8. Redaction implementation tasks
 
@@ -396,6 +400,7 @@ Implementation steps:
 4. Generate JSONL structured export records.
 5. Generate export manifest.
 6. Validate JSONL.
+7. Preserve ordered JS/CSS file lists in reports and structured exports.
 
 ## 10. CLI command behavior
 
@@ -418,74 +423,50 @@ ksd build-export --project ./my-project --scan scan_...
 
 CLI must never print secrets.
 
-## 11. Desktop UI screens
+## 11. Desktop pages and menus
 
-### 11.1 Project screen
+Do not treat this section as a wireframe or exact screen layout. Implement any UI layout that provides the required pages, menus, and functions from `docs/WORKSPACE_PROFILE_SPEC.md`.
 
-- Create/open project.
-- Show recent projects.
+### 11.1 Required pages
 
-### 11.2 Account/Profile screen
+Implement these pages:
 
-- Create Auth Profile.
-- Edit profile display name.
-- Update username/password.
-- Test auth against a domain.
-- Forget credential.
+- Project Home.
+- Accounts / Auth Profiles.
+- Site Workspaces.
+- Site Overview.
+- Apps.
+- Scan.
+- Reports.
+- Exports.
+- History.
+- Site Settings.
+- Advanced Internal Data, optional and advanced-only.
 
-### 11.3 Site tabs
+Each page's purpose, required actions, and required information are defined in `docs/WORKSPACE_PROFILE_SPEC.md`.
 
-- Open site workspace in tab.
-- Create new tab.
-- Close tab without deleting data.
+### 11.2 Required menus/action groups
+
+Implement these menus or equivalent action groups:
+
+- Project menu.
+- Account menu.
+- Site menu.
+- Scan menu.
+- Folder menu.
+- Export menu.
+- Help menu.
+
+Exact menu placement is not specified. The implementation may use menu bars, command palettes, buttons, context menus, side navigation, or other UI patterns.
+
+### 11.3 Tab behavior
+
+Implement:
+
+- Open existing Site Workspace in tab.
+- Create new Site Workspace from a tab action.
+- Close tab without deleting workspace data.
 - Persist open tabs after restart.
-
-### 11.4 Site overview screen
-
-- Domain.
-- Linked Auth Profile.
-- Local folder.
-- Last connection status.
-- Last scan summary.
-- Quick actions:
-  - Test connection.
-  - Fetch apps.
-  - Run scan.
-  - Open local folder.
-
-### 11.5 App selection screen
-
-- Fetch apps.
-- Search/filter.
-- Multi-select.
-
-### 11.6 Scan options screen
-
-Three sections:
-
-- Required: checked + disabled.
-- Recommended: checked + editable.
-- Additional: unchecked + editable.
-
-Plugin asset capture appears in Additional.
-
-### 11.7 Scan progress screen
-
-- Overall progress.
-- Current app.
-- Current collector.
-- Warnings.
-- Cancellable.
-
-### 11.8 Results screen
-
-- Apps scanned.
-- Data captured.
-- Plugin configs captured.
-- Optional assets captured.
-- Redactions applied.
-- Failures/warnings.
-- Buttons: Open reports, open exports, open local folder.
 
 ## 12. Testing strategy
 
@@ -497,6 +478,7 @@ Required:
 - Normalization.
 - Capture option defaults.
 - AuthProfile/SiteWorkspace/SiteTab models.
+- JavaScript/CSS order preservation.
 - Dependency extraction.
 - Structured export generation.
 - Error classification.
@@ -513,6 +495,8 @@ Fixtures should include:
 - App with plugins.
 - Plugin config with secrets.
 - Plugin asset JS with hardcoded token.
+- Ordered customization JS/CSS arrays.
+- Ordered plugin asset captures.
 - Live/preview diff.
 
 ### 12.3 Integration tests
@@ -538,10 +522,12 @@ MVP 1 is done when:
 - User can create Site Workspaces linked to Auth Profiles.
 - User can open sites as tabs.
 - User can set local folders per site.
+- User can access required pages and menus.
 - User can scan selected apps from a kintone site.
 - Required data is captured and normalized.
 - Recommended plugin saved config capture works where possible.
 - Optional plugin asset capture exists and is unchecked by default.
+- JavaScript/CSS file order is preserved in outputs.
 - Markdown reports and structured export files are generated.
 - Secrets are redacted.
 - Error report is clear.
