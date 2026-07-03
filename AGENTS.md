@@ -19,9 +19,10 @@ Use these documents as the source of truth before writing code:
 1. `docs/MVP1_SPEC.md`
 2. `docs/DATA_MODEL.md`
 3. `docs/WORKSPACE_PROFILE_SPEC.md`
-4. `docs/IMPLEMENTATION_PLAN.md`
+4. `docs/FILE_ORDER_SPEC.md`
+5. `docs/IMPLEMENTATION_PLAN.md`
 
-If implementation details conflict, prefer `docs/MVP1_SPEC.md`, then `docs/DATA_MODEL.md`, then `docs/WORKSPACE_PROFILE_SPEC.md`, then `docs/IMPLEMENTATION_PLAN.md`.
+If implementation details conflict, prefer `docs/MVP1_SPEC.md`, then `docs/DATA_MODEL.md`, then `docs/WORKSPACE_PROFILE_SPEC.md`, then `docs/FILE_ORDER_SPEC.md`, then `docs/IMPLEMENTATION_PLAN.md`.
 
 ## MVP 1 hard boundaries
 
@@ -86,6 +87,22 @@ Users must be able to:
 - Persist open tabs across app restart.
 
 Do not mix secrets into profile/site project files. Store only secure credential references.
+
+## File order requirements
+
+When pulling app customization files or plugin assets, preserve JavaScript/CSS file order exactly.
+
+Implementation must follow `docs/FILE_ORDER_SPEC.md`.
+
+Important rules:
+
+- Do not alphabetically sort runtime-sensitive JS/CSS arrays.
+- Store `orderIndex`, `orderSource`, and `orderConfidence` for ordered files.
+- Keep app customization desktop/mobile JS/CSS arrays in kintone order.
+- Keep plugin asset JS/CSS/HTML arrays in manifest, DOM, or observed load order where available.
+- Prefix stored ordered files with zero-padded order numbers such as `001-common.js`.
+- Reports and structured exports must display ordered files in execution/load order.
+- Tests must prove file order survives capture, normalization, storage, report generation, and structured export generation.
 
 ## Security requirements
 
@@ -153,6 +170,7 @@ Minimum test coverage for core modules:
 - scan checklist defaults
 - workspace/profile models
 - site tab persistence
+- JavaScript/CSS order preservation
 - structured export generation
 - plugin config capture result parsing
 - dependency extraction heuristics
