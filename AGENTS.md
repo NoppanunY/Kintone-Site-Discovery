@@ -1,14 +1,16 @@
 # AGENTS.md
 
-This file gives implementation instructions for Codex and other AI coding agents working in this repository.
+This file gives implementation instructions for Codex and other coding agents working in this repository.
 
 ## Project identity
 
 Project name: **Kintone Site Discovery**
 
-Primary goal for MVP 1: build a read-only kintone discovery and RAG knowledge-capture tool.
+Primary goal for MVP 1: build a read-only kintone data extraction and local export tool.
 
-The product should help users connect to kintone sites, select apps, capture app/plugin/site metadata, normalize and redact it, and generate AI-readable knowledge output.
+The product should help users connect to kintone sites, select apps, pull app/plugin/site metadata, normalize and redact it, and write local snapshots, reports, and structured export files.
+
+The app itself must not include AI features.
 
 ## Source of truth
 
@@ -24,6 +26,8 @@ If implementation details conflict, prefer `docs/MVP1_SPEC.md`, then `docs/DATA_
 ## MVP 1 hard boundaries
 
 Do **not** implement kintone deploy features in MVP 1.
+
+Do **not** implement built-in AI features in MVP 1.
 
 Do **not** add APIs or UI that update kintone app settings, records, plugins, users, groups, spaces, or files.
 
@@ -44,6 +48,7 @@ Disallowed external effects for MVP 1:
 - Upload files to kintone.
 - Install/update/delete plugins.
 - Modify users, groups, departments, spaces, or app settings.
+- Add chat, assistant, recommendation, or analysis features inside the app.
 - Commit secrets or raw credentials to the repository.
 
 ## Recommended technical direction
@@ -52,12 +57,12 @@ Prefer TypeScript for all first implementation work.
 
 Recommended architecture:
 
-- `packages/core`: collector, normalizer, redactor, RAG builder, shared domain models.
+- `packages/core`: collector, normalizer, redactor, export builder, shared domain models.
 - `apps/desktop`: desktop UI, likely Electron or Tauri. Electron is acceptable for easier Playwright/Node integration.
 - `apps/cli`: optional CLI wrapper around the same core package.
 - `packages/test-fixtures`: mocked kintone API responses and browser-capture fixtures.
 
-The exact scaffolding may be changed if implementation requires it, but keep the collector logic separate from UI.
+The exact scaffolding may be changed if implementation requires it, but keep collector/export logic separate from UI.
 
 ## Workspace/profile requirements
 
@@ -68,7 +73,7 @@ Implement these concepts from `docs/WORKSPACE_PROFILE_SPEC.md`:
 - Auth Profile / Account: reusable authentication identity.
 - Site Workspace: domain + auth profile + local folder + per-site settings.
 - Site Tab: open UI tab for a site workspace.
-- Local Folder: folder where `knowledge/` and `.kintone/` data are stored.
+- Local Folder: folder where exported data is stored.
 
 Users must be able to:
 
@@ -84,7 +89,7 @@ Do not mix secrets into profile/site project files. Store only secure credential
 
 ## Security requirements
 
-Never store the following in repository files, scan output, logs, snapshots, normalized JSON, markdown knowledge files, or RAG chunks:
+Never store the following in repository files, scan output, logs, snapshots, normalized JSON, markdown reports, or structured export files:
 
 - kintone admin password
 - API token
@@ -105,7 +110,7 @@ Redaction must run on:
 - REST API payloads before normalized output.
 - Browser runtime plugin config.
 - Captured plugin JavaScript/CSS/HTML asset bodies.
-- Generated markdown and RAG chunks.
+- Generated markdown reports and structured export files.
 - Error logs.
 
 ## UX requirements
@@ -120,7 +125,7 @@ Plugin asset capture must be additional/opt-in, not default checked.
 
 Sample records and full records must also be additional/opt-in.
 
-The desktop app shell must support a SourceTree-like multi-tab experience for sites, while avoiding Git-client features in MVP 1.
+The desktop app shell must support a SourceTree-like multi-tab experience for sites, while avoiding Git-client and AI features in MVP 1.
 
 ## Browser collector requirements
 
@@ -148,7 +153,7 @@ Minimum test coverage for core modules:
 - scan checklist defaults
 - workspace/profile models
 - site tab persistence
-- RAG chunk generation
+- structured export generation
 - plugin config capture result parsing
 - dependency extraction heuristics
 - error classification
