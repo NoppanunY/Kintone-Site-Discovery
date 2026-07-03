@@ -1,20 +1,12 @@
-# MVP 1 Specification: Kintone Site Discovery + RAG Knowledge Capture
+# MVP 1 Specification: Kintone Data Pull and Local Export
 
 ## 1. Executive summary
 
-MVP 1 is a read-only kintone discovery tool. Its purpose is to collect enough app, site, plugin, customization, and optional sample-data context from one or more kintone sites to build an AI-ready knowledge base.
+MVP 1 is a read-only kintone data extraction tool. Its purpose is to pull app, site, plugin, customization, and optional sample-record data from one or more kintone sites and store it locally as snapshots, reports, and structured export files.
 
-The product should help AI answer questions such as:
+The app does not include AI features. It does not analyze, recommend, chat, or make decisions for the user. It only captures and exports kintone data.
 
-- What apps exist on this kintone site?
-- What does each app appear to do?
-- Which apps depend on each other through lookup fields, related records, JavaScript customization, plugin config, or plugin runtime code?
-- Which fields, views, processes, permissions, notifications, and plugins matter?
-- Are live settings and preview settings different?
-- Which plugin configs or plugin assets might hide important business rules?
-- What should be redesigned, documented, or reviewed before future safe-deploy features are added?
-
-MVP 1 must avoid modifying kintone. It should be read-only except for local file output and secure credential storage.
+A useful analogy is SourceTree cloning a Git repository to the local machine, except this tool pulls kintone site/app metadata and stores it locally in a structured format.
 
 ## 2. Product scope
 
@@ -22,27 +14,31 @@ MVP 1 must avoid modifying kintone. It should be read-only except for local file
 
 MVP 1 includes:
 
+- Create reusable authentication profiles/accounts.
 - Add and test kintone site connection.
 - Authenticate using admin username/password.
-- Store credentials in OS keychain, never project files.
+- Open each configured site in a separate tab.
+- Store each site's captured data in a separate local folder.
 - List apps visible to the authenticated admin user.
 - Let the user select target apps.
 - Let the user choose scan categories.
-- Capture required app metadata/settings through REST APIs.
-- Capture live and preview settings where supported.
-- Capture plugin inventory through REST APIs.
-- Capture plugin saved config through browser runtime by calling `kintone.plugin.app.getConfig(pluginId)` where possible.
-- Optionally capture plugin desktop runtime JS/CSS and plugin config page JS/CSS/HTML through browser network capture.
-- Optionally capture sample records with redaction.
+- Pull required app metadata/settings through REST APIs.
+- Pull live and preview settings where supported.
+- Pull plugin inventory through REST APIs.
+- Pull plugin saved config through browser runtime by calling `kintone.plugin.app.getConfig(pluginId)` where possible.
+- Optionally pull plugin desktop runtime JS/CSS and plugin config page JS/CSS/HTML through browser network capture.
+- Optionally pull sample records with redaction.
 - Normalize API responses into deterministic JSON.
 - Redact secrets and sensitive data before writing output.
-- Generate raw snapshots, normalized models, markdown knowledge files, and RAG chunks.
-- Generate a scan summary and per-app/per-collector error report.
+- Generate local snapshots, readable markdown reports, structured JSON/JSONL exports, and per-scan error reports.
 
 ### 2.2 Out of scope
 
 MVP 1 excludes:
 
+- Built-in AI features.
+- Chat interface.
+- AI insights or recommendations.
 - Deploy to kintone.
 - Updating app settings or preview settings.
 - Safe deploy.
@@ -51,26 +47,27 @@ MVP 1 excludes:
 - Conflict resolver.
 - Full CI/CD.
 - Full record backup by default.
-- AI automatically modifying apps.
+- Automatic modification of kintone apps.
 
 ## 3. Target users
 
 ### 3.1 Business/system analyst
 
-Wants to understand a kintone site without manually inspecting every app.
+Wants to understand what data was pulled from a kintone site without manually inspecting every app.
 
 Needs:
 
 - Simple scan UI.
 - App summaries.
-- Dependency map.
-- AI-readable context.
+- Plugin summaries.
+- Dependency report.
+- Local export folder.
 
 Should not need to understand raw JSON, hashes, or kintone API details.
 
 ### 3.2 Developer/admin
 
-Wants complete metadata, plugin config, customization files, and optional plugin assets so AI can analyze hidden business logic.
+Wants complete metadata, plugin config, customization files, optional plugin assets, and traceable scan snapshots.
 
 Needs:
 
@@ -80,15 +77,11 @@ Needs:
 - Redaction visibility.
 - Reproducible scan output.
 
-### 3.3 Future Codex/AI agent
-
-Needs structured specs, deterministic data models, and RAG chunks to reason over the site and eventually support design recommendations and safe-deploy planning.
-
 ## 4. User flow
 
 ### 4.1 Create project
 
-User creates a local knowledge project.
+User creates a local project.
 
 Required fields:
 
@@ -98,38 +91,54 @@ Required fields:
 The app creates:
 
 ```text
-knowledge/
+reports/
+exports/
 .kintone/
 ```
 
-`knowledge/` is user-facing.
+`reports/` and `exports/` are user-facing.
 
 `.kintone/` is machine-managed.
 
-### 4.2 Add site
+### 4.2 Create auth profile/account
 
-User adds a kintone site.
+User creates an Auth Profile.
 
-Fields:
+Required fields:
+
+- Profile display name.
+- Username.
+- Password.
+
+Behavior:
+
+- Store password in OS keychain or secure credential provider.
+- Store only `credentialRef` in project files.
+- Allow profile reuse across multiple sites.
+
+### 4.3 Add site workspace
+
+User adds a kintone site workspace.
+
+Required fields:
 
 - Site display name.
 - Domain, for example `example.cybozu.com`.
-- Username.
-- Password.
-- Optional guest-space mode defaults.
+- Auth Profile.
+- Local folder.
 
 Behavior:
 
 - Validate domain format.
 - Test login.
-- Store credential in OS keychain or secure credential provider.
-- Store only a credential reference in project metadata.
+- Open the site as a tab.
+- Keep per-site settings separate.
 
 MVP 1 uses password authentication because it is simple and works with user-level permissions. Password authentication uses `X-Cybozu-Authorization` with base64-encoded `login:password` according to kintone documentation.
 
 Reference: https://kintone.dev/en/docs/common/authentication/
 
-### 4.3 Fetch apps
+### 4.4 Fetch apps
 
 After successful connection, the app fetches and displays apps visible to the authenticated admin.
 
@@ -144,7 +153,7 @@ App list UI should support:
 - Multi-select.
 - Select all visible.
 
-### 4.4 Choose scan categories
+### 4.5 Choose scan categories
 
 The scan setup screen groups data categories into:
 
@@ -154,7 +163,7 @@ The scan setup screen groups data categories into:
 
 See section 6 for the capture matrix.
 
-### 4.5 Run scan
+### 4.6 Run scan
 
 Scan execution should be partial-success friendly.
 
@@ -175,7 +184,7 @@ Only these should fail the entire scan:
 - Local output folder cannot be written.
 - Required collector repeatedly fails for all selected apps.
 
-### 4.6 Review output
+### 4.7 Review output
 
 After scan completion, show:
 
@@ -191,10 +200,11 @@ After scan completion, show:
 
 Primary buttons:
 
-- Open AI context.
-- Open knowledge folder.
+- Open local folder.
+- Open reports folder.
+- Open exports folder.
 - View scan report.
-- Export knowledge pack.
+- Export package.
 
 ## 5. Collector architecture
 
@@ -207,7 +217,7 @@ Desktop UI / CLI
       -> Browser Runtime Collector
       -> Browser Network Asset Collector
       -> Normalizer / Redactor
-      -> RAG Builder
+      -> Report and Export Builder
 ```
 
 ### 5.1 REST API Collector
@@ -219,8 +229,8 @@ Responsibilities:
 - Use authenticated REST client.
 - Capture selected app settings.
 - Capture both live and preview variants where available.
-- Capture raw responses before normalization, but only after secret redaction has run or in a protected raw store that never includes credentials.
 - Record per-endpoint status.
+- Redact before writing output.
 
 Default required app settings include:
 
@@ -260,7 +270,7 @@ For each selected app/plugin:
 4. Call `kintone.plugin.app.getConfig(pluginId)`.
 5. Capture returned config or null/error.
 6. Redact sensitive values.
-7. Store normalized config and RAG summary.
+7. Store normalized config and scan report.
 
 The kintone JavaScript API documents `kintone.plugin.app.getConfig(pluginId)` as returning an object of plugin settings key/value pairs or `null` when unavailable. It can be used on desktop pages including Record List, Record Details, Record Create, Record Edit, Graph, and Plug-in Settings pages.
 
@@ -314,7 +324,7 @@ Redactor requirements:
 
 - Detect sensitive key names.
 - Detect secret-looking values.
-- Redact before writing markdown/RAG output.
+- Redact before writing any output.
 - Keep a redaction report with path and reason, but not the secret value.
 - Never write credentials, auth headers, session cookies, or passwords.
 
@@ -342,27 +352,27 @@ proxy
 privateKey
 ```
 
-### 5.5 RAG Builder
+### 5.5 Report and Export Builder
 
-Purpose: generate AI-readable knowledge output.
+Purpose: generate user-readable and machine-readable local output.
 
 Outputs:
 
-- `knowledge/site-summary.md`
-- `knowledge/apps-summary.md`
-- `knowledge/plugins-summary.md`
-- `knowledge/dependency-map.md`
-- `knowledge/ai-context.md`
-- `.kintone/rag/chunks.jsonl`
-- `.kintone/rag/index-manifest.json`
+- `reports/site-summary.md`
+- `reports/apps-summary.md`
+- `reports/plugins-summary.md`
+- `reports/dependency-report.md`
+- `reports/scan-report.md`
+- `exports/structured-data.jsonl`
+- `exports/export-manifest.json`
 
-RAG chunks should be small enough to retrieve precisely and must carry metadata such as site, app ID, app key, data type, source path, capture timestamp, and redaction status.
+Structured export files should carry metadata such as site, app ID, app key, data type, source path, capture timestamp, and redaction status.
 
 ## 6. Capture matrix
 
 ### 6.1 Required data
 
-Required data is default checked and disabled in the UI. The user cannot turn it off because it is the minimum needed for useful system analysis.
+Required data is default checked and disabled in the UI. The user cannot turn it off because it is the minimum needed for useful local capture.
 
 | Category | Source | Default | User can disable | Notes |
 |---|---|---:|---:|---|
@@ -422,24 +432,6 @@ The Get App Plug-ins API returns plugins added to an app and includes plugin ID,
 
 Reference: https://kintone.dev/en/docs/kintone/rest-api/apps/settings/get-app-plugins/
 
-Store:
-
-```json
-{
-  "siteId": "example.cybozu.com",
-  "appId": "101",
-  "state": "live",
-  "plugins": [
-    {
-      "id": "djmhffjhfgmebgnmcggopedaofckljlj",
-      "name": "Plugin Name",
-      "enabled": true
-    }
-  ],
-  "revision": "2"
-}
-```
-
 ### 7.2 Plugin saved config
 
 Use browser runtime and `kintone.plugin.app.getConfig(pluginId)`.
@@ -454,29 +446,6 @@ Store status per plugin:
 - `script-error`
 - `redaction-error`
 
-Example normalized output:
-
-```json
-{
-  "siteId": "example.cybozu.com",
-  "appId": "101",
-  "pluginId": "djmhffjhfgmebgnmcggopedaofckljlj",
-  "source": "browser-runtime:getConfig",
-  "status": "captured",
-  "config": {
-    "targetAppId": "203",
-    "approverField": "Approver",
-    "apiToken": "[REDACTED]"
-  },
-  "redactions": [
-    {
-      "path": "config.apiToken",
-      "reason": "sensitive-key:apiToken"
-    }
-  ]
-}
-```
-
 ### 7.3 Plugin assets
 
 Optional network capture categories:
@@ -489,30 +458,6 @@ Optional network capture categories:
 - `plugin-config-js`
 - `plugin-config-css`
 - `plugin-unknown-asset`
-
-Asset manifest example:
-
-```json
-{
-  "siteId": "example.cybozu.com",
-  "appId": "101",
-  "pluginId": "djmhffjhfgmebgnmcggopedaofckljlj",
-  "captureContext": "record-list-page",
-  "assets": [
-    {
-      "assetKind": "plugin-desktop-js",
-      "url": "https://example.cybozu.com/.../desktop.js",
-      "fileName": "desktop.js",
-      "contentType": "application/javascript",
-      "byteSize": 12345,
-      "sha256": "sha256:...",
-      "storedPath": ".kintone/raw/.../desktop.js.redacted",
-      "redactionApplied": true,
-      "status": "captured"
-    }
-  ]
-}
-```
 
 ## 8. Dependency detection
 
@@ -561,12 +506,16 @@ Detect kintone event strings in app customization/plugin assets:
 User-facing output:
 
 ```text
-knowledge/
+reports/
   site-summary.md
   apps-summary.md
   plugins-summary.md
-  dependency-map.md
-  ai-context.md
+  dependency-report.md
+  scan-report.md
+
+exports/
+  structured-data.jsonl
+  export-manifest.json
 ```
 
 Machine-managed output:
@@ -575,10 +524,9 @@ Machine-managed output:
 .kintone/
   project.json
   sites.sqlite
+  snapshots/
   raw/
   normalized/
-  snapshots/
-  rag/
   logs/
   cache/
 ```
@@ -600,8 +548,8 @@ Redaction applies before writing:
 
 - Raw snapshots, unless a protected raw mode is explicitly designed later.
 - Normalized JSON.
-- Markdown knowledge.
-- RAG chunks.
+- Markdown reports.
+- Structured export files.
 - Logs.
 - Error payloads.
 
@@ -631,34 +579,39 @@ The UI should summarize failures in user-readable terms.
 
 MVP 1 is considered production-usable when all criteria pass:
 
-1. User can create a knowledge project.
-2. User can add a kintone site using admin username/password.
-3. Credentials are stored only in secure credential storage.
-4. User can test connection.
-5. User can fetch app list.
-6. User can select apps.
-7. User sees required/recommended/additional scan categories with correct defaults.
-8. Required categories are checked and cannot be disabled.
-9. Recommended categories are checked and can be disabled.
-10. Additional categories are unchecked by default and can be enabled.
-11. Required REST app metadata/settings are captured for selected apps.
-12. Live and preview variants are captured where supported.
-13. Plugin inventory is captured.
-14. Plugin saved config is captured through browser runtime where possible.
-15. Plugin asset capture is available as opt-in, best-effort collection.
-16. Redaction runs before output and has tests.
-17. Normalized JSON output is deterministic.
-18. Markdown knowledge files are generated.
-19. RAG chunks are generated.
-20. A scan summary is shown.
-21. Per-app/per-collector error report is generated.
-22. The scan can partially succeed without losing successful data.
-23. No secrets appear in generated output or logs in test fixtures.
-24. There is no deploy/update capability in MVP 1.
+1. User can create a local project.
+2. User can create reusable Auth Profiles.
+3. User can add a kintone site workspace using an Auth Profile.
+4. User can open each site in a separate tab.
+5. User can configure separate local folders and settings per site.
+6. User can add a kintone site using admin username/password.
+7. Credentials are stored only in secure credential storage.
+8. User can test connection.
+9. User can fetch app list.
+10. User can select apps.
+11. User sees required/recommended/additional scan categories with correct defaults.
+12. Required categories are checked and cannot be disabled.
+13. Recommended categories are checked and can be disabled.
+14. Additional categories are unchecked by default and can be enabled.
+15. Required REST app metadata/settings are captured for selected apps.
+16. Live and preview variants are captured where supported.
+17. Plugin inventory is captured.
+18. Plugin saved config is captured through browser runtime where possible.
+19. Plugin asset capture is available as opt-in, best-effort collection.
+20. Redaction runs before output and has tests.
+21. Normalized JSON output is deterministic.
+22. Markdown reports are generated.
+23. Structured export files are generated.
+24. A scan summary is shown.
+25. Per-app/per-collector error report is generated.
+26. The scan can partially succeed without losing successful data.
+27. No secrets appear in generated output or logs in test fixtures.
+28. There is no deploy/update capability in MVP 1.
+29. There is no built-in AI capability in MVP 1.
 
 ## 13. Future phases
 
-MVP 1 creates the knowledge foundation.
+MVP 1 creates the local data capture foundation.
 
 Later phases may add:
 
@@ -671,4 +624,3 @@ Later phases may add:
 - Revision guard.
 - Rollback from snapshot.
 - CI/CD integration.
-- AI-assisted design and impact analysis.
