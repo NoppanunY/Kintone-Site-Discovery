@@ -2,17 +2,20 @@
 
 This document defines the MVP 1 data model for Kintone Site Discovery.
 
-The goal is to keep user-facing output simple while preserving enough structured metadata for audit, repeated scans, RAG, and future safe-deploy planning.
+The goal is to keep user-facing output simple while preserving enough structured metadata for audit, repeated scans, local inspection, and future safe-pull/safe-deploy planning.
+
+The app does not include AI features. Data files may be used by any external tool, but that is outside the app's responsibility.
 
 ## 1. Storage principles
 
-1. User-facing files belong in `knowledge/`.
-2. Machine-managed files belong in `.kintone/`.
-3. Credentials never belong in either folder.
-4. Raw and normalized data must be deterministic enough for scan comparison.
-5. RAG chunks must include metadata that lets AI trace every chunk back to its source.
-6. Output should support partial success.
-7. Plugin assets and sample records must be opt-in and redacted.
+1. User-facing reports belong in `reports/`.
+2. User-facing structured export files belong in `exports/`.
+3. Machine-managed files belong in `.kintone/`.
+4. Credentials never belong in any project folder.
+5. Raw and normalized data must be deterministic enough for scan comparison.
+6. Structured export records must include source metadata.
+7. Output should support partial success.
+8. Plugin assets and sample records must be opt-in and redacted.
 
 ## 2. Folder layout
 
@@ -21,12 +24,16 @@ Recommended MVP 1 layout:
 ```text
 project-root/
   README.md
-  knowledge/
+  reports/
     site-summary.md
     apps-summary.md
     plugins-summary.md
-    dependency-map.md
-    ai-context.md
+    dependency-report.md
+    scan-report.md
+
+  exports/
+    structured-data.jsonl
+    export-manifest.json
 
   .kintone/
     project.json
@@ -34,18 +41,19 @@ project-root/
     snapshots/
     raw/
     normalized/
-    rag/
-      chunks.jsonl
-      index-manifest.json
     logs/
     cache/
 ```
 
-### 2.1 `knowledge/`
+### 2.1 `reports/`
 
-Human-readable and AI-readable summaries. These files are intended to be opened by users and passed to AI.
+Human-readable markdown reports. These files are intended to be opened by users.
 
-### 2.2 `.kintone/`
+### 2.2 `exports/`
+
+Structured export files generated from captured kintone data. These files are intended for external tools, scripts, review, diffing, or later import into other systems.
+
+### 2.3 `.kintone/`
 
 Internal machine-managed data. Users should not need to edit this folder.
 
@@ -55,13 +63,12 @@ Potential `.gitignore` default for generated local data:
 .kintone/raw/
 .kintone/normalized/
 .kintone/snapshots/
-.kintone/rag/
 .kintone/logs/
 .kintone/cache/
 .kintone/sites.sqlite
 ```
 
-A later product setting may allow users to export/share selected knowledge packs, but generated raw captures should not be committed by default.
+A later product setting may allow users to export/share selected packages, but generated raw captures should not be committed by default.
 
 ## 3. Core domain entities
 
@@ -76,14 +83,22 @@ Stored in `.kintone/project.json`.
   "projectName": "Client CRM Discovery",
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00",
-  "sites": [
+  "authProfiles": [
     {
-      "siteId": "site_example_cybozu_com",
+      "authProfileId": "auth_prod_admin_01",
+      "displayName": "Production Admin",
+      "authType": "password",
+      "username": "admin@example.com",
+      "credentialRef": "keychain:kintone-site-discovery/auth_prod_admin_01/password"
+    }
+  ],
+  "siteWorkspaces": [
+    {
+      "siteWorkspaceId": "site_ws_prod",
       "displayName": "Production",
       "domain": "example.cybozu.com",
-      "credentialRef": "keychain:kintone-site-discovery/site_example_cybozu_com/admin",
-      "authType": "password",
-      "defaultLanguage": "en"
+      "authProfileId": "auth_prod_admin_01",
+      "localFolder": "/Users/user/KintoneDiscovery/production"
     }
   ]
 }
@@ -94,79 +109,80 @@ Rules:
 - `credentialRef` is only a reference.
 - Never store password/token/cookie in this file.
 
-### 3.2 SiteProfile
+### 3.2 AuthProfile
 
-Represents a kintone site/environment.
+A reusable authentication identity.
 
 ```json
 {
-  "siteId": "site_example_cybozu_com",
-  "displayName": "Production",
-  "domain": "example.cybozu.com",
+  "authProfileId": "auth_prod_admin_01",
+  "displayName": "Production Admin",
   "authType": "password",
-  "credentialRef": "keychain:...",
-  "lastConnectedAt": "2026-07-02T10:00:00+07:00",
-  "capabilities": {
-    "restApi": true,
-    "browserRuntime": true,
-    "networkAssetCapture": true
-  }
+  "username": "admin@example.com",
+  "credentialRef": "keychain:kintone-site-discovery/auth_prod_admin_01/password",
+  "createdAt": "2026-07-02T10:00:00+07:00",
+  "updatedAt": "2026-07-02T10:00:00+07:00",
+  "notes": "Used for production discovery scans."
 }
 ```
 
-### 3.3 ScanJob
+### 3.3 SiteWorkspace
+
+Represents one configured kintone site.
+
+```json
+{
+  "siteWorkspaceId": "site_ws_client_a_prod",
+  "displayName": "Client A Production",
+  "domain": "client-a.cybozu.com",
+  "authProfileId": "auth_client_a_admin",
+  "localFolder": "/Users/user/KintoneDiscovery/client-a-production",
+  "reportsFolder": "/Users/user/KintoneDiscovery/client-a-production/reports",
+  "exportsFolder": "/Users/user/KintoneDiscovery/client-a-production/exports",
+  "internalFolder": "/Users/user/KintoneDiscovery/client-a-production/.kintone",
+  "settings": {
+    "defaultScanProfile": "deep-scan",
+    "browser": {
+      "mode": "headless",
+      "loginTimeoutMs": 60000,
+      "pageLoadTimeoutMs": 60000,
+      "pluginAssetMaxBytes": 5242880
+    },
+    "output": {
+      "language": "en",
+      "retainRawRedactedPayloads": true,
+      "retainSnapshots": true
+    },
+    "privacy": {
+      "redactionEnabled": true,
+      "customSensitiveKeyPatterns": []
+    }
+  },
+  "lastScanId": "scan_20260702_103015_abc123",
+  "createdAt": "2026-07-02T10:00:00+07:00",
+  "updatedAt": "2026-07-02T10:00:00+07:00"
+}
+```
+
+### 3.4 ScanJob
 
 Represents one scan execution.
 
 ```json
 {
   "scanId": "scan_20260702_103015_abc123",
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "createdAt": "2026-07-02T10:30:15+07:00",
   "createdBy": "admin@example.com",
   "selectedApps": ["101", "102"],
   "profile": "deep-scan",
-  "captureOptions": {
-    "required": {
-      "appBasicInfo": true,
-      "formFields": true,
-      "formLayout": true,
-      "views": true,
-      "processManagement": true,
-      "permissions": true,
-      "notifications": true,
-      "actions": true,
-      "customizationMetadata": true,
-      "pluginInventory": true,
-      "adminNotes": true,
-      "livePreviewState": true
-    },
-    "recommended": {
-      "usersGroupsDepartments": true,
-      "spaces": true,
-      "appCustomizationFiles": true,
-      "pluginSavedConfig": true,
-      "dependencyDetection": true,
-      "previewLiveDiffSummary": true
-    },
-    "additional": {
-      "pluginDesktopRuntimeAssets": false,
-      "pluginConfigPageAssets": false,
-      "pluginMobileRuntimeAssets": false,
-      "sampleRecords": false,
-      "recordComments": false,
-      "attachmentMetadata": false,
-      "fullRecordExport": false,
-      "browserScreenshots": false
-    }
-  },
   "status": "completed-with-warnings",
   "startedAt": "2026-07-02T10:30:15+07:00",
   "finishedAt": "2026-07-02T10:35:22+07:00"
 }
 ```
 
-### 3.4 CollectorResult
+### 3.5 CollectorResult
 
 Every collector returns a result object.
 
@@ -174,7 +190,7 @@ Every collector returns a result object.
 {
   "collectorId": "rest:get-form-fields",
   "scanId": "scan_20260702_103015_abc123",
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "appId": "101",
   "target": "/k/v1/app/form/fields.json?app=101",
   "state": "live",
@@ -182,8 +198,8 @@ Every collector returns a result object.
   "startedAt": "2026-07-02T10:30:20+07:00",
   "finishedAt": "2026-07-02T10:30:21+07:00",
   "durationMs": 921,
-  "rawPath": ".kintone/raw/site_example_cybozu_com/scan_.../apps/101/live/form-fields.json",
-  "normalizedPath": ".kintone/normalized/site_example_cybozu_com/scan_.../apps/101/live/form-fields.json",
+  "rawPath": ".kintone/raw/.../form-fields.json",
+  "normalizedPath": ".kintone/normalized/.../form-fields.json",
   "sha256": "sha256:...",
   "redactions": [],
   "error": null
@@ -196,7 +212,7 @@ Failure example:
 {
   "collectorId": "browser:plugin-get-config",
   "scanId": "scan_20260702_103015_abc123",
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "appId": "101",
   "target": "plugin:djmhffjhfgmebgnmcggopedaofckljlj",
   "status": "failed",
@@ -216,10 +232,10 @@ Normalized app model generated per selected app.
 ```json
 {
   "schemaVersion": 1,
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "scanId": "scan_20260702_103015_abc123",
   "appId": "101",
-  "appKey": "sales-management",
+  "appKey": "sales-management-101",
   "name": "Sales Management",
   "space": {
     "spaceId": "10",
@@ -272,7 +288,7 @@ Rules:
 ```json
 {
   "schemaVersion": 1,
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "scanId": "scan_20260702_103015_abc123",
   "appId": "101",
   "state": "live",
@@ -292,7 +308,7 @@ Rules:
 ```json
 {
   "schemaVersion": 1,
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "scanId": "scan_20260702_103015_abc123",
   "appId": "101",
   "pluginId": "djmhffjhfgmebgnmcggopedaofckljlj",
@@ -320,7 +336,7 @@ Rules:
 ```json
 {
   "schemaVersion": 1,
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "scanId": "scan_20260702_103015_abc123",
   "appId": "101",
   "pluginId": "djmhffjhfgmebgnmcggopedaofckljlj",
@@ -365,7 +381,7 @@ Do not include the original value.
   "totalRedactions": 4,
   "findings": [
     {
-      "siteId": "site_example_cybozu_com",
+      "siteWorkspaceId": "site_ws_client_a_prod",
       "appId": "101",
       "sourcePath": ".kintone/normalized/.../plugin-config.json",
       "path": "config.apiToken",
@@ -383,7 +399,7 @@ Dependency candidates are heuristics, not guaranteed facts.
 {
   "schemaVersion": 1,
   "scanId": "scan_20260702_103015_abc123",
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "dependencies": [
     {
       "dependencyId": "dep_001",
@@ -415,18 +431,18 @@ Confidence values:
 - `medium`: plugin config key/value strongly suggests reference.
 - `low`: JavaScript string/static pattern suggests reference but needs human confirmation.
 
-## 8. RAG chunk model
+## 8. Structured export record model
 
-Stored as `.kintone/rag/chunks.jsonl`.
+Stored as `exports/structured-data.jsonl`.
 
 Each line is one JSON object.
 
 ```json
 {
-  "chunkId": "chunk_site_example_app_101_fields_customer_name",
+  "recordId": "export_site_client_a_app_101_fields_customer_name",
   "schemaVersion": 1,
   "scanId": "scan_20260702_103015_abc123",
-  "siteId": "site_example_cybozu_com",
+  "siteWorkspaceId": "site_ws_client_a_prod",
   "domain": "example.cybozu.com",
   "appId": "101",
   "appKey": "sales-management-101",
@@ -443,7 +459,7 @@ Each line is one JSON object.
 }
 ```
 
-Recommended chunk types:
+Recommended export record types:
 
 - `site-summary`
 - `app-summary`
@@ -463,7 +479,7 @@ Recommended chunk types:
 - `preview-live-diff`
 - `scan-error`
 
-## 9. Markdown knowledge files
+## 9. Markdown report files
 
 ### 9.1 `site-summary.md`
 
@@ -500,7 +516,7 @@ Per plugin:
 - Field/app dependency candidates.
 - Risks/warnings.
 
-### 9.4 `dependency-map.md`
+### 9.4 `dependency-report.md`
 
 Should include:
 
@@ -510,18 +526,17 @@ Should include:
 - JS/API dependencies.
 - Confidence and evidence.
 
-### 9.5 `ai-context.md`
+### 9.5 `scan-report.md`
 
-A concise, high-signal summary intended to be pasted into an AI session.
+Should include:
 
-It should avoid raw JSON dumps and focus on:
-
-- System overview.
-- Major apps.
-- Data relationships.
-- Workflow/permission concerns.
-- Plugin/customization risks.
-- Open questions for user confirmation.
+- Scan status.
+- Capture options used.
+- Successful collectors.
+- Failed collectors.
+- Warnings.
+- Redactions applied.
+- Output files generated.
 
 ## 10. Error code taxonomy
 
@@ -544,7 +559,7 @@ PLUGIN_ASSET_CAPTURE_FAILED
 PLUGIN_ASSET_TOO_LARGE
 REDACTION_FAILED
 NORMALIZATION_FAILED
-RAG_BUILD_FAILED
+EXPORT_BUILD_FAILED
 USER_CANCELLED
 ```
 
@@ -561,7 +576,7 @@ Example `_meta`:
 ```json
 {
   "_meta": {
-    "siteId": "site_example_cybozu_com",
+    "siteWorkspaceId": "site_ws_client_a_prod",
     "scanId": "scan_...",
     "appId": "101",
     "state": "live",
