@@ -48,7 +48,7 @@ Onboarding wizard (SCR-01) · Project Home (02) · Site Overview (03) · Apps (0
 - `STATE_MATRIX.md` — states + transitions for 10 entities.
 - `UX_COPY_SPEC.md` — all copy incl. fixed status strings, errors, confirmations.
 - `DESIGN_TOKENS.md` — type, spacing, radius, shadow, semantic + status colors, button/form/list styles.
-- `Kintone Site Discovery HiFi.dc.html` — the annotated hi-fi reference (open it; every screen carries its id + route).
+- Visual reference: the reviewed hi-fi HTML artifact may be stored separately for visual comparison, but the markdown files in this folder are the implementation source of truth.
 
 ## 7. Accessibility baseline
 - All interactive elements keyboard-operable with visible focus (`--primary-ring`).
