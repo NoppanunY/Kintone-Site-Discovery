@@ -19,7 +19,7 @@ const groups: { label: string; items: { key: NavKey; label: string; icon: string
     items: [
       { key: "snapshot", label: "Local Snapshot", icon: "⛃", canonical: true },
       { key: "reports", label: "Reports", icon: "▦" },
-      { key: "developer-files", label: "Developer Files", icon: "<>" },
+      { key: "developer-files", label: "Developer Files", icon: "〈〉" },
       { key: "history", label: "History", icon: "⟳" },
     ],
   },

@@ -6,17 +6,22 @@ export function PageHeader({
   title,
   subtitle,
   actions,
+  titleMeta,
 }: {
   breadcrumb: string;
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  titleMeta?: ReactNode;
 }) {
   return (
     <div className="page-head">
       <div>
         <div className="breadcrumb">{breadcrumb}</div>
-        <h1 className="h-display">{title}</h1>
+        <h1 className="h-display">
+          {title}{" "}
+          {titleMeta ? <span className="title-meta">{titleMeta}</span> : null}
+        </h1>
         {subtitle ? <p className="body muted">{subtitle}</p> : null}
       </div>
       {actions ? <div className="rowc">{actions}</div> : null}

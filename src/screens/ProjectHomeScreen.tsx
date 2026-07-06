@@ -13,12 +13,14 @@ export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
         breadcrumb="Home"
         title="Projects"
         subtitle="A project is a local folder that holds your snapshots, reports and developer files."
-        actions={<PrimaryActionButton label="New project" icon="+" />}
+        actions={<PrimaryActionButton label="New project" icon="＋" />}
       />
       <section className="list" aria-label="Recent projects">
         {projectRows.map((project) => (
           <div className="li" key={project.name}>
-            <span aria-hidden="true">□</span>
+            <span className="row-icon" aria-hidden="true">
+              📁
+            </span>
             <div className="grow">
               <div className="h3">{project.name}</div>
               <div className="small muted2 mono">
@@ -32,12 +34,14 @@ export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
       <section>
         <div className="between">
           <h2 className="h2">Auth profiles · reusable across sites</h2>
-          <SecondaryActionButton label="Add profile" icon="+" />
+          <SecondaryActionButton label="Add profile" icon="＋" />
         </div>
         <div className="list">
           {profiles.map((profile) => (
             <div className="li" key={profile.name}>
-              <span aria-hidden="true">○</span>
+              <span className="row-icon" aria-hidden="true">
+                👤
+              </span>
               <div className="grow">
                 <div className="h3">{profile.name}</div>
                 <div className="small muted2">
@@ -54,7 +58,7 @@ export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
       <section>
         <div className="between">
           <h2 className="h2">Site workspaces</h2>
-          <SecondaryActionButton label="Add site" icon="+" />
+          <SecondaryActionButton label="Add site" icon="＋" />
         </div>
         <div className="list">
           {workspaces.map((site) => (

@@ -25,11 +25,15 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
         }
       />
       <KpiGrid items={overviewKpis} />
-      <SnapshotCard statusLabel="Completed with warnings" capturedAt="Jul 2, 2026 · 10:35" sizeOnDisk="48.2 MB" folderPath="~/KintoneDiscovery/client-a/snapshot" onOpenSnapshot={onSnapshot} />
-      <div className="btn-row">
-        <SecondaryActionButton label="View reports" icon="▦" onClick={onReports} />
-        <SecondaryActionButton label="Developer files" icon="<>" variant="ghost" onClick={onDeveloperFiles} />
-      </div>
+      <SnapshotCard
+        statusLabel="Completed with warnings"
+        capturedAt="Jul 2, 2026 · 10:35"
+        sizeOnDisk="48.2 MB"
+        folderPath="~/KintoneDiscovery/client-a/snapshot"
+        onOpenSnapshot={onSnapshot}
+        onReports={onReports}
+        onDeveloperFiles={onDeveloperFiles}
+      />
       <WarningBanner tone="info">
         The snapshot is the canonical record of this pull. Reports and Developer Files are generated from it.
       </WarningBanner>

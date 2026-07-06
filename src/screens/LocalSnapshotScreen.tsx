@@ -10,7 +10,7 @@ export function LocalSnapshotScreen({ onRunScan }: { onRunScan: () => void }) {
         subtitle="Captured Jul 2, 2026 · 10:35 · 48.2 MB · ~/KintoneDiscovery/client-a/snapshot"
         actions={
           <>
-            <SecondaryActionButton label="Reveal folder" />
+            <SecondaryActionButton label="Open folder" />
             <PrimaryActionButton label="◎ Re-run scan" onClick={onRunScan} />
           </>
         }

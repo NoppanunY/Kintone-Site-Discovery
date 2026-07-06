@@ -35,7 +35,11 @@ export function PrimaryActionButton({
       aria-busy={loading || undefined}
       onClick={onClick}
     >
-      {icon}
+      {icon ? (
+        <span className="btn__icon" aria-hidden="true">
+          {icon}
+        </span>
+      ) : null}
       {loading ? "Working..." : label}
     </button>
   );
@@ -58,7 +62,11 @@ export function SecondaryActionButton({
       aria-busy={loading || undefined}
       onClick={onClick}
     >
-      {icon}
+      {icon ? (
+        <span className="btn__icon" aria-hidden="true">
+          {icon}
+        </span>
+      ) : null}
       {loading ? "Working..." : label}
     </button>
   );

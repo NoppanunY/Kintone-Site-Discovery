@@ -41,7 +41,7 @@ select:focus-visible,
 
 .app {
   width: min(var(--app-width), calc(100vw - var(--sp-8)));
-  min-height: min(var(--app-height), calc(100vh - var(--sp-8)));
+  height: min(var(--app-height), calc(100vh - var(--sp-8)));
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-xl);
@@ -52,7 +52,7 @@ select:focus-visible,
 }
 
 .app--onboarding {
-  min-height: var(--app-height);
+  height: min(var(--app-height), calc(100vh - var(--sp-8)));
 }
 
 .titlebar {
@@ -139,6 +139,10 @@ select:focus-visible,
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 -1px 0 var(--border), -1px 0 0 var(--border), 1px 0 0 var(--border);
+}
+
+.stab > span:first-child:empty {
+  display: none;
 }
 
 .stab__close,
@@ -249,6 +253,16 @@ select:focus-visible,
   gap: var(--sp-4);
 }
 
+.page-head .body {
+  margin-top: 5px;
+}
+
+.title-meta {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
 .breadcrumb {
   font: 500 12px var(--font-ui);
   color: var(--text-3);
@@ -329,6 +343,13 @@ select:focus-visible,
 
 .btn:hover {
   background: var(--surface-2);
+}
+
+.btn__icon {
+  width: 14px;
+  display: inline-flex;
+  justify-content: center;
+  line-height: 1;
 }
 
 .btn--primary {
@@ -495,6 +516,7 @@ select:focus-visible,
   color: var(--surface);
   font-size: 12px;
   flex: none;
+  padding: var(--sp-0);
 }
 
 .checkbox--checked {
@@ -551,6 +573,10 @@ select:focus-visible,
   padding: var(--card-pad);
 }
 
+.card-pad--separated {
+  border-bottom: 1px solid var(--border);
+}
+
 .list {
   overflow: hidden;
 }
@@ -569,6 +595,12 @@ select:focus-visible,
 
 .li:hover {
   background: var(--surface-2);
+}
+
+.row-icon {
+  width: 22px;
+  flex: none;
+  text-align: center;
 }
 
 .kpi-grid {
@@ -700,7 +732,7 @@ select:focus-visible,
 .modal-host {
   position: relative;
   width: min(var(--app-width), calc(100vw - var(--sp-8)));
-  min-height: min(var(--app-height), calc(100vh - var(--sp-8)));
+  height: min(var(--app-height), calc(100vh - var(--sp-8)));
 }
 
 .modal-overlay {
@@ -723,6 +755,20 @@ select:focus-visible,
 .modal__section {
   padding: var(--card-pad);
   border-bottom: 1px solid var(--border);
+}
+
+.modal__section > .body.muted {
+  margin-top: 10px;
+}
+
+.modal__tone {
+  width: var(--pill-h);
+  justify-content: center;
+  padding: var(--sp-0);
+}
+
+.ack-control {
+  cursor: pointer;
 }
 
 .modal__section:last-child {
@@ -821,6 +867,9 @@ select:focus-visible,
 .file-order {
   font-family: var(--font-mono);
   font-size: 12.5px;
+  margin: var(--sp-0);
+  padding: var(--sp-0);
+  list-style: none;
 }
 
 .file-order__row {

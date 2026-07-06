@@ -20,7 +20,7 @@ export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTab
           aria-selected={tab.id === activeId}
           onClick={() => onSelect(tab.id)}
         >
-          <span aria-hidden="true">{tab.kind === "home" ? "⌂" : tab.running ? "●" : null}</span>
+          <span aria-hidden="true">{tab.kind === "home" ? "🏠" : tab.running ? "●" : null}</span>
           {tab.title}
           {tab.kind === "site" ? (
             <span
@@ -39,13 +39,13 @@ export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTab
                 }
               }}
             >
-              x
+              ✕
             </span>
           ) : null}
         </button>
       ))}
       <button type="button" className="stab stab--add" role="tab" aria-selected="false" onClick={onAdd}>
-        +
+        ＋
       </button>
     </div>
   );

@@ -8,9 +8,20 @@ interface SnapshotCardProps {
   folderPath: string;
   onOpenSnapshot?: () => void;
   onOpenFolder?: () => void;
+  onReports?: () => void;
+  onDeveloperFiles?: () => void;
 }
 
-export function SnapshotCard({ statusLabel, capturedAt, sizeOnDisk, folderPath, onOpenSnapshot, onOpenFolder }: SnapshotCardProps) {
+export function SnapshotCard({
+  statusLabel,
+  capturedAt,
+  sizeOnDisk,
+  folderPath,
+  onOpenSnapshot,
+  onOpenFolder,
+  onReports,
+  onDeveloperFiles,
+}: SnapshotCardProps) {
   return (
     <div className="card">
       <div className="card-pad between">
@@ -32,7 +43,9 @@ export function SnapshotCard({ statusLabel, capturedAt, sizeOnDisk, folderPath, 
       </div>
       <div className="card-pad btn-row">
         <SecondaryActionButton label="Open Local Snapshot" onClick={onOpenSnapshot} />
-        <SecondaryActionButton label="Reveal folder" variant="ghost" onClick={onOpenFolder} />
+        {onReports ? <SecondaryActionButton label="View reports" icon="▦" variant="ghost" onClick={onReports} /> : null}
+        {onDeveloperFiles ? <SecondaryActionButton label="Developer files" icon="〈〉" variant="ghost" onClick={onDeveloperFiles} /> : null}
+        {!onReports && !onDeveloperFiles ? <SecondaryActionButton label="Reveal folder" variant="ghost" onClick={onOpenFolder} /> : null}
       </div>
     </div>
   );

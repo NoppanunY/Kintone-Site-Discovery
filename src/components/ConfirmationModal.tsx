@@ -35,7 +35,7 @@ export function ConfirmationModal({
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <div className="modal__section">
         <div className="rowc">
-          <span className={`pill pill--${tone === "danger" ? "err" : "warn"}`}>!</span>
+          <span className={`modal__tone pill pill--${tone === "danger" ? "err" : "warn"}`}>⚠</span>
           <h2 id="confirm-title" className="h1">
             {title}
           </h2>
@@ -59,10 +59,18 @@ export function ConfirmationModal({
       ) : null}
       {requireAck ? (
         <div className="modal__section">
-          <label className="rowc">
-            <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.currentTarget.checked)} />
+          <div className="rowc ack-control">
+            <button
+              type="button"
+              className={`checkbox ${acknowledged ? "checkbox--checked" : ""}`}
+              aria-pressed={acknowledged}
+              aria-label={ackLabel}
+              onClick={() => setAcknowledged((current) => !current)}
+            >
+              {acknowledged ? "✓" : ""}
+            </button>
             <span className="body">{ackLabel}</span>
-          </label>
+          </div>
         </div>
       ) : null}
       <div className="modal__section between">
