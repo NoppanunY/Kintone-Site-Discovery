@@ -2,16 +2,16 @@
 
 Readable static HTML/CSS reference for Codex visual-parity work.
 
-This prototype was extracted from the approved Claude Design high-fidelity HTML:
+This prototype is derived from the approved Claude Design high-fidelity HTML:
 
 - `../Kintone-Site-Discovery-HiFi.html`
 
-Use this folder as the **implementation reference** for layout and component composition. The bundled Hi-Fi HTML remains the original visual source of truth, while this folder is the readable static source that Codex should port into React.
+Use this folder as the **implementation reference** for layout, component composition, and screen structure. The bundled Hi-Fi HTML remains the original visual source of truth; this folder is the readable static reference that Codex should port into React.
 
 ## Files
 
-- `index.html` — all 17 screens in one scrollable reference page.
-- `styles/prototype.css` — Claude Design tokens and component CSS extracted into readable CSS. It intentionally does not embed font files.
+- `index.html` — navigation index for all 17 reference screens.
+- `styles/prototype.css` — extracted/simplified design tokens and component CSS.
 - `screens/*.html` — one standalone HTML page per screen.
 
 ## Screen map
