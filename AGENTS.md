@@ -10,6 +10,8 @@ Primary goal for MVP 1: build a read-only kintone data extraction and local snap
 
 The product should help users connect to kintone sites, select apps, pull app/plugin/site metadata, normalize and redact it, and write local snapshots. Reports and Developer Files are generated from snapshots for inspection or handoff.
 
+The desktop app is the primary MVP user experience. The CLI is a thin automation/testing interface over the same shared core APIs, not a separate product.
+
 The app itself must not include AI features.
 
 ## Source of truth
@@ -28,12 +30,13 @@ Use these documents as the source of truth before writing code:
 10. `docs/ui-handoff/STATE_MATRIX.md`
 11. `docs/ui-handoff/UX_COPY_SPEC.md`
 12. `docs/ui-handoff/IMPLEMENTATION_TASKS.md`
-13. `docs/DATA_MODEL.md`
-14. `docs/WORKSPACE_PROFILE_SPEC.md`
-15. `docs/FILE_ORDER_SPEC.md`
-16. `docs/IMPLEMENTATION_PLAN.md`
+13. `docs/CLI_COMMAND_SPEC.md`
+14. `docs/DATA_MODEL.md`
+15. `docs/WORKSPACE_PROFILE_SPEC.md`
+16. `docs/FILE_ORDER_SPEC.md`
+17. `docs/IMPLEMENTATION_PLAN.md`
 
-If implementation details conflict, prefer `docs/MVP1_SPEC.md` for product scope/non-goals. For desktop UI, state naming, local snapshot UX, storage behavior, view models, component props, routes, copy, and Codex task order, prefer `docs/ui-handoff/`.
+If implementation details conflict, prefer `docs/MVP1_SPEC.md` for product scope/non-goals. For desktop UI, state naming, local snapshot UX, storage behavior, view models, component props, routes, copy, and Codex task order, prefer `docs/ui-handoff/`. For CLI command names, flags, JSON output shape, exit codes, and headless automation behavior, prefer `docs/CLI_COMMAND_SPEC.md`.
 
 ## Codex implementation start point
 
@@ -47,6 +50,8 @@ Start from `docs/CODEX_IMPLEMENTATION_HANDOFF.md` and implement in small batches
 
 Do not wire full collector/storage logic until the UI skeleton and state model are reviewed.
 
+Do not implement full CLI behavior in the first UI skeleton batch. CLI scaffolding is acceptable, but commands must not be wired until the shared `packages/core` API exists.
+
 ## MVP 1 hard boundaries
 
 Do **not** implement kintone deploy features in MVP 1.
@@ -54,6 +59,8 @@ Do **not** implement kintone deploy features in MVP 1.
 Do **not** implement built-in AI features in MVP 1.
 
 Do **not** add APIs or UI that update kintone app settings, records, plugins, users, groups, spaces, or files.
+
+Do **not** add CLI commands whose names imply deploy, import, publish, push, sync, apply, restore, rollback, AI, or chat.
 
 Allowed external effects for MVP 1:
 
@@ -83,10 +90,10 @@ Recommended architecture:
 
 - `packages/core`: collector, normalizer, redactor, snapshot builder, report/developer-file builders, shared domain models.
 - `apps/desktop`: desktop UI, likely Electron or Tauri. Electron is acceptable for easier Playwright/Node integration.
-- `apps/cli`: optional CLI wrapper around the same core package.
+- `apps/cli`: thin CLI wrapper around the same core package. It must not duplicate scan, storage, report, or packaging logic.
 - `packages/test-fixtures`: mocked kintone API responses and browser-capture fixtures.
 
-The exact scaffolding may be changed if implementation requires it, but keep collector/snapshot logic separate from UI.
+The exact scaffolding may be changed if implementation requires it, but keep collector/snapshot logic separate from UI and CLI.
 
 ## Workspace/profile requirements
 
@@ -127,6 +134,21 @@ Important rules:
 - Reports and Developer Files are generated from the snapshot they belong to.
 - A review package is a read-only zip for handoff, not import/deploy.
 
+## CLI requirements
+
+Implementation must follow `docs/CLI_COMMAND_SPEC.md`.
+
+Important rules:
+
+- CLI commands must wrap the same `packages/core` APIs as the desktop UI.
+- Every meaningful command must support `--json` for automation/AI use.
+- CLI commands must use stable exit codes defined in `docs/CLI_COMMAND_SPEC.md`.
+- CLI must not accept passwords through normal flags such as `--password`.
+- Password entry must be masked and stored only in the OS keychain.
+- Sensitive capture in non-interactive mode requires an explicit `--confirm-sensitive` flag.
+- CLI must not output secrets to stdout/stderr/logs.
+- CLI must not introduce deploy/import/write-back commands.
+
 ## File order requirements
 
 When pulling app customization files or plugin assets, preserve JavaScript/CSS file order exactly.
@@ -145,7 +167,7 @@ Important rules:
 
 ## Security requirements
 
-Never store the following in repository files, scan output, logs, snapshots, normalized JSON, markdown reports, Developer Files, or review packages:
+Never store the following in repository files, scan output, logs, snapshots, normalized JSON, markdown reports, Developer Files, review packages, CLI stdout/stderr, or CLI logs:
 
 - kintone admin password
 - API token
@@ -168,6 +190,7 @@ Redaction must run on:
 - Captured plugin JavaScript/CSS/HTML asset bodies.
 - Generated markdown reports and Developer Files.
 - Error logs.
+- CLI JSON/text output.
 
 ## UX requirements
 
