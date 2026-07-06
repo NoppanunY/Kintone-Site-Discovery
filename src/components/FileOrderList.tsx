@@ -12,7 +12,7 @@ export function FileOrderList({ files }: FileOrderListProps) {
           <span className="file-order__index">{file.index}</span>
           <span className="grow">{file.name}</span>
           <span className="muted2">
-            {file.orderSource} · confidence: {file.confidence}
+            high · {file.orderSource} · confidence: {file.confidence}
           </span>
         </li>
       ))}

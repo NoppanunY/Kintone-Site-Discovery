@@ -16,7 +16,7 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
     return (
       <div className="page">
         <WarningBanner tone="danger">
-          <strong>Failed.</strong> A required part of the data could not be captured. Nothing was written back to kintone.
+          <strong>Failed.</strong> A required part of the data could not be captured. Nothing changed in kintone.
         </WarningBanner>
         <PageHeader
           breadcrumb="Client A Production · Scan result"

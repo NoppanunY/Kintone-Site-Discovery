@@ -92,7 +92,7 @@ export const reports: ReportItem[] = [
 
 export const developerFiles: DeveloperFileItem[] = [
   { name: "structured-data.jsonl", size: "1,204 records · 2.1 MB", redacted: true },
-  { name: "export-manifest.json", size: "Index of everything in this export · 18 KB" },
+  { name: "export-manifest.json", size: "Index of generated developer files · 18 KB" },
 ];
 
 export const fileOrder: FileOrderItem[] = [

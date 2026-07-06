@@ -603,6 +603,12 @@ select:focus-visible,
   text-align: center;
 }
 
+.developer-file__icon {
+  width: 22px;
+  flex: none;
+  text-align: center;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

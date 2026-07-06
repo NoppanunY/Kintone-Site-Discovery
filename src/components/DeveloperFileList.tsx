@@ -12,7 +12,7 @@ export function DeveloperFileList({ files, onOpen }: DeveloperFileListProps) {
     <div className="list">
       {files.map((file) => (
         <div key={file.name} className="li">
-          <span className="mono small">{`{ }`}</span>
+          <span className="developer-file__icon mono small">{`{ }`}</span>
           <div className="grow">
             <div className="h3 mono">{file.name}</div>
             <div className="small muted2">{file.size}</div>
