@@ -22,6 +22,7 @@ Build a production-usable MVP that can:
 12. Preserve JavaScript/CSS file order exactly when pulling customization or plugin assets.
 13. Normalize, redact, summarize, and store the captured data as a local snapshot.
 14. Generate readable reports and developer files from the local snapshot for inspection or handoff.
+15. Expose a thin CLI command interface for automation/testing that wraps the same core APIs as the desktop app.
 
 ## MVP 1 non-goals
 
@@ -43,6 +44,7 @@ The following are explicitly out of scope for MVP 1:
 - [Data Model and Storage Specification](docs/DATA_MODEL.md)
 - [Workspace, Profile, Account, and Site Tab Specification](docs/WORKSPACE_PROFILE_SPEC.md)
 - [JavaScript and CSS File Order Preservation Specification](docs/FILE_ORDER_SPEC.md)
+- [CLI Command Specification](docs/CLI_COMMAND_SPEC.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 - [Codex Implementation Handoff](docs/CODEX_IMPLEMENTATION_HANDOFF.md)
 - [UX/UI Implementation Handoff](docs/ui-handoff/README.md)
@@ -52,6 +54,8 @@ The following are explicitly out of scope for MVP 1:
 > Pull kintone data safely, store it locally as a complete snapshot, and make that snapshot easy to inspect.
 
 The **Local Snapshot** is the canonical output. Reports and Developer Files are generated from the current snapshot. They are not separate core workflows, and they must not imply import, deploy, sync, or write-back to kintone.
+
+The CLI is a thin automation/testing interface over the same shared core. It must not duplicate business logic, and it must not introduce deploy/import/write-back commands.
 
 Internally the tool may keep raw snapshots, normalized JSON, hashes, structured developer files, error reports, ordered customization file lists, and plugin asset captures. User-facing output should remain simple: local snapshot status, site summary, app summary, plugin summary, dependency report, scan history, and review package status.
 
@@ -63,4 +67,4 @@ For desktop UX/UI implementation, use `docs/ui-handoff/` as the source of truth 
 
 ## Security principle
 
-Admin credentials, session cookies, API tokens, OAuth tokens, and any secrets discovered in plugin config or JavaScript must never be written into project files, logs, raw snapshots, normalized output, reports, developer files, or review packages. Store credentials only in the operating system keychain or an equivalent secure secret store.
+Admin credentials, session cookies, API tokens, OAuth tokens, and any secrets discovered in plugin config or JavaScript must never be written into project files, logs, raw snapshots, normalized output, reports, developer files, review packages, or CLI stdout/stderr. Store credentials only in the operating system keychain or an equivalent secure secret store.
