@@ -8,6 +8,8 @@ The product is ready for UI skeleton implementation using the specs in `docs/ui-
 
 Implement incrementally. Do not attempt the full app in one pass. Start with tokens, components, shell, routes, and mock view models before wiring real kintone collection logic.
 
+A CLI command contract now exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the first implementation batch. Build the UI skeleton first; add CLI behavior only after the shared `packages/core` API is defined.
+
 ## Source-of-truth order
 
 1. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
@@ -21,8 +23,9 @@ Implement incrementally. Do not attempt the full app in one pass. Start with tok
 9. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
 10. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
 11. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
+12. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
 
-If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals.
+If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`.
 
 ## Core product model
 
@@ -31,6 +34,8 @@ Pull from kintone → write one complete local snapshot
 ```
 
 Local Snapshot is the canonical output. Reports and Developer Files are generated from a snapshot.
+
+Desktop UI and CLI must eventually wrap the same `packages/core` API surface. Do not duplicate scan/storage/report/package logic between UI and CLI.
 
 ## MVP boundaries
 
@@ -42,6 +47,7 @@ Do not implement:
 - rollback/safe deploy
 - background multi-scan queue
 - in-app rendered markdown report viewer
+- CLI commands named deploy/import/push/sync/publish/apply/restore/rollback/ai/chat
 
 ## First implementation batch
 
@@ -54,3 +60,17 @@ Codex should start with:
 5. `T4 · Onboarding UI with mock data`
 
 Stop after those are complete and review before implementing collector/storage logic.
+
+## CLI note for the first batch
+
+For T0–T4, do **not** implement CLI behavior yet.
+
+It is acceptable to create an empty CLI scaffold if useful for workspace setup:
+
+```text
+apps/cli/
+  src/main.ts
+  src/commands/index.ts
+```
+
+But command logic must remain unwired until the shared core interfaces exist. Any future CLI implementation must follow `docs/CLI_COMMAND_SPEC.md`, including `--json`, stable exit codes, no `--password`, no secret output, and `--confirm-sensitive` for sensitive non-interactive scans.
