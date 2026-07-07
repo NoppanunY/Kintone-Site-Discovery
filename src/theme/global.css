@@ -384,6 +384,24 @@ select:focus-visible,
   max-width: 720px;
 }
 
+.page--scan-running {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page--scan-running > .page-head,
+.scan-progress-card,
+.scan-step-list {
+  flex: none;
+}
+
+.scan-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .page-head {
   display: flex;
   align-items: flex-start;
@@ -1174,6 +1192,13 @@ button.checkbox:disabled {
   overflow: hidden;
 }
 
+.page--scan-running .scan-log {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .scan-log__title {
   height: 34px;
   display: flex;
@@ -1194,6 +1219,13 @@ button.checkbox:disabled {
   padding: 10px 12px 12px;
   color: #d8dee9;
   font: 400 12px / 1.55 Consolas, "Cascadia Mono", "Courier New", monospace;
+}
+
+.page--scan-running .scan-log__body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
 }
 
 .scan-log__line {

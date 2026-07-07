@@ -41,7 +41,7 @@ export function ScanRunningScreen({
   const isRerun = source === "rerun";
   const logs = scanLogLines(site, isRerun);
   return (
-    <div className="page">
+    <div className="page page--scan-running">
       <PageHeader
         breadcrumb={`${site.name} · Scan`}
         title={isRerun ? "Re-running scan..." : "Scanning..."}
@@ -54,7 +54,7 @@ export function ScanRunningScreen({
           </>
         }
       />
-      <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="card card-pad scan-progress-card">
         <div className="between">
           <span className="h3">Overall progress</span>
           <span className="small muted">62%</span>
@@ -64,7 +64,7 @@ export function ScanRunningScreen({
         </div>
         <div className="small muted2">Current collector: plugin saved config</div>
       </div>
-      <div className="list">
+      <div className="list scan-step-list">
         {collectorRows.map((row) => (
           <div className="li" key={row.label}>
             <StatusPill status={row.tone} label={row.status} dot />
