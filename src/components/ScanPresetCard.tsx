@@ -9,11 +9,12 @@ interface ScanPresetCardProps {
 }
 
 export function ScanPresetCard({ preset, onSelect, onConfigure }: ScanPresetCardProps) {
+  const selected = Boolean(preset.selected);
   return (
     <div
-      className={`preset-card ${preset.selected ? "preset-card--selected" : ""}`}
+      className={`preset-card ${selected ? "preset-card--selected" : ""}`}
       role="radio"
-      aria-checked={preset.selected}
+      aria-checked={selected}
       tabIndex={0}
       onClick={() => onSelect(preset.id)}
       onKeyDown={(event) => {
@@ -25,7 +26,7 @@ export function ScanPresetCard({ preset, onSelect, onConfigure }: ScanPresetCard
     >
       <div className="between">
         <h3 className="h3">{preset.title}</h3>
-        {preset.selected ? <span className="checkbox checkbox--checked">✓</span> : <span className="checkbox" />}
+        {selected ? <span className="checkbox checkbox--checked">✓</span> : <span className="checkbox" />}
       </div>
       <p className="body muted">{preset.description}</p>
       <div className="between">
@@ -34,7 +35,8 @@ export function ScanPresetCard({ preset, onSelect, onConfigure }: ScanPresetCard
           <SecondaryActionButton
             label="Configure ›"
             size="sm"
-            onClick={() => {
+            onClick={(event) => {
+              event.stopPropagation();
               onConfigure?.();
             }}
           />

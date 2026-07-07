@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 
 interface BaseButtonProps {
   label: string;
@@ -6,7 +6,7 @@ interface BaseButtonProps {
   disabled?: boolean;
   loading?: boolean;
   size?: "md" | "sm";
-  onClick?: () => void;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
 }
 
 interface PrimaryActionButtonProps extends BaseButtonProps {

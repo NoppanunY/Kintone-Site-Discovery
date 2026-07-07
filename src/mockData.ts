@@ -83,8 +83,8 @@ export const recommendedOptions: SensitiveOption[] = [
 ];
 
 export const additionalOptions: SensitiveOption[] = [
-  { key: "plugin-assets", label: "Plugin desktop / config assets (JS/CSS/HTML)", tier: "additional", value: true, sensitive: true },
-  { key: "sample-records", label: "Sample records · redacted · max 25", tier: "additional", value: true, sensitive: true },
+  { key: "plugin-assets", label: "Plugin desktop / config assets (JS/CSS/HTML)", tier: "additional", value: false, sensitive: true },
+  { key: "sample-records", label: "Sample records · redacted · max 25", tier: "additional", value: false, sensitive: true },
   { key: "comments", label: "Record comments · attachment metadata", tier: "additional", value: false, sensitive: true },
   { key: "full-record", label: "Full record capture · browser screenshots", tier: "additional", value: false, sensitive: true },
 ];

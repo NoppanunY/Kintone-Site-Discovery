@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
-import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
+import { useState } from "react";
+import { PrimaryActionButton, SecondaryActionButton, SensitiveOptionRow } from "../components";
+import { additionalOptions, recommendedOptions, requiredOptions } from "../mockData";
 import { PageHeader } from "./shared";
 
 interface SensitiveOptionsScreenProps {
@@ -9,6 +10,20 @@ interface SensitiveOptionsScreenProps {
 }
 
 export function SensitiveOptionsScreen({ compact = false, onBack, onConfirm }: SensitiveOptionsScreenProps) {
+  const [recommended, setRecommended] = useState(recommendedOptions);
+  const [additional, setAdditional] = useState(additionalOptions);
+  const visibleAdditional = compact ? additional.slice(0, 2) : additional;
+  const enabledRecommendedCount = recommended.filter((option) => option.value).length;
+  const enabledAdditionalCount = additional.filter((option) => option.value).length;
+
+  function toggleRecommended(key: string) {
+    setRecommended((options) => options.map((option) => (option.key === key ? { ...option, value: !option.value } : option)));
+  }
+
+  function toggleAdditional(key: string) {
+    setAdditional((options) => options.map((option) => (option.key === key ? { ...option, value: !option.value } : option)));
+  }
+
   return (
     <div className="page">
       <PageHeader
@@ -27,12 +42,9 @@ export function SensitiveOptionsScreen({ compact = false, onBack, onConfirm }: S
               </div>
               <span className="small muted2">17 categories</span>
             </div>
-            <div className="li">
-              <span className="checkbox locked">🔒</span>
-              <div className="grow small muted">
-                App settings · form fields &amp; layout · views · process · permissions · notifications · plugin inventory · customization metadata · live + preview…
-              </div>
-            </div>
+            {requiredOptions.map((option) => (
+              <SensitiveOptionRow key={option.key} option={option} />
+            ))}
           </div>
           <div className="card">
             <div className="card-pad" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -41,13 +53,8 @@ export function SensitiveOptionsScreen({ compact = false, onBack, onConfirm }: S
                 <span className="h3">On in Standard</span>
               </div>
             </div>
-            {["Users, groups & departments", "Spaces & members", "App customization JS / CSS files", "Plugin saved config", "Dependency detection · preview-vs-live diff"].map((label) => (
-              <div className="li" key={label}>
-                <span className="toggle on" />
-                <div className="grow">
-                  <div className="h3">{label}</div>
-                </div>
-              </div>
+            {recommended.map((option) => (
+              <SensitiveOptionRow key={option.key} option={option} onChange={toggleRecommended} />
             ))}
           </div>
         </>
@@ -59,31 +66,19 @@ export function SensitiveOptionsScreen({ compact = false, onBack, onConfirm }: S
             <span className="h3">Off by default</span>
           </div>
         </div>
-        <SensitiveRow on label="Plugin desktop / config assets (JS/CSS/HTML)" />
-        <SensitiveRow on label={<span>Sample records <span className="small muted2">· redacted · max 25</span></span>} />
-        {compact ? null : (
-          <>
-            <SensitiveRow label="Record comments · attachment metadata" />
-            <SensitiveRow label="Full record export · browser screenshots" />
-          </>
-        )}
+        {visibleAdditional.map((option) => (
+          <SensitiveOptionRow key={option.key} option={option} onChange={toggleAdditional} />
+        ))}
       </div>
       <div className="between">
         <SecondaryActionButton label="← Back to presets" onClick={onBack} />
-        <PrimaryActionButton label="Confirm & start →" onClick={onConfirm} />
+        <div className="rowc">
+          <span className="small muted2">
+            {enabledRecommendedCount} recommended on · {enabledAdditionalCount} sensitive on
+          </span>
+          <PrimaryActionButton label="Confirm & start →" onClick={onConfirm} />
+        </div>
       </div>
-    </div>
-  );
-}
-
-function SensitiveRow({ label, on = false }: { label: ReactNode; on?: boolean }) {
-  return (
-    <div className="li">
-      <span className={`toggle ${on ? "on" : ""}`} />
-      <div className="grow">
-        <div className="h3">{label}</div>
-      </div>
-      <StatusPill status="warn" label="Sensitive" dot />
     </div>
   );
 }

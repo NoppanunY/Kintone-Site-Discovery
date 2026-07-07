@@ -635,6 +635,11 @@ select:focus-visible,
   cursor: pointer;
 }
 
+input.input,
+select.select {
+  display: block;
+}
+
 .input--placeholder {
   color: var(--text-3);
 }
@@ -737,6 +742,14 @@ select:focus-visible,
 .checkbox.locked {
   background: var(--neutral);
   border-color: var(--neutral);
+}
+
+button.checkbox {
+  cursor: pointer;
+}
+
+button.checkbox:disabled {
+  cursor: default;
 }
 
 .toggle {
@@ -928,6 +941,7 @@ select:focus-visible,
   flex-direction: column;
   gap: var(--sp-3);
   text-align: left;
+  cursor: pointer;
 }
 
 .preset-card--selected {

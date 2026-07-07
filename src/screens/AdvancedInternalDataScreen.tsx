@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { SecondaryActionButton, WarningBanner } from "../components";
 
 export function AdvancedInternalDataScreen() {
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [openRequested, setOpenRequested] = useState(false);
+
   return (
     <div className="page advanced-gate-page">
       <div>
@@ -29,13 +33,26 @@ export function AdvancedInternalDataScreen() {
           </div>
         ))}
       </div>
-      <label className="rowc" style={{ gap: 10 }}>
-        <span className="checkbox" />
+      <div className="rowc" style={{ gap: 10 }}>
+        <button
+          type="button"
+          className={`checkbox ${acknowledged ? "checked" : ""}`}
+          aria-pressed={acknowledged}
+          aria-label="Acknowledge machine-managed folder warning"
+          onClick={() => {
+            setAcknowledged((value) => !value);
+            setOpenRequested(false);
+          }}
+        >
+          {acknowledged ? "✓" : ""}
+        </button>
         <span className="body">I understand this folder is machine-managed and should not be edited manually.</span>
-      </label>
+      </div>
       <div className="rowc">
-        <SecondaryActionButton label="Open .kintone folder" disabled />
-        <span className="small muted2">Enabled after you acknowledge above</span>
+        <SecondaryActionButton label="Open .kintone folder" disabled={!acknowledged} onClick={() => setOpenRequested(true)} />
+        <span className="small muted2">
+          {openRequested ? "Desktop folder bridge stub triggered" : acknowledged ? "Ready to open after desktop bridge wiring" : "Enabled after you acknowledge above"}
+        </span>
       </div>
     </div>
   );
