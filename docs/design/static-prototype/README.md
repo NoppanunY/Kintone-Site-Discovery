@@ -1,20 +1,24 @@
-# Static Hi-Fi Prototype
+# Static Extracted Hi-Fi Screens
 
-Readable static HTML/CSS reference for Codex visual-parity work.
+This folder contains per-screen static HTML extracted from `../Kintone-Site-Discovery-HiFi-rendered.html`, which was saved from the rendered Claude Design Hi-Fi page.
 
-This prototype is derived from the approved Claude Design high-fidelity HTML:
+This directory replaces the earlier simplified `static-prototype` reference. These files are intended to be the closer implementation reference for Codex because they preserve the rendered Hi-Fi DOM structure, class names, inline layout styles, app frame, menu bar, site tab bar, sidebar, content area, cards, buttons, pills, tables, banners, and modal composition.
 
-- `../Kintone-Site-Discovery-HiFi.html`
+## Important
 
-Use this folder as the **implementation reference** for layout, component composition, and screen structure. The bundled Hi-Fi HTML remains the original visual source of truth; this folder is the readable static reference that Codex should port into React.
+- The original visual source of truth remains `../Kintone-Site-Discovery-HiFi.html`.
+- This extracted set removes the Claude Design annotation wrapper: screen title, purpose text, and explanatory callout cards.
+- Each screen file contains only the product UI frame for that screen.
+- Embedded font files are not included. Typography may fall back to system fonts; layout should remain the reference target.
+- This is a design reference for Codex to port into React, not production application code.
 
 ## Files
 
-- `index.html` — navigation index for all 17 reference screens.
-- `styles/prototype.css` — extracted/simplified design tokens and component CSS.
-- `screens/*.html` — one standalone HTML page per screen.
+- `index.html` — screen index.
+- `styles/extracted.css` — extracted design tokens and component styles.
+- `screens/*.html` — one product-only screen per file.
 
-## Screen map
+## Screens
 
 | ID | Screen | Route | File |
 |---|---|---|---|
@@ -36,16 +40,12 @@ Use this folder as the **implementation reference** for layout, component compos
 | SCR-16 | Site Settings | `/site/:siteId/settings` | [`SCR-16-settings.html`](screens/SCR-16-settings.html) |
 | SCR-17 | Advanced Internal Data — warning gate | `/site/:siteId/advanced` | [`SCR-17-advanced-internal-data.html`](screens/SCR-17-advanced-internal-data.html) |
 
-## Codex rules
+## Codex usage
 
-Codex should:
+Use these files before porting UI:
 
-1. Port this static prototype into reusable React components.
-2. Preserve the app frame, title bar, menu bar, site tab bar, sidebar, content layout, cards, buttons, forms, pills, tables, banners, and modals.
-3. Use `Local Snapshot` as the canonical output.
-4. Use `Reports` and `Developer Files` as views generated from Local Snapshot.
-5. Avoid `Exports` terminology.
-6. Keep MVP read-only: no deploy, import, write-back, Git client, AI, rollback, or safe deploy.
-7. Stop after visual parity for the requested implementation batch and provide screenshots.
-
-Do not treat this static prototype as production application code. It is a design implementation reference.
+1. Open `docs/design/Kintone-Site-Discovery-HiFi.html` as the original visual source of truth.
+2. Open `docs/design/static-prototype/index.html` and the per-screen files as readable implementation references.
+3. Port the screen structure into reusable React components.
+4. Preserve visual layout and component composition.
+5. Do not add deploy, import, write-back, Git client, AI, rollback, or safe deploy behavior.
