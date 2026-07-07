@@ -344,7 +344,14 @@ function renderScreen({
   }
 
   if (pathname.endsWith("/snapshot")) {
-    return <LocalSnapshotScreen site={activeSite} onChangeSettings={() => navigate(siteRoutes.scan)} onMockAction={onMockAction} />;
+    return (
+      <LocalSnapshotScreen
+        site={activeSite}
+        onChangeSettings={() => navigate(siteRoutes.scan)}
+        onOpenFullScan={() => navigate(`${siteRoutes.scan}/run?source=rerun`)}
+        onMockAction={onMockAction}
+      />
+    );
   }
 
   if (pathname.includes("/reports")) {
@@ -371,6 +378,7 @@ function renderScreen({
     <SiteOverviewScreen
       site={activeSite}
       onScanSettings={() => navigate(siteRoutes.scan)}
+      onOpenFullScan={() => navigate(`${siteRoutes.scan}/run`)}
       onSnapshot={() => navigate(siteRoutes.snapshot)}
       onReports={() => navigate(siteRoutes.reports)}
       onDeveloperFiles={() => navigate(siteRoutes["developer-files"])}

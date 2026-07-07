@@ -12,7 +12,17 @@ const collectorRows = [
   { status: "Queued", tone: "idle" as const, label: "Developer file generation" },
 ];
 
-export function LocalSnapshotScreen({ site, onChangeSettings, onMockAction }: { site: SiteWorkspaceModel; onChangeSettings: () => void; onMockAction: MockActionHandler }) {
+export function LocalSnapshotScreen({
+  site,
+  onChangeSettings,
+  onOpenFullScan,
+  onMockAction,
+}: {
+  site: SiteWorkspaceModel;
+  onChangeSettings: () => void;
+  onOpenFullScan: () => void;
+  onMockAction: MockActionHandler;
+}) {
   const [rerunState, setRerunState] = useState<SnapshotRerunState>("idle");
   const [showDetails, setShowDetails] = useState(false);
   const [snapshotUpdated, setSnapshotUpdated] = useState(false);
@@ -78,6 +88,7 @@ export function LocalSnapshotScreen({ site, onChangeSettings, onMockAction }: { 
         onToggleDetails={() => setShowDetails((shown) => !shown)}
         onRetry={startRerun}
         onChangeSettings={onChangeSettings}
+        onOpenFullScan={onOpenFullScan}
         onDismiss={() => setRerunState("idle")}
         onFinishMock={finishMockRun}
         onFailMock={() => setRerunState("failed")}
@@ -142,6 +153,7 @@ function SnapshotRerunNotice({
   onToggleDetails,
   onRetry,
   onChangeSettings,
+  onOpenFullScan,
   onDismiss,
   onFinishMock,
   onFailMock,
@@ -151,6 +163,7 @@ function SnapshotRerunNotice({
   onToggleDetails: () => void;
   onRetry: () => void;
   onChangeSettings: () => void;
+  onOpenFullScan: () => void;
   onDismiss: () => void;
   onFinishMock: () => void;
   onFailMock: () => void;
@@ -167,7 +180,10 @@ function SnapshotRerunNotice({
             <StatusPill status="run" label="Scanning" dot />
             <span className="small muted">62% · plugin saved config</span>
           </div>
-          <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
+          <div className="rowc">
+            <SecondaryActionButton label="Full scanning" size="sm" onClick={onOpenFullScan} />
+            <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
+          </div>
         </div>
         <div className="progress" aria-label="Re-run scan progress">
           <i style={{ width: "62%" }} />

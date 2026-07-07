@@ -1166,6 +1166,71 @@ button.checkbox:disabled {
   background: var(--surface-2);
 }
 
+.scan-log {
+  border: 1px solid #202734;
+  border-radius: var(--r-sm);
+  background: #0b0f14;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.scan-log__title {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-row);
+  padding: 0 12px;
+  border-bottom: 1px solid #202734;
+  color: #d8dee9;
+  font: 600 12px var(--font-ui);
+  background: #111722;
+}
+
+.scan-log__body {
+  min-height: 190px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px 12px 12px;
+  color: #d8dee9;
+  font: 400 12px / 1.55 Consolas, "Cascadia Mono", "Courier New", monospace;
+}
+
+.scan-log__line {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px;
+  min-height: 20px;
+  white-space: pre-wrap;
+}
+
+.scan-log__prefix {
+  color: #8ab4f8;
+}
+
+.scan-log__line--ok {
+  color: #8ce6b2;
+}
+
+.scan-log__line--warn {
+  color: #f4c36a;
+}
+
+.scan-log__line--run {
+  color: #93c5fd;
+}
+
+.scan-log__cursor {
+  color: #d8dee9;
+  animation: scan-cursor-blink 1s steps(2, start) infinite;
+}
+
+@keyframes scan-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

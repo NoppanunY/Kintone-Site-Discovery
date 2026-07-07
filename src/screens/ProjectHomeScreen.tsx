@@ -44,9 +44,10 @@ export function ProjectHomeScreen({
   const projectSiteCount = (projectName: string) => workspaces.filter((site) => site.projectName === projectName).length;
 
   function targetForProfile(profile: Profile): ConnectionTestTarget {
+    const linkedSite = workspaces.find((site) => site.profile === profile.name) ?? workspaces[0];
     return {
-      siteName: "Client A Production",
-      domain: "client-a.cybozu.com",
+      siteName: linkedSite.name,
+      domain: linkedSite.domain,
       authProfile: profile.name,
     };
   }
@@ -85,7 +86,7 @@ export function ProjectHomeScreen({
       <PageHeader
         breadcrumb="Home"
         title="Projects"
-        subtitle="A project is a local folder that groups site workspaces, snapshots, reports, and developer files."
+        subtitle="A project is a local folder. It can contain one or more site workspaces, such as production and sandbox."
         actions={<PrimaryActionButton label="＋ New project" onClick={onNewProject} />}
       />
       <div className="list">
@@ -100,78 +101,31 @@ export function ProjectHomeScreen({
             </div>
             <StatusPill status="info" label={`${projectSiteCount(project.name)} site${projectSiteCount(project.name) === 1 ? "" : "s"}`} />
             <SecondaryActionButton
-              label={project.name === selectedProject ? "Sites shown" : "Show sites"}
+              label={project.name === selectedProject ? "Current project" : "Select project"}
               size="sm"
               disabled={project.name === selectedProject}
               onClick={() => {
                 setSelectedProject(project.name);
-                onMockAction(`Showing site workspaces in "${project.name}". No site tab was opened.`);
+                onMockAction(`Current project changed to "${project.name}". Site workspace list updated; auth profiles are global.`);
               }}
             />
           </div>
         ))}
       </div>
+
       <div className="between" style={{ marginTop: 4 }}>
         <h2 className="h2">
-          Auth profiles{" "}
+          Site workspaces{" "}
           <span className="small muted2" style={{ fontWeight: 400 }}>
-            · global sign-in profiles, reusable across projects and sites
-          </span>
-        </h2>
-        <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />
-      </div>
-      <div className="list">
-        {profiles.map((profile) => {
-          const connectionResult = connectionResults[profile.name];
-          return (
-            <Fragment key={profile.name}>
-              <div className="li">
-                <div className="grow rowc">
-                  <span style={{ fontSize: 16 }}>👤</span>
-                  <div>
-                    <div className="h3">{profile.name}</div>
-                    <div className="small muted2">
-                      {profile.user} · password ••••••
-                    </div>
-                  </div>
-                </div>
-              <StatusPill status={profile.tone} label={profile.status} dot />
-              <span className="small muted2">{profile.sites}</span>
-              {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
-              {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
-              <SecondaryActionButton label="Test" size="sm" onClick={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
-            </div>
-              {connectionResult?.status === "failed" ? (
-                <div className="li li--panel">
-                  <ConnectionTestPanel
-                    result={connectionResult}
-                    onRetry={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
-                    onDismiss={() =>
-                      setConnectionResults((current) => ({
-                        ...current,
-                        [profile.name]: undefined,
-                      }))
-                    }
-                  />
-                </div>
-              ) : null}
-            </Fragment>
-          );
-        })}
-      </div>
-      <div className="between" style={{ marginTop: 4 }}>
-        <h2 className="h2">
-          Site workspaces in {selectedProject}{" "}
-          <span className="small muted2" style={{ fontWeight: 400 }}>
-            · one kintone domain inside a project
+            · current project: {selectedProject}
           </span>
         </h2>
         <SecondaryActionButton label="＋ Add site workspace" size="sm" onClick={onAddSite} />
       </div>
       <div className="project-context-line">
-        <StatusPill status="info" label="Project selected" />
+        <StatusPill status="info" label="Project filter" />
         <span className="small muted">
-          Showing site workspaces in {selectedProject}. A project is a local folder; open a site tab from a site row.
+          Selecting a project changes only this site list. Auth profiles below are global and do not change with the project.
         </span>
       </div>
       <div className="list">
@@ -196,6 +150,59 @@ export function ProjectHomeScreen({
             <SecondaryActionButton label="Add site workspace" size="sm" onClick={onAddSite} />
           </div>
         ) : null}
+      </div>
+
+      <div className="between" style={{ marginTop: 4 }}>
+        <h2 className="h2">
+          Auth profiles{" "}
+          <span className="small muted2" style={{ fontWeight: 400 }}>
+            · global sign-in profiles, reusable across projects and sites
+          </span>
+        </h2>
+        <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />
+      </div>
+      <div className="project-context-line">
+        <StatusPill status="idle" label="Global" />
+        <span className="small muted">Auth profiles are shared identities. Each site workspace chooses one profile when it is created or edited.</span>
+      </div>
+      <div className="list">
+        {profiles.map((profile) => {
+          const connectionResult = connectionResults[profile.name];
+          return (
+            <Fragment key={profile.name}>
+              <div className="li">
+                <div className="grow rowc">
+                  <span style={{ fontSize: 16 }}>👤</span>
+                  <div>
+                    <div className="h3">{profile.name}</div>
+                    <div className="small muted2">
+                      {profile.user} · password ••••••
+                    </div>
+                  </div>
+                </div>
+                <StatusPill status={profile.tone} label={profile.status} dot />
+                <span className="small muted2">{profile.sites}</span>
+                {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
+                {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
+                <SecondaryActionButton label="Test" size="sm" onClick={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
+              </div>
+              {connectionResult?.status === "failed" ? (
+                <div className="li li--panel">
+                  <ConnectionTestPanel
+                    result={connectionResult}
+                    onRetry={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
+                    onDismiss={() =>
+                      setConnectionResults((current) => ({
+                        ...current,
+                        [profile.name]: undefined,
+                      }))
+                    }
+                  />
+                </div>
+              ) : null}
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );

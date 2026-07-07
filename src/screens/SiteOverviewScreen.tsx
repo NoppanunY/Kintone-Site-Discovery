@@ -8,6 +8,7 @@ import { KpiGrid, PageHeader } from "./shared";
 interface SiteOverviewScreenProps {
   site: SiteWorkspaceModel;
   onScanSettings: () => void;
+  onOpenFullScan: () => void;
   onSnapshot: () => void;
   onReports: () => void;
   onDeveloperFiles: () => void;
@@ -23,7 +24,7 @@ const collectorRows = [
   { status: "Queued", tone: "idle" as const, label: "Snapshot generation" },
 ];
 
-export function SiteOverviewScreen({ site, onScanSettings, onSnapshot, onReports, onDeveloperFiles, onMockAction }: SiteOverviewScreenProps) {
+export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSnapshot, onReports, onDeveloperFiles, onMockAction }: SiteOverviewScreenProps) {
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
   const [scanState, setScanState] = useState<OverviewScanState>("idle");
   const [showScanDetails, setShowScanDetails] = useState(false);
@@ -85,6 +86,7 @@ export function SiteOverviewScreen({ site, onScanSettings, onSnapshot, onReports
         onToggleDetails={() => setShowScanDetails((shown) => !shown)}
         onRetry={startOverviewScan}
         onChangeSettings={onScanSettings}
+        onOpenFullScan={onOpenFullScan}
         onDismiss={() => setScanState("idle")}
         onFinishMock={() => setScanState("succeeded")}
         onFailMock={() => setScanState("failed")}
@@ -150,6 +152,7 @@ function OverviewScanStatus({
   onToggleDetails,
   onRetry,
   onChangeSettings,
+  onOpenFullScan,
   onDismiss,
   onFinishMock,
   onFailMock,
@@ -159,6 +162,7 @@ function OverviewScanStatus({
   onToggleDetails: () => void;
   onRetry: () => void;
   onChangeSettings: () => void;
+  onOpenFullScan: () => void;
   onDismiss: () => void;
   onFinishMock: () => void;
   onFailMock: () => void;
@@ -175,7 +179,10 @@ function OverviewScanStatus({
             <StatusPill status="run" label="Scanning" dot />
             <span className="small muted">62% · plugin saved config</span>
           </div>
-          <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
+          <div className="rowc">
+            <SecondaryActionButton label="Full scanning" size="sm" onClick={onOpenFullScan} />
+            <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
+          </div>
         </div>
         <div className="progress" aria-label="Scan progress">
           <i style={{ width: "62%" }} />
