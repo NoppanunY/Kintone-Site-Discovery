@@ -64,6 +64,14 @@ export function ScanRunningScreen({
         </div>
         <div className="small muted2">Current collector: plugin saved config</div>
       </div>
+      <div className="list">
+        {collectorRows.map((row) => (
+          <div className="li" key={row.label}>
+            <StatusPill status={row.tone} label={row.status} dot />
+            <div className={`grow body ${row.muted ? "muted" : ""}`}>{row.label}</div>
+          </div>
+        ))}
+      </div>
       <div className="scan-log" aria-label="Scan command log">
         <div className="scan-log__title">
           <span>Run log</span>
@@ -80,14 +88,6 @@ export function ScanRunningScreen({
             _
           </div>
         </div>
-      </div>
-      <div className="list">
-        {collectorRows.map((row) => (
-          <div className="li" key={row.label}>
-            <StatusPill status={row.tone} label={row.status} dot />
-            <div className={`grow body ${row.muted ? "muted" : ""}`}>{row.label}</div>
-          </div>
-        ))}
       </div>
     </div>
   );
