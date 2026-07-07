@@ -10,7 +10,7 @@ interface SiteTabBarProps {
 
 export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTabBarProps) {
   return (
-    <div className="sitetabs" role="tablist" aria-label="Open site tabs">
+    <div className="sitetabs" role="tablist" aria-label="Open project tabs">
       {tabs.map((tab) => (
         <button
           type="button"

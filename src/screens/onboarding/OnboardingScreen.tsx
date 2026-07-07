@@ -29,6 +29,7 @@ const flowSteps: Record<OnboardingEntry, StepDefinition[]> = {
     { key: "apps", label: "Apps" },
   ],
   "add-site": [
+    { key: "project", label: "Project" },
     { key: "site", label: "Site" },
     { key: "auth", label: "Auth profile" },
     { key: "test", label: "Test" },
@@ -39,7 +40,7 @@ const flowSteps: Record<OnboardingEntry, StepDefinition[]> = {
 
 const flowTitles: Record<OnboardingEntry, string> = {
   "new-project": "Create Project",
-  "add-site": "Add Site Workspace",
+  "add-site": "Create Project for Site",
   "add-auth": "Add Auth Profile",
 };
 
@@ -54,14 +55,14 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex === steps.length - 1;
-  const cancelLabel = entry === "add-site" ? "Cancel add site" : entry === "add-auth" ? "Cancel add profile" : "Cancel setup";
-  const finishLabel = entry === "add-auth" ? "Save auth profile" : "Open site Overview";
+  const cancelLabel = entry === "add-auth" ? "Cancel add profile" : "Cancel setup";
+  const finishLabel = entry === "add-auth" ? "Save auth profile" : "Open project Overview";
   const showMockAction: MockActionHandler = (message) => {
     onMockAction?.(message);
   };
   const connectionTarget: ConnectionTestTarget = {
-    siteName: entry === "add-site" ? "Client A Staging" : "Client A Production",
-    domain: entry === "add-site" ? "staging.client-a.cybozu.com" : "client-a.cybozu.com",
+    siteName: "Client A Production",
+    domain: "client-a.cybozu.com",
     authProfile: selectedProfile,
   };
 
@@ -88,7 +89,6 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
         selectedProject,
         selectedProfile,
         onSelectAuthMode: setAuthMode,
-        onSelectProject: setSelectedProject,
         onSelectProfile: setSelectedProfile,
         onMockAction: showMockAction,
         connectionResult,
@@ -179,7 +179,6 @@ function renderStep({
   selectedProject,
   selectedProfile,
   onSelectAuthMode,
-  onSelectProject,
   onSelectProfile,
   onMockAction,
   connectionResult,
@@ -192,7 +191,6 @@ function renderStep({
   selectedProject: string;
   selectedProfile: string;
   onSelectAuthMode: (mode: AuthMode) => void;
-  onSelectProject: (project: string) => void;
   onSelectProfile: (profile: string) => void;
   onMockAction: MockActionHandler;
   connectionResult: ConnectionTestResult | null;
@@ -200,17 +198,19 @@ function renderStep({
   onClearConnectionTest: () => void;
 }) {
   if (step === "project") {
+    const projectName = entry === "add-site" ? "Client CRM Discovery Copy" : "Client CRM Discovery";
+    const projectFolder = entry === "add-site" ? "~/KintoneDiscovery/client-crm-copy" : "~/KintoneDiscovery/client-crm";
     return (
       <>
         <WizardIntro
           title="Create a local project"
-          body="A project is a local folder that groups site workspaces, snapshots, reports and developer files. Auth profiles are global and reusable."
+          body="A project is one local folder for one kintone site. Another project may point to the same site/domain when you need a separate snapshot or auth context."
         />
         <div className="form-grid">
-          <MockField label="Project name" value="Client CRM Discovery" />
+          <MockField label="Project name" value={projectName} />
           <MockField
             label="Local folder"
-            value="~/KintoneDiscovery/client-crm"
+            value={projectFolder}
             action="Browse..."
             onAction={() => onMockAction("Folder picker is not connected yet. No folder was selected.")}
           />
@@ -248,7 +248,7 @@ function renderStep({
                   value={selectedProfile}
                   options={authProfileOptions()}
                   onChange={onSelectProfile}
-                  meta="Global auth profiles can be linked to site workspaces in any project."
+                  meta="Global auth profiles can be linked to any project."
                 />
                 <SelectedProfileBanner selectedProfile={selectedProfile} />
               </>
@@ -262,31 +262,22 @@ function renderStep({
   }
 
   if (step === "site") {
-    const title = entry === "add-site" ? "Add a site to this project" : "Add the first site workspace";
+    const projectName = entry === "add-site" ? "Client CRM Discovery Copy" : selectedProject;
+    const title = entry === "add-site" ? "Choose the site for this project" : "Choose the project site";
     const body =
       entry === "add-site"
-        ? `This adds one kintone site workspace under ${selectedProject}. You will choose or create an auth profile next.`
-        : "A site workspace is one kintone domain inside the project. You can add more sites later.";
-    const snapshotPath = `${projectFolder(selectedProject)}/sites/client-a`;
+        ? "This creates a separate project for one kintone site. The domain may match another project."
+        : "Each project tracks one kintone site. Use another project if you need the same domain in a separate local folder.";
+    const snapshotPath = entry === "add-site" ? "~/KintoneDiscovery/client-crm-copy/snapshot" : `${projectFolder(selectedProject)}/snapshot`;
 
     return (
       <>
         <WizardIntro title={title} body={body} />
         <div className="form-grid">
-          {entry === "add-site" ? (
-            <SelectField
-              label="Project"
-              value={selectedProject}
-              options={projectOptions()}
-              onChange={onSelectProject}
-              meta="The new site workspace will be added under this project."
-            />
-          ) : (
-            <MockField label="Project being created" value={selectedProject} />
-          )}
-          <MockField label="Site display name" value={entry === "add-site" ? "Client A Staging" : "Client A Production"} />
-          <MockField label="kintone domain" value={entry === "add-site" ? "staging.client-a.cybozu.com" : "client-a.cybozu.com"} meta="Domain only, no protocol" />
-          {entry === "new-project" ? <MockField label="Auth profile" value={selectedProfile} meta="Reusable profile linked to this site workspace" /> : null}
+          <MockField label="Project being created" value={projectName} />
+          <MockField label="Site display name" value="Client A Production" />
+          <MockField label="kintone domain" value="client-a.cybozu.com" meta="Domain only, no protocol · can match another project" />
+          {entry === "new-project" ? <MockField label="Auth profile" value={selectedProfile} meta="Reusable profile linked to this project" /> : null}
           <MockField
             label="Save snapshots to"
             value={snapshotPath}
@@ -299,12 +290,13 @@ function renderStep({
   }
 
   if (step === "test") {
+    const projectName = entry === "add-site" ? "Client CRM Discovery Copy" : selectedProject;
     return (
       <>
         <WizardIntro title="Test the read-only connection" body="This checks the setup flow in preview mode. No kintone request is sent yet." />
         <div className="list">
-          <CheckRow label="Project selected" detail={`${selectedProject} is the local workspace.`} />
-          <CheckRow label="Global auth profile linked" detail={`${selectedProfile} is selected for this site.`} />
+          <CheckRow label="Project selected" detail={`${projectName} is the local workspace.`} />
+          <CheckRow label="Global auth profile linked" detail={`${selectedProfile} is selected for this project.`} />
           <CheckRow label="Read permission check" detail="Preview check passed without contacting kintone." />
         </div>
         <div className="rowc">
@@ -338,7 +330,7 @@ function renderStep({
       </div>
       <div className="setup-complete-line">
         <StatusPill status="ok" label="Ready" dot />
-        <span className="small muted2">Site workspace is ready in preview mode.</span>
+        <span className="small muted2">Project is ready in preview mode.</span>
       </div>
     </>
   );
@@ -368,7 +360,11 @@ function authStepBody(entry: OnboardingEntry, selectedProject: string) {
     return "Create a reusable global sign-in profile. This preview does not store real credentials yet.";
   }
 
-  return `Link the site workspace in ${selectedProject} to a global auth profile, or create a new preview profile.`;
+  if (entry === "add-site") {
+    return "Choose the auth profile for this new project. It can reuse the same kintone domain as another project.";
+  }
+
+  return `Link the project site in ${selectedProject} to a global auth profile, or create a new preview profile.`;
 }
 
 function AuthProfileFields() {
@@ -377,7 +373,7 @@ function AuthProfileFields() {
       <MockField label="Profile name" value="Client A Admin" />
       <MockField label="Username" value="ca-admin@client-a" />
       <MockField label="Password" value="••••••••" meta="Preview only · credential storage will use the OS keychain" />
-      <MockField label="Availability" value="Global" meta="Can be linked to site workspaces in any project." />
+      <MockField label="Availability" value="Global" meta="Can be linked to any project." />
     </div>
   );
 }
@@ -386,7 +382,7 @@ function SelectedProfileBanner({ selectedProfile }: { selectedProfile: string })
   return (
     <div className="banner screen-note">
       <div>
-        <b>{selectedProfile}</b> will be linked to this site workspace in preview mode. Credential lookup is not connected yet.
+        <b>{selectedProfile}</b> will be linked to this project in preview mode. Credential lookup is not connected yet.
       </div>
     </div>
   );
@@ -439,13 +435,6 @@ function SelectField({
       {meta ? <span className="hint">{meta}</span> : null}
     </div>
   );
-}
-
-function projectOptions() {
-  return projectRows.map((project) => ({
-    value: project.name,
-    label: `${project.name} · ${project.path}`,
-  }));
 }
 
 function authProfileOptions() {

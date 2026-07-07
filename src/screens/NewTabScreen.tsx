@@ -9,10 +9,10 @@ export function NewTabScreen({ onAddSite, onOpenSite }: NewTabScreenProps) {
   return (
     <div className="page new-tab-page">
       <div className="new-tab-panel">
-        <EmptyState icon="+" title="Open a site workspace" body="Open an existing site tab or add a new read-only workspace." />
+        <EmptyState icon="+" title="Open a project" body="Open an existing project tab or create another project for a kintone site." />
         <div className="btn-row new-tab-actions">
-          <PrimaryActionButton label="Open in tab" onClick={onOpenSite} />
-          <SecondaryActionButton label="Add site workspace" onClick={onAddSite} />
+          <PrimaryActionButton label="Open recent project" onClick={onOpenSite} />
+          <SecondaryActionButton label="New project from site" onClick={onAddSite} />
         </div>
       </div>
     </div>

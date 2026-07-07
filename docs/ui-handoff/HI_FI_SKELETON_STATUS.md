@@ -19,6 +19,12 @@ This note records the first UI skeleton batch implemented from the Claude Design
 - No CLI behavior.
 - No write-back, deploy, import, Git client, AI, rollback, or safe deploy flow.
 
+## Product model update
+
+- Desktop mock now uses a single-site project model: 1 Project = 1 local folder + 1 configured kintone site.
+- The same kintone domain/site may appear in multiple Projects when separate snapshots, folders, or auth contexts are useful.
+- Legacy internal names such as Site Workspace may remain in code until core workspace/storage wiring begins, but user-facing UI should describe Projects as the primary object.
+
 ## Visual verification notes
 
 - Screens were checked against the Hi-Fi HTML at a 1240px app frame.

@@ -207,8 +207,8 @@ function buildTopMenus(
     {
       label: "Site",
       items: [
-        { label: "Site workspaces", onSelect: () => navigate("/home/sites") },
-        { label: "Add site workspace", onSelect: () => navigate(onboardingPath("add-site")) },
+        { label: "Projects", onSelect: () => navigate("/") },
+        { label: "New project from same site", onSelect: () => navigate(onboardingPath("add-site")) },
         activeSiteCommand(`Active site overview · ${activeSite.name}`, () => navigate(activeSiteRoutes.overview)),
         activeSiteCommand("Active site apps", () => navigate(activeSiteRoutes.apps)),
         activeSiteCommand("Active site settings", () => navigate(activeSiteRoutes.settings)),

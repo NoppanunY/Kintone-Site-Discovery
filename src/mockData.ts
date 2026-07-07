@@ -3,8 +3,9 @@ import type { DeveloperFileItem, FileOrderItem, KpiModel, ReportItem, ScanPreset
 export const siteId = "client-a-production";
 
 export const projectRows = [
-  { name: "Client CRM Discovery", path: "~/KintoneDiscovery/client-crm", opened: "opened 2h ago" },
-  { name: "Vendor Audit 2026", path: "~/Work/vendor-audit", opened: "opened yesterday" },
+  { name: "Client CRM Discovery", siteId, path: "~/KintoneDiscovery/client-crm", opened: "opened 2h ago" },
+  { name: "Client CRM Sandbox Review", siteId: "dev-sandbox", path: "~/KintoneDiscovery/client-crm-sandbox", opened: "opened 1h ago" },
+  { name: "Vendor Audit 2026", siteId: "vendor-audit-main", path: "~/Work/vendor-audit", opened: "opened yesterday" },
 ];
 
 export const siteWorkspaces: SiteWorkspaceModel[] = [
@@ -25,7 +26,7 @@ export const siteWorkspaces: SiteWorkspaceModel[] = [
   },
   {
     id: "dev-sandbox",
-    projectName: "Client CRM Discovery",
+    projectName: "Client CRM Sandbox Review",
     name: "Dev Sandbox",
     domain: "dev.cybozu.com",
     profile: "Production Admin",
@@ -64,7 +65,7 @@ export function tabsForSiteIds(siteIds: string[]): TabModel[] {
     { id: "home", title: "Home", kind: "home" },
     ...siteIds.map((id) => {
       const site = getSiteWorkspaceById(id);
-      return { id: site.id, title: site.name, kind: "site" as const };
+      return { id: site.id, title: site.projectName, kind: "site" as const };
     }),
   ];
 }
@@ -117,8 +118,8 @@ export function historyRunsForSite(site: SiteWorkspaceModel) {
 export const overviewKpis: KpiModel[] = overviewKpisForSite(siteWorkspaces[0]);
 
 export const profiles = [
-  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 sites · 2 projects" },
-  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 site · 1 project" },
+  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 projects" },
+  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 project" },
 ];
 
 export const apps = [

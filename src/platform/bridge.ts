@@ -60,7 +60,7 @@ const browserFallbackBridge: PlatformBridge = {
     return {
       ok: true,
       code: "FALLBACK",
-      message: "Site tab persistence is not available in browser fallback mode.",
+      message: "Project tab persistence is not available in browser fallback mode.",
     };
   },
 

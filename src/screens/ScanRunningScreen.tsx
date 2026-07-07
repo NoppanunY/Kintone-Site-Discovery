@@ -15,7 +15,7 @@ function scanLogLines(site: SiteWorkspaceModel, isRerun: boolean) {
 
   return [
     { prefix: "C:\\KintoneSiteDiscovery>", text: `${command} --site ${site.id} --read-only` },
-    { prefix: "[10:35:12.084]", text: `loaded site workspace: ${site.name} (${site.domain})` },
+    { prefix: "[10:35:12.084]", text: `loaded project site: ${site.projectName} · ${site.name} (${site.domain})` },
     { prefix: "[10:35:12.171]", text: `using auth profile reference: ${site.profile}` },
     { prefix: "[10:35:12.203]", text: "planned collectors: required 17, recommended 5, additional 0" },
     { prefix: "[10:35:13.447]", text: "REST metadata completed: forms, fields, views, permissions, notifications", tone: "ok" as const },
