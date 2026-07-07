@@ -9,7 +9,7 @@ interface ProjectHomeScreenProps {
   onAddProfile: () => void;
   onAddSite: () => void;
   onNewProject: () => void;
-  onOpenSite: () => void;
+  onOpenSite: (id: string) => void;
   onMockAction: MockActionHandler;
   requestedAuthTest?: string | null;
   requestedAuthTestKey?: string;
@@ -39,6 +39,8 @@ export function ProjectHomeScreen({
   requestedAuthTestKey,
 }: ProjectHomeScreenProps) {
   const [connectionResults, setConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
+  const [selectedProject, setSelectedProject] = useState(projectRows[0].name);
+  const projectSites = workspaces.filter((site) => site.projectName === selectedProject);
 
   function targetForProfile(profile: Profile): ConnectionTestTarget {
     return {
@@ -95,7 +97,15 @@ export function ProjectHomeScreen({
                 {project.path} · {project.opened}
               </div>
             </div>
-            <SecondaryActionButton label="Open project" size="sm" onClick={() => onMockAction(`Project "${project.name}" selected in the mock workspace list.`)} />
+            <SecondaryActionButton
+              label={project.name === selectedProject ? "Selected" : "Open project"}
+              size="sm"
+              disabled={project.name === selectedProject}
+              onClick={() => {
+                setSelectedProject(project.name);
+                onMockAction(`Project "${project.name}" opened. Choose a site workspace below to open a site tab.`);
+              }}
+            />
           </div>
         ))}
       </div>
@@ -149,7 +159,7 @@ export function ProjectHomeScreen({
       </div>
       <div className="between" style={{ marginTop: 4 }}>
         <h2 className="h2">
-          Site workspaces{" "}
+          Site workspaces in {selectedProject}{" "}
           <span className="small muted2" style={{ fontWeight: 400 }}>
             · one kintone domain inside a project
           </span>
@@ -157,7 +167,7 @@ export function ProjectHomeScreen({
         <SecondaryActionButton label="＋ Add site workspace" size="sm" onClick={onAddSite} />
       </div>
       <div className="list">
-        {workspaces.map((site) => (
+        {projectSites.map((site) => (
           <div className="li" key={site.name}>
             <div className="grow">
               <div className="h3">{site.name}</div>
@@ -166,9 +176,18 @@ export function ProjectHomeScreen({
               </div>
             </div>
             <StatusPill status={site.tone} label={site.status} dot />
-            <PrimaryActionButton label="Open site" size="sm" onClick={onOpenSite} />
+            <PrimaryActionButton label="Open site tab" size="sm" onClick={() => onOpenSite(site.id)} />
           </div>
         ))}
+        {projectSites.length === 0 ? (
+          <div className="li">
+            <div className="grow">
+              <div className="h3">No site workspaces in this project yet</div>
+              <div className="small muted2">Add a site workspace before opening a site tab.</div>
+            </div>
+            <SecondaryActionButton label="Add site workspace" size="sm" onClick={onAddSite} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

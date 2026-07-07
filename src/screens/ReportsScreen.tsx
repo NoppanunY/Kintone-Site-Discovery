@@ -1,5 +1,5 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
-import type { MockActionHandler } from "../types";
+import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
 const reports = [
@@ -9,15 +9,23 @@ const reports = [
   ["Dependency report", "Detected links between apps, plugins and files"],
 ];
 
-export function ReportsScreen({ onMockAction }: { onMockAction: MockActionHandler }) {
+export function ReportsScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
   return (
     <div className="page">
       <PageHeader
-        breadcrumb="Client A Production · Reports"
+        breadcrumb={`${site.name} · Reports`}
         title="Reports"
         subtitle="Readable summaries generated from the current local snapshot."
-        actions={<SecondaryActionButton label="Reveal reports folder" onClick={() => onMockAction("Reveal reports folder bridge stub triggered. No folder was opened.")} />}
+        actions={site.hasSnapshot ? <SecondaryActionButton label="Reveal reports folder" onClick={() => onMockAction("Folder opening is not connected yet. No folder was opened.")} /> : undefined}
       />
+      {!site.hasSnapshot ? (
+        <div className="card card-pad">
+          <div className="h3">No reports yet</div>
+          <div className="body muted" style={{ marginTop: 6 }}>
+            Run a scan to create the first local snapshot and generate reports for {site.name}.
+          </div>
+        </div>
+      ) : (
       <div className="list">
         {reports.map(([title, description], index) => (
           <div className="li" key={title}>
@@ -48,6 +56,7 @@ export function ReportsScreen({ onMockAction }: { onMockAction: MockActionHandle
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

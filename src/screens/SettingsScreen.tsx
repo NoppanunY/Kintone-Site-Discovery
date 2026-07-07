@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
-import type { MockActionHandler } from "../types";
+import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 
 const subnav = ["General", "Authentication", "Scan defaults", "Output folder", "Privacy & redaction"] as const;
 type SettingsSection = (typeof subnav)[number];
@@ -10,10 +10,10 @@ const initialSettings = {
   recommendedDefaults: true,
   pluginAssets: false,
   sampleRecords: false,
-  fullRecordExport: false,
+  fullRecordCapture: false,
 };
 
-export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandler }) {
+export function SettingsScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("Scan defaults");
   const [settings, setSettings] = useState(initialSettings);
   const [savedSettings, setSavedSettings] = useState(initialSettings);
@@ -29,7 +29,7 @@ export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandl
 
   function saveSettings() {
     setSavedSettings(settings);
-    onMockAction("Scan default settings saved in local mock state only. No config file was written.");
+    onMockAction("Scan default settings saved in preview state only. No config file was written.");
   }
 
   return (
@@ -44,7 +44,7 @@ export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandl
             onClick={() => {
               setActiveSection(item);
               if (item !== "Scan defaults") {
-                onMockAction(`${item} settings section opened as a mock placeholder.`);
+                onMockAction(`${item} settings section opened. Its controls are not connected yet.`);
               }
             }}
           >
@@ -56,6 +56,9 @@ export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandl
         <div>
           <div className="breadcrumb">Settings</div>
           <h1 className="h-display">{activeSection}</h1>
+          <div className="small muted2" style={{ marginTop: 4 }}>
+            {site.name} · {site.domain}
+          </div>
         </div>
         {activeSection === "Scan defaults" ? (
           <>
@@ -124,16 +127,16 @@ export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandl
               <div className="li">
                 <button
                   type="button"
-                  className={`toggle ${settings.fullRecordExport ? "on" : ""}`}
+                  className={`toggle ${settings.fullRecordCapture ? "on" : ""}`}
                   role="switch"
-                  aria-checked={settings.fullRecordExport}
-                  aria-label="Full record export"
-                  onClick={() => updateSetting("fullRecordExport", !settings.fullRecordExport)}
+                  aria-checked={settings.fullRecordCapture}
+                  aria-label="Full record capture"
+                  onClick={() => updateSetting("fullRecordCapture", !settings.fullRecordCapture)}
                 />
                 <div className="grow">
-                  <div className="h3">Full record export</div>
+                  <div className="h3">Full record capture</div>
                 </div>
-                <span className="small muted2">{settings.fullRecordExport ? "On for new scans" : "Off by default"}</span>
+                <span className="small muted2">{settings.fullRecordCapture ? "On for new scans" : "Off by default"}</span>
               </div>
             </div>
             <div className="card card-pad rowc">
@@ -145,7 +148,7 @@ export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandl
               <StatusPill status="info" label="Locked on" />
             </div>
             <div className="between">
-              <span className="small muted2">{dirty ? "Unsaved local mock changes" : "No unsaved changes"}</span>
+              <span className="small muted2">{dirty ? "Unsaved preview changes" : "No unsaved changes"}</span>
               <div className="rowc">
                 <SecondaryActionButton label="Cancel" variant="ghost" disabled={!dirty} onClick={resetSettings} />
                 <PrimaryActionButton label="Save changes" disabled={!dirty} onClick={saveSettings} />
@@ -156,7 +159,7 @@ export function SettingsScreen({ onMockAction }: { onMockAction: MockActionHandl
           <div className="card card-pad">
             <div className="h3">{activeSection} settings</div>
             <div className="body muted" style={{ marginTop: 6 }}>
-              This section is a desktop mock placeholder. Its real controls will be wired in a later settings pass.
+              This section is available for navigation now. Its controls will be connected in a later settings pass.
             </div>
             <div className="rowc" style={{ marginTop: 14 }}>
               <SecondaryActionButton label="Back to Scan defaults" onClick={() => setActiveSection("Scan defaults")} />

@@ -1,37 +1,124 @@
-import type { DeveloperFileItem, FileOrderItem, KpiModel, ReportItem, ScanPreset, SensitiveOption, TabModel } from "./types";
+import type { DeveloperFileItem, FileOrderItem, KpiModel, ReportItem, ScanPreset, SensitiveOption, SiteWorkspaceModel, TabModel } from "./types";
 
 export const siteId = "client-a-production";
-
-export const tabs: TabModel[] = [
-  { id: "home", title: "Home", kind: "home" },
-  { id: siteId, title: "Client A Production", kind: "site" },
-];
-
-export const tabsWithSandbox: TabModel[] = [
-  ...tabs,
-  { id: "dev-sandbox", title: "Dev Sandbox", kind: "site" },
-];
 
 export const projectRows = [
   { name: "Client CRM Discovery", path: "~/KintoneDiscovery/client-crm", opened: "opened 2h ago" },
   { name: "Vendor Audit 2026", path: "~/Work/vendor-audit", opened: "opened yesterday" },
 ];
 
+export const siteWorkspaces: SiteWorkspaceModel[] = [
+  {
+    id: siteId,
+    projectName: "Client CRM Discovery",
+    name: "Client A Production",
+    domain: "client-a.cybozu.com",
+    profile: "Client A Admin",
+    meta: "last snapshot 2h ago",
+    status: "Connected",
+    tone: "ok",
+    hasSnapshot: true,
+    selectedApps: 4,
+    appsAvailable: 18,
+    pluginsCaptured: 5,
+    redactions: 4,
+  },
+  {
+    id: "dev-sandbox",
+    projectName: "Client CRM Discovery",
+    name: "Dev Sandbox",
+    domain: "dev.cybozu.com",
+    profile: "Production Admin",
+    meta: "never scanned",
+    status: "Idle",
+    tone: "idle",
+    hasSnapshot: false,
+    selectedApps: 4,
+    appsAvailable: 9,
+    pluginsCaptured: 0,
+    redactions: 0,
+  },
+  {
+    id: "vendor-audit-main",
+    projectName: "Vendor Audit 2026",
+    name: "Vendor Audit Main",
+    domain: "vendor.cybozu.com",
+    profile: "Production Admin",
+    meta: "last snapshot yesterday",
+    status: "Connected",
+    tone: "ok",
+    hasSnapshot: true,
+    selectedApps: 6,
+    appsAvailable: 14,
+    pluginsCaptured: 2,
+    redactions: 11,
+  },
+];
+
+export function getSiteWorkspaceById(id: string | null | undefined): SiteWorkspaceModel {
+  return siteWorkspaces.find((workspace) => workspace.id === id) ?? siteWorkspaces[0];
+}
+
+export function tabsForSiteIds(siteIds: string[]): TabModel[] {
+  return [
+    { id: "home", title: "Home", kind: "home" },
+    ...siteIds.map((id) => {
+      const site = getSiteWorkspaceById(id);
+      return { id: site.id, title: site.name, kind: "site" as const };
+    }),
+  ];
+}
+
+export const tabs: TabModel[] = tabsForSiteIds([siteId, "dev-sandbox"]);
+
+export const tabsWithSandbox: TabModel[] = tabs;
+
+export const workspaces = siteWorkspaces.map((site) => ({
+  id: site.id,
+  projectName: site.projectName,
+  name: site.name,
+  domain: site.domain,
+  profile: site.profile,
+  meta: site.meta,
+  status: site.status,
+  tone: site.tone,
+}));
+
+export function overviewKpisForSite(site: SiteWorkspaceModel): KpiModel[] {
+  return [
+    { number: String(site.appsAvailable), label: "Apps available" },
+    { number: site.hasSnapshot ? String(site.selectedApps) : "0", label: "Apps in snapshot" },
+    { number: String(site.pluginsCaptured), label: "Plugins captured" },
+    { number: String(site.redactions), label: "Redactions" },
+  ];
+}
+
+export function historyRunsForSite(site: SiteWorkspaceModel) {
+  if (!site.hasSnapshot) {
+    return [];
+  }
+
+  if (site.id === "vendor-audit-main") {
+    return [
+      {
+        title: "Jul 6, 2026 · 14:20",
+        snapshotId: "snap_20260706_1420",
+        meta: "6 apps · Required 104/104 ok · Optional 0 skipped · Warnings 0 · 11 redactions",
+        status: "Completed",
+        tone: "ok" as const,
+        current: true,
+      },
+    ];
+  }
+
+  return historyRuns;
+}
+
+export const overviewKpis: KpiModel[] = overviewKpisForSite(siteWorkspaces[0]);
+
 export const profiles = [
   { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 sites · 2 projects" },
   { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 site · 1 project" },
-];
-
-export const workspaces = [
-  { name: "Client A Production", domain: "client-a.cybozu.com", profile: "Client A Admin", meta: "last snapshot 2h ago", status: "Connected", tone: "ok" as const },
-  { name: "Dev Sandbox", domain: "dev.cybozu.com", profile: "Production Admin", meta: "never scanned", status: "Idle", tone: "idle" as const },
-];
-
-export const overviewKpis: KpiModel[] = [
-  { number: "18", label: "Apps available" },
-  { number: "12", label: "Apps in snapshot" },
-  { number: "5", label: "Plugins captured" },
-  { number: "4", label: "Redactions" },
 ];
 
 export const apps = [

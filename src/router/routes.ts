@@ -1,20 +1,29 @@
 import type { NavKey } from "../types";
-import { siteId } from "../mockData";
+import { getSiteWorkspaceById, siteId } from "../mockData";
 
-export const siteRouteByNav: Record<NavKey, string> = {
-  overview: `/site/${siteId}/overview`,
-  apps: `/site/${siteId}/apps`,
-  scan: `/site/${siteId}/scan`,
-  snapshot: `/site/${siteId}/snapshot`,
-  reports: `/site/${siteId}/reports`,
-  "developer-files": `/site/${siteId}/developer-files`,
-  history: `/site/${siteId}/history`,
-  settings: `/site/${siteId}/settings`,
-  advanced: `/site/${siteId}/advanced`,
-};
+export function siteRouteByNavForSite(siteWorkspaceId: string): Record<NavKey, string> {
+  return {
+    overview: `/site/${siteWorkspaceId}/overview`,
+    apps: `/site/${siteWorkspaceId}/apps`,
+    scan: `/site/${siteWorkspaceId}/scan`,
+    snapshot: `/site/${siteWorkspaceId}/snapshot`,
+    reports: `/site/${siteWorkspaceId}/reports`,
+    "developer-files": `/site/${siteWorkspaceId}/developer-files`,
+    history: `/site/${siteWorkspaceId}/history`,
+    settings: `/site/${siteWorkspaceId}/settings`,
+    advanced: `/site/${siteWorkspaceId}/advanced`,
+  };
+}
+
+export const siteRouteByNav: Record<NavKey, string> = siteRouteByNavForSite(siteId);
 
 export function isSiteRoute(pathname: string) {
   return pathname.startsWith("/site/");
+}
+
+export function siteIdFromPath(pathname: string) {
+  const match = pathname.match(/^\/site\/([^/]+)/);
+  return getSiteWorkspaceById(match?.[1]).id;
 }
 
 export function navFromPath(pathname: string): NavKey {
@@ -30,5 +39,5 @@ export function navFromPath(pathname: string): NavKey {
 }
 
 export function activeTabFromPath(pathname: string) {
-  return isSiteRoute(pathname) ? siteId : "home";
+  return isSiteRoute(pathname) ? siteIdFromPath(pathname) : "home";
 }

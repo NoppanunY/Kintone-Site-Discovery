@@ -11,6 +11,22 @@ export interface TabModel {
   running?: boolean;
 }
 
+export interface SiteWorkspaceModel {
+  id: Id;
+  projectName: string;
+  name: string;
+  domain: string;
+  profile: string;
+  meta: string;
+  status: string;
+  tone: StatusTone;
+  hasSnapshot: boolean;
+  selectedApps: number;
+  appsAvailable: number;
+  pluginsCaptured: number;
+  redactions: number;
+}
+
 export interface TopMenuItemModel {
   label: string;
   onSelect?: () => void;

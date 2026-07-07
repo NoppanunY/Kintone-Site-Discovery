@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { PrimaryActionButton, SecondaryActionButton, SensitiveOptionRow } from "../components";
 import { additionalOptions, recommendedOptions, requiredOptions } from "../mockData";
+import type { SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
 interface SensitiveOptionsScreenProps {
+  site: SiteWorkspaceModel;
   compact?: boolean;
   onBack: () => void;
   onConfirm: () => void;
 }
 
-export function SensitiveOptionsScreen({ compact = false, onBack, onConfirm }: SensitiveOptionsScreenProps) {
+export function SensitiveOptionsScreen({ site, compact = false, onBack, onConfirm }: SensitiveOptionsScreenProps) {
   const [recommended, setRecommended] = useState(recommendedOptions);
   const [additional, setAdditional] = useState(additionalOptions);
   const visibleAdditional = compact ? additional.slice(0, 2) : additional;
@@ -27,9 +29,9 @@ export function SensitiveOptionsScreen({ compact = false, onBack, onConfirm }: S
   return (
     <div className="page">
       <PageHeader
-        breadcrumb="Client A Production · Scan · Advanced"
+        breadcrumb={`${site.name} · Scan · Advanced`}
         title="Configure sensitive options"
-        subtitle="Full Discovery · 4 apps"
+        subtitle={`Full Discovery · ${site.selectedApps} apps`}
         actions={<SecondaryActionButton label="▴ Hide" size="sm" variant="ghost" onClick={onBack} />}
       />
       {compact ? null : (

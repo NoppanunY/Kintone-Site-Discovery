@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
-import type { MockActionHandler } from "../types";
+import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
 type SnapshotRerunState = "idle" | "running" | "succeeded" | "failed" | "canceled";
@@ -12,11 +12,12 @@ const collectorRows = [
   { status: "Queued", tone: "idle" as const, label: "Developer file generation" },
 ];
 
-export function LocalSnapshotScreen({ onChangeSettings, onMockAction }: { onChangeSettings: () => void; onMockAction: MockActionHandler }) {
+export function LocalSnapshotScreen({ site, onChangeSettings, onMockAction }: { site: SiteWorkspaceModel; onChangeSettings: () => void; onMockAction: MockActionHandler }) {
   const [rerunState, setRerunState] = useState<SnapshotRerunState>("idle");
   const [showDetails, setShowDetails] = useState(false);
   const [snapshotUpdated, setSnapshotUpdated] = useState(false);
   const isRunning = rerunState === "running";
+  const hasSnapshot = site.hasSnapshot || snapshotUpdated;
   const titleMeta = rerunState === "idle" ? undefined : <SnapshotTitleMeta state={rerunState} />;
 
   const startRerun = () => {
@@ -36,20 +37,27 @@ export function LocalSnapshotScreen({ onChangeSettings, onMockAction }: { onChan
         { number: "6", label: "Plugins" },
         { number: "5", label: "Redactions" },
       ]
-    : [
+    : hasSnapshot
+      ? [
         { number: "48.2", label: "MB on disk" },
-        { number: "12", label: "Apps" },
-        { number: "5", label: "Plugins" },
-        { number: "4", label: "Redactions" },
-      ];
+          { number: String(site.selectedApps), label: "Apps" },
+          { number: String(site.pluginsCaptured), label: "Plugins" },
+          { number: String(site.redactions), label: "Redactions" },
+        ]
+      : [
+          { number: "0", label: "MB on disk" },
+          { number: "0", label: "Apps" },
+          { number: "0", label: "Plugins" },
+          { number: "0", label: "Redactions" },
+        ];
 
   return (
     <div className="page">
       <PageHeader
-        breadcrumb="Client A Production · Local Snapshot"
+        breadcrumb={`${site.name} · Local Snapshot`}
         title="Local Snapshot"
         titleMeta={titleMeta}
-        subtitle={isRunning ? "Re-running scan · Standard Scan · 4 apps · sensitive options off" : "The current local snapshot for this site. Reports and developer files are generated from it."}
+        subtitle={isRunning ? `Running scan · Standard Scan · ${site.selectedApps} apps · sensitive options off` : "The current local snapshot for this site. Reports and developer files are generated from it."}
         actions={
           isRunning ? (
             <>
@@ -58,8 +66,8 @@ export function LocalSnapshotScreen({ onChangeSettings, onMockAction }: { onChan
             </>
           ) : (
             <>
-              <SecondaryActionButton label="Open snapshot folder" onClick={() => onMockAction("Open snapshot folder bridge stub triggered. No folder was opened.")} />
-              <PrimaryActionButton label="Re-run scan" onClick={startRerun} />
+              {hasSnapshot ? <SecondaryActionButton label="Open snapshot folder" onClick={() => onMockAction("Folder opening is not connected yet. No folder was opened.")} /> : null}
+              <PrimaryActionButton label={hasSnapshot ? "Re-run scan" : "Run scan"} onClick={startRerun} />
             </>
           )
         }
@@ -75,24 +83,35 @@ export function LocalSnapshotScreen({ onChangeSettings, onMockAction }: { onChan
         onFailMock={() => setRerunState("failed")}
       />
       <KpiGrid items={kpis} />
-      <div className="card">
-        <div className="card-pad between" style={{ borderBottom: "1px solid var(--border)" }}>
-          <span className="h2">Contents</span>
-          <StatusPill status={snapshotUpdated ? "ok" : "warn"} label={snapshotUpdated ? "Updated just now" : "Completed with warnings"} dot />
+      {hasSnapshot ? (
+        <>
+          <div className="card">
+            <div className="card-pad between" style={{ borderBottom: "1px solid var(--border)" }}>
+              <span className="h2">Contents</span>
+              <StatusPill status={snapshotUpdated ? "ok" : "warn"} label={snapshotUpdated ? "Updated just now" : "Completed with warnings"} dot />
+            </div>
+            <SnapshotContent icon="📱" label="App configurations & forms" value={`${snapshotUpdated ? 13 : site.selectedApps} apps`} />
+            <SnapshotContent icon="🧩" label="Plugin inventory & saved config" value={`${snapshotUpdated ? 6 : site.pluginsCaptured} plugins`} />
+            <SnapshotContent icon="📄" label={<>Customization JS / CSS files <span className="small muted2">· order preserved</span></>} value={snapshotUpdated ? "34 files" : "31 files"} />
+            <SnapshotContent icon="👥" label="Users, groups, departments & spaces" value="included" />
+            <SnapshotContent icon="🔗" label="Dependency & preview-vs-live diff data" value="included" />
+          </div>
+          <div className="card card-pad between">
+            <div className="rowc">
+              <StatusPill status="ok" label="Integrity OK" dot />
+              <span className="small muted">{snapshotUpdated ? "Manifest verified · captured just now" : "Manifest verified · captured Jul 2, 2026 · 10:35"}</span>
+            </div>
+            <span className="mono small muted2">snapshot/manifest.json</span>
+          </div>
+        </>
+      ) : (
+        <div className="card card-pad">
+          <div className="h3">No local snapshot yet</div>
+          <div className="body muted" style={{ marginTop: 6 }}>
+            Run a read-only scan to create the first local snapshot for {site.name}.
+          </div>
         </div>
-        <SnapshotContent icon="📱" label="App configurations & forms" value={snapshotUpdated ? "13 apps" : "12 apps"} />
-        <SnapshotContent icon="🧩" label="Plugin inventory & saved config" value={snapshotUpdated ? "6 plugins" : "5 plugins"} />
-        <SnapshotContent icon="📄" label={<>Customization JS / CSS files <span className="small muted2">· order preserved</span></>} value={snapshotUpdated ? "34 files" : "31 files"} />
-        <SnapshotContent icon="👥" label="Users, groups, departments & spaces" value="included" />
-        <SnapshotContent icon="🔗" label="Dependency & preview-vs-live diff data" value="included" />
-      </div>
-      <div className="card card-pad between">
-        <div className="rowc">
-          <StatusPill status="ok" label="Integrity OK" dot />
-          <span className="small muted">{snapshotUpdated ? "Manifest verified · captured just now" : "Manifest verified · captured Jul 2, 2026 · 10:35"}</span>
-        </div>
-        <span className="mono small muted2">snapshot/manifest.json</span>
-      </div>
+      )}
     </div>
   );
 }
@@ -163,8 +182,8 @@ function SnapshotRerunNotice({
               </div>
             ))}
             <div className="snapshot-rerun__mock-actions">
-              <SecondaryActionButton label="Finish mock run" size="sm" onClick={onFinishMock} />
-              <SecondaryActionButton label="Fail mock run" size="sm" variant="ghost" onClick={onFailMock} />
+              <SecondaryActionButton label="Finish preview run" size="sm" onClick={onFinishMock} />
+              <SecondaryActionButton label="Fail preview run" size="sm" variant="ghost" onClick={onFailMock} />
             </div>
           </div>
         ) : null}

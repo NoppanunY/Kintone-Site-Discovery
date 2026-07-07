@@ -1,4 +1,5 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
+import type { SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
 const collectorRows = [
@@ -11,10 +12,12 @@ const collectorRows = [
 
 export function ScanRunningScreen({
   source,
+  site,
   onCancel,
   onChangeSettings,
 }: {
   source: "new" | "rerun";
+  site: SiteWorkspaceModel;
   onCancel: () => void;
   onChangeSettings: () => void;
 }) {
@@ -22,10 +25,10 @@ export function ScanRunningScreen({
   return (
     <div className="page">
       <PageHeader
-        breadcrumb="Client A Production · Scan"
+        breadcrumb={`${site.name} · Scan`}
         title={isRerun ? "Re-running scan..." : "Scanning..."}
         titleMeta={<StatusPill status="run" label="Running" dot />}
-        subtitle={isRerun ? "Standard Scan · 4 apps · sensitive options off" : "Building local snapshot · App 3 of 4 · Support Tickets"}
+        subtitle={isRerun ? `Standard Scan · ${site.selectedApps} apps · sensitive options off` : `Building local snapshot · App 3 of ${site.selectedApps} · Support Tickets`}
         actions={
           <>
             {isRerun ? <SecondaryActionButton label="Change settings" size="sm" variant="ghost" onClick={onChangeSettings} /> : null}

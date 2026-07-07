@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, ConfirmationModal } from "./components";
-import { tabs, tabsWithSandbox } from "./mockData";
-import { activeTabFromPath, isSiteRoute, navFromPath, siteRouteByNav } from "./router/routes";
+import { getSiteWorkspaceById, siteId, tabsForSiteIds } from "./mockData";
+import { activeTabFromPath, isSiteRoute, navFromPath, siteIdFromPath, siteRouteByNav, siteRouteByNavForSite } from "./router/routes";
 import { AdvancedInternalDataScreen } from "./screens/AdvancedInternalDataScreen";
 import { AppsScreen } from "./screens/AppsScreen";
 import { DeveloperFilesScreen } from "./screens/DeveloperFilesScreen";
@@ -17,7 +17,7 @@ import { ScanSetupScreen } from "./screens/ScanSetupScreen";
 import { SensitiveOptionsScreen } from "./screens/SensitiveOptionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SiteOverviewScreen } from "./screens/SiteOverviewScreen";
-import type { MockActionHandler, MockFeedbackTone, NavKey, TopMenuModel } from "./types";
+import type { MockActionHandler, MockFeedbackTone, NavKey, SiteWorkspaceModel, TopMenuModel } from "./types";
 
 type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 
@@ -35,6 +35,7 @@ function onboardingPath(entry: OnboardingEntry) {
 export function App() {
   const [locationKey, setLocationKey] = useState(0);
   const [mockFeedback, setMockFeedback] = useState<MockFeedbackState | null>(null);
+  const [openSiteTabIds, setOpenSiteTabIds] = useState<string[]>([siteId, "dev-sandbox"]);
   const pathname = window.location.pathname;
   const search = window.location.search;
 
@@ -62,9 +63,12 @@ export function App() {
   };
 
   const activeNav = navFromPath(pathname);
+  const activeSiteId = siteIdFromPath(pathname);
+  const activeSite = getSiteWorkspaceById(activeSiteId);
+  const siteRoutes = siteRouteByNavForSite(activeSite.id);
   const activeTabId = activeTabFromPath(pathname);
   const shellVariant = isSiteRoute(pathname) ? "site" : "home";
-  const visibleTabs = pathname === "/" || pathname.endsWith("/overview") ? tabsWithSandbox : tabs;
+  const visibleTabs = tabsForSiteIds(openSiteTabIds);
   const showMockAction: MockActionHandler = (message, options = {}) => {
     setMockFeedback({
       id: Date.now(),
@@ -73,7 +77,20 @@ export function App() {
       sticky: options.sticky ?? options.tone === "err",
     });
   };
-  const menus = buildTopMenus(navigate, showMockAction);
+  const openSiteTab = (id: string, nav: NavKey = "overview") => {
+    const site = getSiteWorkspaceById(id);
+    setOpenSiteTabIds((current) => (current.includes(site.id) ? current : [...current, site.id]));
+    navigate(siteRouteByNavForSite(site.id)[nav]);
+  };
+
+  const closeSiteTab = (id: string) => {
+    setOpenSiteTabIds((current) => current.filter((tabId) => tabId !== id));
+    if (id === activeTabId) {
+      navigate("/");
+    }
+  };
+
+  const menus = buildTopMenus(navigate, showMockAction, activeSite);
   const onboardingEntry = getOnboardingEntry(search);
 
   const screen = useMemo(
@@ -83,6 +100,9 @@ export function App() {
         search,
         navigate,
         onMockAction: showMockAction,
+        activeSite,
+        siteRoutes,
+        openSiteTab,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pathname, search, locationKey],
@@ -103,16 +123,22 @@ export function App() {
     <div className="canvas">
       <div className={pathname.endsWith("/scan/confirm") ? "modal-host" : "app-host"}>
         <AppShell
-          projectName="Client CRM Discovery"
+          projectName={activeSite.projectName}
           tabs={visibleTabs}
           activeTabId={activeTabId}
           activeNav={activeNav}
           menus={menus}
           variant={shellVariant}
           onNewTab={() => navigate("/new-tab")}
-          onCloseTab={() => navigate("/")}
-          onSelectTab={(id) => navigate(id === "home" ? "/" : siteRouteByNav.overview)}
-          onNavigate={(key: NavKey) => navigate(siteRouteByNav[key])}
+          onCloseTab={closeSiteTab}
+          onSelectTab={(id) => {
+            if (id === "home") {
+              navigate("/");
+              return;
+            }
+            openSiteTab(id, activeNav);
+          }}
+          onNavigate={(key: NavKey) => navigate(siteRouteByNavForSite(activeSite.id)[key])}
         >
           {screen}
         </AppShell>
@@ -128,9 +154,9 @@ export function App() {
               cancelLabel="Cancel"
               tertiaryLabel="Turn these off"
               tone="warn"
-              onCancel={() => navigate(siteRouteByNav.scan)}
-              onTertiary={() => navigate(`${siteRouteByNav.scan}/run`)}
-              onConfirm={() => navigate(`${siteRouteByNav.scan}/run`)}
+              onCancel={() => navigate(siteRoutes.scan)}
+              onTertiary={() => navigate(`${siteRoutes.scan}?start=1`)}
+              onConfirm={() => navigate(`${siteRoutes.scan}?start=1`)}
             />
           </div>
         ) : null}
@@ -147,14 +173,16 @@ export function App() {
   );
 }
 
-function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActionHandler): TopMenuModel[] {
+function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActionHandler, activeSite: SiteWorkspaceModel): TopMenuModel[] {
+  const activeSiteRoutes = siteRouteByNavForSite(activeSite.id);
+
   return [
     {
       label: "Project",
       items: [
         { label: "Projects", shortcut: "Ctrl+1", onSelect: () => navigate("/") },
         { label: "New project", onSelect: () => navigate(onboardingPath("new-project")) },
-        { label: "Open local folder", onSelect: () => onMockAction("Folder picker/open-folder bridge stub triggered. No folder was opened.") },
+        { label: "Open local folder", onSelect: () => onMockAction("Folder opening is not connected yet. No folder was opened.") },
       ],
     },
     {
@@ -170,26 +198,26 @@ function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActio
       items: [
         { label: "Site workspaces", onSelect: () => navigate("/home/sites") },
         { label: "Add site workspace", onSelect: () => navigate(onboardingPath("add-site")) },
-        { label: "Open Client A Production", onSelect: () => navigate(siteRouteByNav.overview) },
-        { label: "Apps", onSelect: () => navigate(siteRouteByNav.apps) },
-        { label: "Settings", onSelect: () => navigate(siteRouteByNav.settings) },
+        { label: `Open ${activeSite.name}`, onSelect: () => navigate(activeSiteRoutes.overview) },
+        { label: "Apps", onSelect: () => navigate(activeSiteRoutes.apps) },
+        { label: "Settings", onSelect: () => navigate(activeSiteRoutes.settings) },
       ],
     },
     {
       label: "Scan",
       items: [
-        { label: "Choose scan preset", onSelect: () => navigate(siteRouteByNav.scan) },
-        { label: "Configure sensitive options", onSelect: () => navigate(`${siteRouteByNav.scan}/advanced`) },
-        { label: "Run scan", onSelect: () => navigate(`${siteRouteByNav.scan}/run`) },
+        { label: "Choose scan preset", onSelect: () => navigate(activeSiteRoutes.scan) },
+        { label: "Configure sensitive options", onSelect: () => navigate(`${activeSiteRoutes.scan}/advanced`) },
+        { label: "Run scan", onSelect: () => navigate(activeSiteRoutes.scan) },
       ],
     },
     {
       label: "Snapshot",
       items: [
-        { label: "Local Snapshot", onSelect: () => navigate(siteRouteByNav.snapshot) },
-        { label: "Reports", onSelect: () => navigate(siteRouteByNav.reports) },
-        { label: "Developer Files", onSelect: () => navigate(siteRouteByNav["developer-files"]) },
-        { label: "History", onSelect: () => navigate(siteRouteByNav.history) },
+        { label: "Local Snapshot", onSelect: () => navigate(activeSiteRoutes.snapshot) },
+        { label: "Reports", onSelect: () => navigate(activeSiteRoutes.reports) },
+        { label: "Developer Files", onSelect: () => navigate(activeSiteRoutes["developer-files"]) },
+        { label: "History", onSelect: () => navigate(activeSiteRoutes.history) },
       ],
     },
     {
@@ -206,9 +234,9 @@ function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActio
       items: [
         {
           label: "About Kintone Site Discovery",
-          onSelect: () => onMockAction("Kintone Site Discovery · MVP 1 desktop mock shell."),
+          onSelect: () => onMockAction("Kintone Site Discovery · MVP 1 desktop preview shell."),
         },
-        { label: "Documentation", onSelect: () => onMockAction("Documentation link is a placeholder in this desktop mock.") },
+        { label: "Documentation", onSelect: () => onMockAction("Documentation link is not connected yet.") },
       ],
     },
   ];
@@ -228,11 +256,17 @@ function renderScreen({
   search,
   navigate,
   onMockAction,
+  activeSite,
+  siteRoutes,
+  openSiteTab,
 }: {
   pathname: string;
   search: string;
   navigate: (path: string) => void;
   onMockAction: MockActionHandler;
+  activeSite: SiteWorkspaceModel;
+  siteRoutes: Record<NavKey, string>;
+  openSiteTab: (id: string, nav?: NavKey) => void;
 }) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
     const requestedAuthTest = new URLSearchParams(search).get("test");
@@ -241,7 +275,7 @@ function renderScreen({
         onAddProfile={() => navigate(onboardingPath("add-auth"))}
         onAddSite={() => navigate(onboardingPath("add-site"))}
         onNewProject={() => navigate(onboardingPath("new-project"))}
-        onOpenSite={() => navigate(siteRouteByNav.overview)}
+        onOpenSite={(id) => openSiteTab(id, "overview")}
         onMockAction={onMockAction}
         requestedAuthTest={requestedAuthTest}
         requestedAuthTestKey={search}
@@ -250,15 +284,15 @@ function renderScreen({
   }
 
   if (pathname === "/new-tab") {
-    return <NewTabScreen onAddSite={() => navigate(onboardingPath("add-site"))} onOpenSite={() => navigate(siteRouteByNav.overview)} />;
+    return <NewTabScreen onAddSite={() => navigate(onboardingPath("add-site"))} onOpenSite={() => openSiteTab(siteId, "overview")} />;
   }
 
   if (pathname.endsWith("/apps")) {
-    return <AppsScreen onContinue={() => navigate(siteRouteByNav.scan)} onMockAction={onMockAction} />;
+    return <AppsScreen site={activeSite} onContinue={() => navigate(siteRoutes.scan)} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/scan/advanced") || pathname.endsWith("/scan/confirm")) {
-    return <SensitiveOptionsScreen compact={pathname.endsWith("/scan/confirm")} onBack={() => navigate(siteRouteByNav.scan)} onConfirm={() => navigate(`${siteRouteByNav.scan}/confirm`)} />;
+    return <SensitiveOptionsScreen site={activeSite} compact={pathname.endsWith("/scan/confirm")} onBack={() => navigate(siteRoutes.scan)} onConfirm={() => navigate(`${siteRoutes.scan}/confirm`)} />;
   }
 
   if (pathname.endsWith("/scan/run")) {
@@ -266,11 +300,12 @@ function renderScreen({
     return (
       <ScanRunningScreen
         source={source === "rerun" ? "rerun" : "new"}
+        site={activeSite}
         onCancel={() => {
-          onMockAction("Mock scan cancelled. No runner or snapshot was stopped because the runner is not wired yet.");
-          navigate(siteRouteByNav.scan);
+          onMockAction("Preview scan cancelled. No runner or snapshot was stopped because the runner is not connected yet.");
+          navigate(siteRoutes.scan);
         }}
-        onChangeSettings={() => navigate(siteRouteByNav.scan)}
+        onChangeSettings={() => navigate(siteRoutes.scan)}
       />
     );
   }
@@ -281,51 +316,53 @@ function renderScreen({
     return (
       <ScanResultScreen
         mode={mode}
-        onReports={() => navigate(siteRouteByNav.reports)}
-        onSnapshot={() => navigate(siteRouteByNav.snapshot)}
-        onDeveloperFiles={() => navigate(siteRouteByNav["developer-files"])}
-        onRetry={() => navigate(siteRouteByNav.scan)}
+        site={activeSite}
+        onReports={() => navigate(siteRoutes.reports)}
+        onSnapshot={() => navigate(siteRoutes.snapshot)}
+        onDeveloperFiles={() => navigate(siteRoutes["developer-files"])}
+        onRetry={() => navigate(siteRoutes.scan)}
         onFixConnection={() => navigate("/home/accounts")}
-        onPartialSummary={() => navigate(siteRouteByNav.snapshot)}
+        onPartialSummary={() => navigate(siteRoutes.snapshot)}
         onMockAction={onMockAction}
       />
     );
   }
 
   if (pathname.endsWith("/scan")) {
-    return <ScanSetupScreen onAdvanced={() => navigate(`${siteRouteByNav.scan}/advanced`)} onStart={() => navigate(`${siteRouteByNav.scan}/run`)} onMockAction={onMockAction} />;
+    return <ScanSetupScreen site={activeSite} startRequested={new URLSearchParams(search).get("start") === "1"} onAdvanced={() => navigate(`${siteRoutes.scan}/advanced`)} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/snapshot")) {
-    return <LocalSnapshotScreen onChangeSettings={() => navigate(siteRouteByNav.scan)} onMockAction={onMockAction} />;
+    return <LocalSnapshotScreen site={activeSite} onChangeSettings={() => navigate(siteRoutes.scan)} onMockAction={onMockAction} />;
   }
 
   if (pathname.includes("/reports")) {
-    return <ReportsScreen onMockAction={onMockAction} />;
+    return <ReportsScreen site={activeSite} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/developer-files")) {
-    return <DeveloperFilesScreen onMockAction={onMockAction} />;
+    return <DeveloperFilesScreen site={activeSite} onMockAction={onMockAction} />;
   }
 
   if (pathname.includes("/history")) {
-    return <HistoryScreen onMockAction={onMockAction} />;
+    return <HistoryScreen site={activeSite} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/settings")) {
-    return <SettingsScreen onMockAction={onMockAction} />;
+    return <SettingsScreen site={activeSite} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/advanced")) {
-    return <AdvancedInternalDataScreen />;
+    return <AdvancedInternalDataScreen site={activeSite} />;
   }
 
   return (
     <SiteOverviewScreen
-      onRunScan={() => navigate(siteRouteByNav.scan)}
-      onSnapshot={() => navigate(siteRouteByNav.snapshot)}
-      onReports={() => navigate(siteRouteByNav.reports)}
-      onDeveloperFiles={() => navigate(siteRouteByNav["developer-files"])}
+      site={activeSite}
+      onRunScan={() => navigate(siteRoutes.scan)}
+      onSnapshot={() => navigate(siteRoutes.snapshot)}
+      onReports={() => navigate(siteRoutes.reports)}
+      onDeveloperFiles={() => navigate(siteRoutes["developer-files"])}
       onMockAction={onMockAction}
     />
   );

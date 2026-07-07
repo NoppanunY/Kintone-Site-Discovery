@@ -1,11 +1,12 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
-import type { MockActionHandler } from "../types";
+import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
 type ResultMode = "completed" | "warnings" | "failed";
 
 interface ScanResultScreenProps {
   mode: ResultMode;
+  site: SiteWorkspaceModel;
   onReports: () => void;
   onSnapshot: () => void;
   onDeveloperFiles: () => void;
@@ -15,7 +16,7 @@ interface ScanResultScreenProps {
   onMockAction: MockActionHandler;
 }
 
-export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles, onRetry, onFixConnection, onPartialSummary, onMockAction }: ScanResultScreenProps) {
+export function ScanResultScreen({ mode, site, onReports, onSnapshot, onDeveloperFiles, onRetry, onFixConnection, onPartialSummary, onMockAction }: ScanResultScreenProps) {
   if (mode === "failed") {
     return (
       <div className="page">
@@ -23,7 +24,7 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
           <b>Failed.</b> A required collector could not complete, so this scan is not complete. No site data was changed; partial data is kept for inspection.
         </WarningBanner>
         <PageHeader
-          breadcrumb="Client A Production · Scan result"
+          breadcrumb={`${site.name} · Scan result`}
           title="Scan failed"
           subtitle="Stopped after 1m 12s · Jul 2, 2026 · 10:41"
           actions={<StatusPill status="err" label="Failed" dot />}
@@ -51,7 +52,7 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
           <b>Completed.</b> All required data was captured. The local snapshot is up to date.
         </WarningBanner>
         <PageHeader
-          breadcrumb="Client A Production · Scan result"
+          breadcrumb={`${site.name} · Scan result`}
           title="Scan completed"
           subtitle="Finished in 5m 07s · Jul 2, 2026 · 10:35"
           actions={<StatusPill status="ok" label="Completed" dot />}
@@ -88,7 +89,7 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
         <b>Completed with warnings.</b> All required data was captured. Some optional captures were skipped — safe to ignore or retry.
       </WarningBanner>
       <PageHeader
-        breadcrumb="Client A Production · Scan result"
+        breadcrumb={`${site.name} · Scan result`}
         title="Completed with warnings"
         subtitle="Finished in 5m 41s · Jul 2, 2026 · 10:35"
         actions={<StatusPill status="warn" label="Completed with warnings" dot />}
@@ -108,12 +109,12 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
         <div className="li">
           <StatusPill status="warn" label="Skipped" dot />
           <div className="grow body">1 plugin config — runtime unavailable</div>
-          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Mock retry queued for plugin config. No runner was started.")} />
+          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Preview retry queued for plugin config. No runner was started.")} />
         </div>
         <div className="li">
           <StatusPill status="warn" label="Skipped" dot />
           <div className="grow body">1 app — screenshots unavailable</div>
-          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Mock retry queued for app screenshots. No runner was started.")} />
+          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Preview retry queued for app screenshots. No runner was started.")} />
         </div>
       </div>
       <div className="btn-row">

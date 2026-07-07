@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
-import type { MockActionHandler } from "../types";
+import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
 interface AppsScreenProps {
+  site: SiteWorkspaceModel;
   onContinue: () => void;
   onMockAction: MockActionHandler;
 }
@@ -16,7 +17,7 @@ const appRows = [
   { id: "108", name: "Projects Tracker", space: "Delivery", facts: "has customization", checked: true, status: "Not captured", tone: "idle" as const },
 ];
 
-export function AppsScreen({ onContinue, onMockAction }: AppsScreenProps) {
+export function AppsScreen({ site, onContinue, onMockAction }: AppsScreenProps) {
   const [query, setQuery] = useState("");
   const [spaceFilter, setSpaceFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState(() => new Set(appRows.filter((app) => app.checked).map((app) => app.id)));
@@ -66,12 +67,12 @@ export function AppsScreen({ onContinue, onMockAction }: AppsScreenProps) {
   return (
     <div className="page">
       <PageHeader
-        breadcrumb="Client A Production · Apps"
+        breadcrumb={`${site.name} · Apps`}
         title="Apps"
         subtitle={`${appRows.length} apps · ${selectedCount} selected · app list fetched 2 hours ago`}
         actions={
           <>
-            <SecondaryActionButton label="⟳ Reload list" size="sm" onClick={() => onMockAction("Mock app list reloaded from local seed data. No kintone request was sent.")} />
+            <SecondaryActionButton label="⟳ Reload list" size="sm" onClick={() => onMockAction("Sample app list reloaded. No kintone request was sent.")} />
             <PrimaryActionButton label="Continue to scan →" disabled={selectedCount === 0} onClick={onContinue} />
           </>
         }

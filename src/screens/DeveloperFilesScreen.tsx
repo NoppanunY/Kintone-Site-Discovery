@@ -1,25 +1,34 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
-import type { MockActionHandler } from "../types";
+import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
-export function DeveloperFilesScreen({ onMockAction }: { onMockAction: MockActionHandler }) {
+export function DeveloperFilesScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
   return (
     <div className="page">
       <PageHeader
-        breadcrumb="Client A Production · Developer Files"
+        breadcrumb={`${site.name} · Developer Files`}
         title="Developer Files"
         titleMeta={<StatusPill status="idle" label="Advanced" />}
         subtitle="Machine-readable files generated from the current local snapshot, for developer handoff."
-        actions={
+        actions={site.hasSnapshot ?
           <>
-            <SecondaryActionButton label="Reveal files folder" onClick={() => onMockAction("Reveal developer files folder bridge stub triggered. No folder was opened.")} />
+            <SecondaryActionButton label="Reveal files folder" onClick={() => onMockAction("Folder opening is not connected yet. No folder was opened.")} />
             <PrimaryActionButton
               label="Create review package"
               onClick={() => onMockAction("Review package would include manifest.json, reports, developer files, redaction log, and README. No zip file was written.")}
             />
           </>
-        }
+        : undefined}
       />
+      {!site.hasSnapshot ? (
+        <div className="card card-pad">
+          <div className="h3">No developer files yet</div>
+          <div className="body muted" style={{ marginTop: 6 }}>
+            Run a scan to create the first local snapshot and generate developer files for {site.name}.
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="list">
         <div className="li">
           <span className="mono small" style={{ width: 22 }}>
@@ -59,6 +68,8 @@ export function DeveloperFilesScreen({ onMockAction }: { onMockAction: MockActio
           <FileOrderRow index={3} name="003-finalize.js" confidence="high · api · confidence: medium" />
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

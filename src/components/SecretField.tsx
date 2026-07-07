@@ -42,7 +42,7 @@ export function SecretField({ label, hasStoredSecret, onSet, onForget }: SecretF
           }
         }}
       />
-      <span className="hint">The value is write-only and is not kept in this mock UI.</span>
+      <span className="hint">The value is write-only and is not kept in this preview UI.</span>
     </div>
   );
 }

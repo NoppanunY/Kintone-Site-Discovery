@@ -212,7 +212,7 @@ function renderStep({
             label="Local folder"
             value="~/KintoneDiscovery/client-crm"
             action="Browse..."
-            onAction={() => onMockAction("Folder picker bridge stub triggered for project folder. No folder was selected.")}
+            onAction={() => onMockAction("Folder picker is not connected yet. No folder was selected.")}
           />
         </div>
       </>
@@ -236,7 +236,7 @@ function renderStep({
               />
               <ChoiceRow
                 title="Add new auth profile"
-                body="Mock credential fields are shown, but no secret is written yet."
+                body="Credential fields are preview-only in this build; no secret is stored yet."
                 selected={authMode === "new"}
                 onClick={() => onSelectAuthMode("new")}
               />
@@ -291,7 +291,7 @@ function renderStep({
             label="Save snapshots to"
             value={snapshotPath}
             action="Browse..."
-            onAction={() => onMockAction("Folder picker bridge stub triggered for snapshot folder. No folder was selected.")}
+            onAction={() => onMockAction("Folder picker is not connected yet. No folder was selected.")}
           />
         </div>
       </>
@@ -301,11 +301,11 @@ function renderStep({
   if (step === "test") {
     return (
       <>
-        <WizardIntro title="Test the read-only connection" body="This mock confirms the path through the wizard. No kintone request is sent yet." />
+        <WizardIntro title="Test the read-only connection" body="This checks the setup flow in preview mode. No kintone request is sent yet." />
         <div className="list">
           <CheckRow label="Project selected" detail={`${selectedProject} is the local workspace.`} />
           <CheckRow label="Global auth profile linked" detail={`${selectedProfile} is selected for this site.`} />
-          <CheckRow label="Read permission check" detail="Mock check passed without contacting kintone." />
+          <CheckRow label="Read permission check" detail="Preview check passed without contacting kintone." />
         </div>
         <div className="rowc">
           <button type="button" className="btn btn--sm" onClick={() => onRunConnectionTest()}>
@@ -329,7 +329,7 @@ function renderStep({
     <>
       <WizardIntro
         title="Choose apps to include"
-        body="Mock app data is loaded so the desktop flow can be reviewed before real collection is wired."
+        body="Sample app data is loaded so the desktop flow can be reviewed before real collection is connected."
       />
       <div className="list">
         <AppRow name="Sales Management" detail="App 101 · has plugins/customization" />
@@ -338,7 +338,7 @@ function renderStep({
       </div>
       <div className="setup-complete-line">
         <StatusPill status="ok" label="Ready" dot />
-        <span className="small muted2">Site workspace is ready in the mock flow.</span>
+        <span className="small muted2">Site workspace is ready in preview mode.</span>
       </div>
     </>
   );
@@ -365,10 +365,10 @@ function authStepTitle(entry: OnboardingEntry) {
 
 function authStepBody(entry: OnboardingEntry, selectedProject: string) {
   if (entry === "add-auth") {
-    return "Create a reusable global sign-in profile. This UI pass is mock-only and does not store real credentials.";
+    return "Create a reusable global sign-in profile. This preview does not store real credentials yet.";
   }
 
-  return `Link the site workspace in ${selectedProject} to a global auth profile, or create a new mock profile.`;
+  return `Link the site workspace in ${selectedProject} to a global auth profile, or create a new preview profile.`;
 }
 
 function AuthProfileFields() {
@@ -376,7 +376,7 @@ function AuthProfileFields() {
     <div className="form-grid">
       <MockField label="Profile name" value="Client A Admin" />
       <MockField label="Username" value="ca-admin@client-a" />
-      <MockField label="Password" value="••••••••" meta="Mock only · future build stores this in the OS keychain" />
+      <MockField label="Password" value="••••••••" meta="Preview only · credential storage will use the OS keychain" />
       <MockField label="Availability" value="Global" meta="Can be linked to site workspaces in any project." />
     </div>
   );
@@ -386,7 +386,7 @@ function SelectedProfileBanner({ selectedProfile }: { selectedProfile: string })
   return (
     <div className="banner screen-note">
       <div>
-        <b>{selectedProfile}</b> will be linked to this site workspace in the mock flow. Real credential lookup remains a future bridge task.
+        <b>{selectedProfile}</b> will be linked to this site workspace in preview mode. Credential lookup is not connected yet.
       </div>
     </div>
   );

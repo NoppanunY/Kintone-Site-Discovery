@@ -1,18 +1,26 @@
 import { Fragment, useState } from "react";
 import { SecondaryActionButton, StatusPill } from "../components";
-import { historyRuns } from "../mockData";
-import type { MockActionHandler } from "../types";
+import { historyRunsForSite } from "../mockData";
+import type { MockActionHandler, SiteWorkspaceModel, StatusTone } from "../types";
 import { PageHeader } from "./shared";
 
-type HistoryRun = (typeof historyRuns)[number];
+type HistoryRun = {
+  title: string;
+  snapshotId: string;
+  meta: string;
+  status: string;
+  tone: StatusTone;
+  current?: boolean;
+};
 type HistoryArtifactKind = "reports" | "files" | "reason";
 type SelectedHistoryArtifact = {
   kind: HistoryArtifactKind;
   run: HistoryRun;
 };
 
-export function HistoryScreen({ onMockAction }: { onMockAction: MockActionHandler }) {
+export function HistoryScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
   const [selectedArtifact, setSelectedArtifact] = useState<SelectedHistoryArtifact | null>(null);
+  const runs = historyRunsForSite(site);
 
   const openArtifact = (run: HistoryRun, kind: HistoryArtifactKind) => {
     setSelectedArtifact((current) => (current?.run.snapshotId === run.snapshotId && current.kind === kind ? null : { run, kind }));
@@ -20,9 +28,9 @@ export function HistoryScreen({ onMockAction }: { onMockAction: MockActionHandle
 
   return (
     <div className="page">
-      <PageHeader breadcrumb="Client A Production · History" title="Scan history" subtitle="Past scan runs for this site. The latest successful run is the current local snapshot." />
+      <PageHeader breadcrumb={`${site.name} · History`} title="Scan history" subtitle="Past scan runs for this site. The latest successful run is the current local snapshot." />
       <div className="list">
-        {historyRuns.map((run) => {
+        {runs.map((run) => {
           const selectedForRun = selectedArtifact?.run.snapshotId === run.snapshotId ? selectedArtifact : null;
           return (
             <Fragment key={run.snapshotId}>
@@ -52,6 +60,14 @@ export function HistoryScreen({ onMockAction }: { onMockAction: MockActionHandle
             </Fragment>
           );
         })}
+        {runs.length === 0 ? (
+          <div className="li">
+            <div className="grow">
+              <div className="h3">No scan history yet</div>
+              <div className="small muted2">Run a scan to create the first history entry for {site.name}.</div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

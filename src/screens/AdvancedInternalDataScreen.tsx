@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { SecondaryActionButton, WarningBanner } from "../components";
+import type { SiteWorkspaceModel } from "../types";
 
-export function AdvancedInternalDataScreen() {
+export function AdvancedInternalDataScreen({ site }: { site: SiteWorkspaceModel }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [openRequested, setOpenRequested] = useState(false);
 
   return (
     <div className="page advanced-gate-page">
       <div>
-        <div className="breadcrumb">Client A Production · Advanced Internal Data</div>
+        <div className="breadcrumb">{site.name} · Advanced Internal Data</div>
         <h1 className="h-display" style={{ color: "var(--text-2)" }}>
           Advanced Internal Data
         </h1>
@@ -51,7 +52,7 @@ export function AdvancedInternalDataScreen() {
       <div className="rowc">
         <SecondaryActionButton label="Open .kintone folder" disabled={!acknowledged} onClick={() => setOpenRequested(true)} />
         <span className="small muted2">
-          {openRequested ? "Desktop folder bridge stub triggered" : acknowledged ? "Ready to open after desktop bridge wiring" : "Enabled after you acknowledge above"}
+          {openRequested ? "Desktop folder opening is not connected yet" : acknowledged ? "Ready to open after desktop folder wiring" : "Enabled after you acknowledge above"}
         </span>
       </div>
     </div>
