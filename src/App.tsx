@@ -297,7 +297,7 @@ function renderScreen({
   }
 
   if (pathname.endsWith("/snapshot")) {
-    return <LocalSnapshotScreen onRunScan={() => navigate(`${siteRouteByNav.scan}/run?source=rerun`)} onMockAction={onMockAction} />;
+    return <LocalSnapshotScreen onChangeSettings={() => navigate(siteRouteByNav.scan)} onMockAction={onMockAction} />;
   }
 
   if (pathname.includes("/reports")) {
