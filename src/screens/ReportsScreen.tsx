@@ -15,8 +15,8 @@ export function ReportsScreen({ onMockAction }: { onMockAction: MockActionHandle
       <PageHeader
         breadcrumb="Client A Production · Reports"
         title="Reports"
-        subtitle="Generated from the local snapshot captured Jul 2, 10:35. Readable summaries — no code needed."
-        actions={<SecondaryActionButton label="Reveal folder" onClick={() => onMockAction("Reveal reports folder bridge stub triggered. No folder was opened.")} />}
+        subtitle="Readable summaries generated from the current local snapshot."
+        actions={<SecondaryActionButton label="Reveal reports folder" onClick={() => onMockAction("Reveal reports folder bridge stub triggered. No folder was opened.")} />}
       />
       <div className="list">
         {reports.map(([title, description], index) => (
@@ -41,9 +41,9 @@ export function ReportsScreen({ onMockAction }: { onMockAction: MockActionHandle
             </div>
             <StatusPill status="ok" label="Up to date" dot />
             {index === 0 ? (
-              <PrimaryActionButton label="Open" size="sm" onClick={() => onMockAction(`Opened mock report: ${title}.`)} />
+              <PrimaryActionButton label="Open report" size="sm" onClick={() => onMockAction(`Would open the ${title} markdown report in the OS-default app. No report was opened.`)} />
             ) : (
-              <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction(`Opened mock report: ${title}.`)} />
+              <SecondaryActionButton label="Open report" size="sm" onClick={() => onMockAction(`Would open the ${title} markdown report in the OS-default app. No report was opened.`)} />
             )}
           </div>
         ))}

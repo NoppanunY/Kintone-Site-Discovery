@@ -19,7 +19,7 @@ export function ReportListItem({ item, primary, onOpen }: ReportListItemProps) {
         <div className="small muted2">{item.description}</div>
       </div>
       <StatusPill status={item.freshness === "up_to_date" ? "ok" : "warn"} label={item.freshness === "up_to_date" ? "Up to date" : "Stale"} />
-      {primary ? <PrimaryActionButton label="Open" size="sm" onClick={onOpen} /> : <SecondaryActionButton label="Open" size="sm" variant="ghost" onClick={onOpen} />}
+      {primary ? <PrimaryActionButton label="Open report" size="sm" onClick={onOpen} /> : <SecondaryActionButton label="Open report" size="sm" variant="ghost" onClick={onOpen} />}
     </div>
   );
 }

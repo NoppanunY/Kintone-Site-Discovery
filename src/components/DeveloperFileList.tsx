@@ -18,7 +18,7 @@ export function DeveloperFileList({ files, onOpen }: DeveloperFileListProps) {
             <div className="small muted2">{file.size}</div>
           </div>
           {file.redacted ? <StatusPill status="ok" label="Redacted" dot /> : null}
-          <SecondaryActionButton label="Open" size="sm" onClick={() => onOpen?.(file.name)} />
+          <SecondaryActionButton label="Open file" size="sm" onClick={() => onOpen?.(file.name)} />
         </div>
       ))}
     </div>

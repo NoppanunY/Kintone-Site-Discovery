@@ -204,7 +204,7 @@ function renderStep({
       <>
         <WizardIntro
           title="Create a local project"
-          body="A project is the local workspace that groups site workspaces, auth profiles, snapshots, reports and developer files."
+          body="A project is a local folder that groups site workspaces, snapshots, reports and developer files. Auth profiles are global and reusable."
         />
         <div className="form-grid">
           <MockField label="Project name" value="Client CRM Discovery" />

@@ -44,8 +44,8 @@ export function SnapshotCard({
       <div className="card-pad btn-row">
         <SecondaryActionButton label="Open Local Snapshot" onClick={onOpenSnapshot} />
         {onReports ? <SecondaryActionButton label="View reports" icon="▦" variant="ghost" onClick={onReports} /> : null}
-        {onDeveloperFiles ? <SecondaryActionButton label="Developer files" icon="〈〉" variant="ghost" onClick={onDeveloperFiles} /> : null}
-        {!onReports && !onDeveloperFiles ? <SecondaryActionButton label="Reveal folder" variant="ghost" onClick={onOpenFolder} /> : null}
+        {onDeveloperFiles ? <SecondaryActionButton label="Open developer files" icon="〈〉" variant="ghost" onClick={onDeveloperFiles} /> : null}
+        {!onReports && !onDeveloperFiles ? <SecondaryActionButton label="Reveal snapshot folder" variant="ghost" onClick={onOpenFolder} /> : null}
       </div>
     </div>
   );

@@ -82,7 +82,7 @@ export function ProjectHomeScreen({
       <PageHeader
         breadcrumb="Home"
         title="Projects"
-        subtitle="A project is a local folder that holds your snapshots, reports and developer files."
+        subtitle="A project is a local folder that groups site workspaces, snapshots, reports, and developer files."
         actions={<PrimaryActionButton label="＋ New project" onClick={onNewProject} />}
       />
       <div className="list">
@@ -95,7 +95,7 @@ export function ProjectHomeScreen({
                 {project.path} · {project.opened}
               </div>
             </div>
-            <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction(`Project "${project.name}" selected in the mock workspace list.`)} />
+            <SecondaryActionButton label="Open project" size="sm" onClick={() => onMockAction(`Project "${project.name}" selected in the mock workspace list.`)} />
           </div>
         ))}
       </div>
@@ -103,7 +103,7 @@ export function ProjectHomeScreen({
         <h2 className="h2">
           Auth profiles{" "}
           <span className="small muted2" style={{ fontWeight: 400 }}>
-            · global, reusable across projects and sites
+            · global sign-in profiles, reusable across projects and sites
           </span>
         </h2>
         <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />
@@ -148,7 +148,12 @@ export function ProjectHomeScreen({
         })}
       </div>
       <div className="between" style={{ marginTop: 4 }}>
-        <h2 className="h2">Site workspaces</h2>
+        <h2 className="h2">
+          Site workspaces{" "}
+          <span className="small muted2" style={{ fontWeight: 400 }}>
+            · one kintone domain inside a project
+          </span>
+        </h2>
         <SecondaryActionButton label="＋ Add site workspace" size="sm" onClick={onAddSite} />
       </div>
       <div className="list">
@@ -161,7 +166,7 @@ export function ProjectHomeScreen({
               </div>
             </div>
             <StatusPill status={site.tone} label={site.status} dot />
-            <PrimaryActionButton label="Open" size="sm" onClick={onOpenSite} />
+            <PrimaryActionButton label="Open site" size="sm" onClick={onOpenSite} />
           </div>
         ))}
       </div>

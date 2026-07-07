@@ -76,7 +76,7 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
         <div className="btn-row">
           <PrimaryActionButton label="▦ View reports" onClick={onReports} />
           <SecondaryActionButton label="⛃ Open Local Snapshot" onClick={onSnapshot} />
-          <SecondaryActionButton label="〈〉 Developer files" variant="ghost" onClick={onDeveloperFiles} />
+          <SecondaryActionButton label="〈〉 Open developer files" variant="ghost" onClick={onDeveloperFiles} />
         </div>
       </div>
     );

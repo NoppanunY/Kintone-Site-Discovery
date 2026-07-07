@@ -49,7 +49,7 @@ export function LocalSnapshotScreen({ onChangeSettings, onMockAction }: { onChan
         breadcrumb="Client A Production · Local Snapshot"
         title="Local Snapshot"
         titleMeta={titleMeta}
-        subtitle={isRunning ? "Re-running scan · Standard Scan · 4 apps · sensitive options off" : "The complete local copy this scan produced — the source for every report and file."}
+        subtitle={isRunning ? "Re-running scan · Standard Scan · 4 apps · sensitive options off" : "The current local snapshot for this site. Reports and developer files are generated from it."}
         actions={
           isRunning ? (
             <>
@@ -58,7 +58,7 @@ export function LocalSnapshotScreen({ onChangeSettings, onMockAction }: { onChan
             </>
           ) : (
             <>
-              <SecondaryActionButton label="Open folder" onClick={() => onMockAction("Open snapshot folder bridge stub triggered. No folder was opened.")} />
+              <SecondaryActionButton label="Open snapshot folder" onClick={() => onMockAction("Open snapshot folder bridge stub triggered. No folder was opened.")} />
               <PrimaryActionButton label="Re-run scan" onClick={startRerun} />
             </>
           )

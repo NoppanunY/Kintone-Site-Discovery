@@ -84,8 +84,8 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
         <div className="btn-row">
           <SecondaryActionButton label="⛃ Open Local Snapshot" onClick={onSnapshot} />
           <SecondaryActionButton label="▦ View reports" onClick={onReports} />
-          <SecondaryActionButton label="〈〉 Developer files" onClick={onDeveloperFiles} />
-          <SecondaryActionButton label="Open folder" variant="ghost" onClick={() => onMockAction("Open folder bridge stub triggered. No Windows Explorer window was opened.")} />
+          <SecondaryActionButton label="〈〉 Open developer files" onClick={onDeveloperFiles} />
+          <SecondaryActionButton label="Open site folder" variant="ghost" onClick={() => onMockAction("Open site folder bridge stub triggered. No Windows Explorer window was opened.")} />
         </div>
       </div>
     </div>

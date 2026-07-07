@@ -9,11 +9,14 @@ export function DeveloperFilesScreen({ onMockAction }: { onMockAction: MockActio
         breadcrumb="Client A Production · Developer Files"
         title="Developer Files"
         titleMeta={<StatusPill status="idle" label="Advanced" />}
-        subtitle="Structured data generated from the snapshot, for developers and handoff. Most admins can stay in Reports."
+        subtitle="Machine-readable files generated from the current local snapshot, for developer handoff."
         actions={
           <>
-            <SecondaryActionButton label="Reveal folder" onClick={() => onMockAction("Reveal developer files folder bridge stub triggered. No folder was opened.")} />
-            <PrimaryActionButton label="Create review package" onClick={() => onMockAction("Review package creation is a mock stub. No zip file was written.")} />
+            <SecondaryActionButton label="Reveal files folder" onClick={() => onMockAction("Reveal developer files folder bridge stub triggered. No folder was opened.")} />
+            <PrimaryActionButton
+              label="Create review package"
+              onClick={() => onMockAction("Review package would include manifest.json, reports, developer files, redaction log, and README. No zip file was written.")}
+            />
           </>
         }
       />
@@ -27,17 +30,17 @@ export function DeveloperFilesScreen({ onMockAction }: { onMockAction: MockActio
             <div className="small muted2">1,204 records · 2.1 MB</div>
           </div>
           <StatusPill status="ok" label="Redacted" dot />
-          <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction("Opened mock developer file: structured-data.jsonl.")} />
+          <SecondaryActionButton label="Open file" size="sm" onClick={() => onMockAction("Would open structured-data.jsonl in the OS-default app. No file was opened.")} />
         </div>
         <div className="li">
           <span className="mono small" style={{ width: 22 }}>
             {"{ }"}
           </span>
           <div className="grow">
-            <div className="h3 mono">export-manifest.json</div>
-            <div className="small muted2">Index of everything in this export · 18 KB</div>
+            <div className="h3 mono">manifest.json</div>
+            <div className="small muted2">Index of everything in this snapshot · 18 KB</div>
           </div>
-          <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction("Opened mock developer file: export-manifest.json.")} />
+          <SecondaryActionButton label="Open file" size="sm" onClick={() => onMockAction("Would open manifest.json in the OS-default app. No file was opened.")} />
         </div>
       </div>
       <div className="card">

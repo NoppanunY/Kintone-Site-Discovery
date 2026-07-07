@@ -508,6 +508,12 @@ select:focus-visible,
   color: var(--surface);
 }
 
+.btn--danger:hover {
+  background: #8f2b24;
+  border-color: #8f2b24;
+  color: var(--surface);
+}
+
 .btn--ghost {
   background: transparent;
   border-color: transparent;

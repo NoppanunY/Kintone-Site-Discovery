@@ -12,7 +12,7 @@ interface HistoryScreenProps {
 export function HistoryScreen({ onReports, onDeveloperFiles, onMockAction }: HistoryScreenProps) {
   return (
     <div className="page">
-      <PageHeader breadcrumb="Client A Production · History" title="Scan history" subtitle="Each run and what it produced. The latest successful run is the current snapshot." />
+      <PageHeader breadcrumb="Client A Production · History" title="Scan history" subtitle="Past scan runs for this site. The latest successful run is the current local snapshot." />
       <div className="list">
         {historyRuns.map((run) => (
           <div className="li" key={run.title}>
@@ -24,17 +24,28 @@ export function HistoryScreen({ onReports, onDeveloperFiles, onMockAction }: His
             </div>
             <StatusPill status={run.tone} label={run.status} dot />
             <SecondaryActionButton
-              label={run.status === "Failed" ? "View reason" : "Reports"}
+              label={run.status === "Failed" ? "Show failure reason" : "Open reports"}
               size="sm"
               onClick={() => {
                 if (run.status === "Failed") {
-                  onMockAction(`Mock failure reason opened for ${run.title}.`);
+                  onMockAction(`Failure reason for ${run.title}: sign-in rejected. No log file was opened.`);
                   return;
                 }
+                onMockAction(`Opening reports for the ${run.title} scan. This mock uses the current Reports screen.`);
                 onReports();
               }}
             />
-            {run.status !== "Failed" ? <SecondaryActionButton label="Files" size="sm" variant="ghost" onClick={onDeveloperFiles} /> : null}
+            {run.status !== "Failed" ? (
+              <SecondaryActionButton
+                label="Open developer files"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  onMockAction(`Opening developer files for the ${run.title} scan. This mock uses the current Developer Files screen.`);
+                  onDeveloperFiles();
+                }}
+              />
+            ) : null}
           </div>
         ))}
       </div>
