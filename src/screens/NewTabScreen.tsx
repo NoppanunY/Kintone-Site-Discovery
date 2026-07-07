@@ -6,11 +6,13 @@ interface NewTabScreenProps {
 
 export function NewTabScreen({ onOpenSite }: NewTabScreenProps) {
   return (
-    <div className="page">
-      <EmptyState icon="+" title="Open a site workspace" body="Open an existing site tab or add a new read-only workspace." />
-      <div className="btn-row">
-        <PrimaryActionButton label="Open in tab" onClick={onOpenSite} />
-        <SecondaryActionButton label="Add site" />
+    <div className="page new-tab-page">
+      <div className="new-tab-panel">
+        <EmptyState icon="+" title="Open a site workspace" body="Open an existing site tab or add a new read-only workspace." />
+        <div className="btn-row new-tab-actions">
+          <PrimaryActionButton label="Open in tab" onClick={onOpenSite} />
+          <SecondaryActionButton label="Add site" />
+        </div>
       </div>
     </div>
   );

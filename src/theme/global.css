@@ -1051,6 +1051,37 @@ body.desktop-runtime .modal-host > .app {
   color: var(--primary);
 }
 
+.new-tab-page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-8);
+}
+
+.new-tab-panel {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  transform: translateY(-8%);
+}
+
+.new-tab-panel .empty-state {
+  min-height: auto;
+  padding: 0;
+}
+
+.new-tab-panel .empty-state__icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.new-tab-actions {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .screen-note {
   border-left: 3px solid var(--primary);
   color: var(--text-2);
