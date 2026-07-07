@@ -1,7 +1,8 @@
-import type { CSSProperties } from "react";
-import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
+import { Fragment, useEffect, useState, type CSSProperties } from "react";
+import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
+import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
 import { profiles, projectRows, workspaces } from "../mockData";
-import type { MockActionHandler } from "../types";
+import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
 interface ProjectHomeScreenProps {
@@ -10,6 +11,8 @@ interface ProjectHomeScreenProps {
   onNewProject: () => void;
   onOpenSite: () => void;
   onMockAction: MockActionHandler;
+  requestedAuthTest?: string | null;
+  requestedAuthTestKey?: string;
 }
 
 const folderIconStyle: CSSProperties = {
@@ -23,7 +26,54 @@ const folderIconStyle: CSSProperties = {
   fontSize: 17,
 };
 
-export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpenSite, onMockAction }: ProjectHomeScreenProps) {
+type Profile = (typeof profiles)[number];
+type TestOutcome = "passed" | "failed";
+
+export function ProjectHomeScreen({
+  onAddProfile,
+  onAddSite,
+  onNewProject,
+  onOpenSite,
+  onMockAction,
+  requestedAuthTest,
+  requestedAuthTestKey,
+}: ProjectHomeScreenProps) {
+  const [connectionResults, setConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
+
+  function targetForProfile(profile: Profile): ConnectionTestTarget {
+    return {
+      siteName: "Client A Production",
+      domain: "client-a.cybozu.com",
+      authProfile: profile.name,
+    };
+  }
+
+  function runConnectionTest(profile: Profile, outcome: TestOutcome = "passed") {
+    const target = targetForProfile(profile);
+    setConnectionResults((current) => ({
+      ...current,
+      [profile.name]: createTestingConnectionResult(target),
+    }));
+
+    window.setTimeout(() => {
+      setConnectionResults((current) => ({
+        ...current,
+        [profile.name]: outcome === "failed" ? createFailedConnectionResult(target) : createPassedConnectionResult(target),
+      }));
+    }, 450);
+  }
+
+  useEffect(() => {
+    if (!requestedAuthTest) {
+      return;
+    }
+
+    const requestedProfile = profiles.find((profile) => profile.name === requestedAuthTest);
+    if (requestedProfile) {
+      runConnectionTest(requestedProfile, "passed");
+    }
+  }, [requestedAuthTest, requestedAuthTestKey]);
+
   return (
     <div className="page">
       <PageHeader
@@ -56,22 +106,42 @@ export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpe
         <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />
       </div>
       <div className="list">
-        {profiles.map((profile) => (
-          <div className="li" key={profile.name}>
-            <div className="grow rowc">
-              <span style={{ fontSize: 16 }}>👤</span>
-              <div>
-                <div className="h3">{profile.name}</div>
-                <div className="small muted2">
-                  {profile.user} · password ••••••
+        {profiles.map((profile) => {
+          const connectionResult = connectionResults[profile.name];
+          return (
+            <Fragment key={profile.name}>
+              <div className="li">
+                <div className="grow rowc">
+                  <span style={{ fontSize: 16 }}>👤</span>
+                  <div>
+                    <div className="h3">{profile.name}</div>
+                    <div className="small muted2">
+                      {profile.user} · password ••••••
+                    </div>
+                  </div>
                 </div>
+                <StatusPill status={profile.tone} label={profile.status} dot />
+                <span className="small muted2">{profile.sites}</span>
+                <SecondaryActionButton label="Test" size="sm" onClick={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
               </div>
-            </div>
-            <StatusPill status={profile.tone} label={profile.status} dot />
-            <span className="small muted2">{profile.sites}</span>
-            <SecondaryActionButton label="Test" size="sm" onClick={() => onMockAction(`Mock connection test passed for ${profile.name}. No kintone request was sent.`)} />
-          </div>
-        ))}
+              {connectionResult ? (
+                <div className="li li--panel">
+                  <ConnectionTestPanel
+                    result={connectionResult}
+                    onRetry={() => runConnectionTest(profile, "passed")}
+                    onSimulateFailure={() => runConnectionTest(profile, "failed")}
+                    onDismiss={() =>
+                      setConnectionResults((current) => ({
+                        ...current,
+                        [profile.name]: undefined,
+                      }))
+                    }
+                  />
+                </div>
+              ) : null}
+            </Fragment>
+          );
+        })}
       </div>
       <div className="between" style={{ marginTop: 4 }}>
         <h2 className="h2">Site workspaces</h2>

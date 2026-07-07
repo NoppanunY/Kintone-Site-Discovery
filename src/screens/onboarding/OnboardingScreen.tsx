@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { StatusPill } from "../../components";
+import { ConnectionTestPanel, StatusPill } from "../../components";
+import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../../mockConnection";
 import { profiles, projectRows } from "../../mockData";
-import type { MockActionHandler } from "../../types";
+import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../../types";
 
 export type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 
@@ -50,15 +51,26 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
   const [authMode, setAuthMode] = useState<AuthMode>(entry === "add-auth" ? "new" : "existing");
   const [selectedProject, setSelectedProject] = useState("Client CRM Discovery");
   const [selectedProfile, setSelectedProfile] = useState("Client A Admin");
-  const [mockFeedback, setMockFeedback] = useState("Wizard ready");
+  const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex === steps.length - 1;
   const cancelLabel = entry === "add-site" ? "Cancel add site" : entry === "add-auth" ? "Cancel add profile" : "Cancel setup";
   const finishLabel = entry === "add-auth" ? "Save auth profile" : "Open site Overview";
   const showMockAction: MockActionHandler = (message) => {
-    setMockFeedback(message);
     onMockAction?.(message);
   };
+  const connectionTarget: ConnectionTestTarget = {
+    siteName: entry === "add-site" ? "Client A Staging" : "Client A Production",
+    domain: entry === "add-site" ? "staging.client-a.cybozu.com" : "client-a.cybozu.com",
+    authProfile: selectedProfile,
+  };
+
+  function runConnectionTest(outcome: "passed" | "failed" = "passed") {
+    setConnectionResult(createTestingConnectionResult(connectionTarget));
+    window.setTimeout(() => {
+      setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
+    }, 450);
+  }
 
   const content = useMemo(
     () =>
@@ -72,14 +84,18 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
         onSelectProject: setSelectedProject,
         onSelectProfile: setSelectedProfile,
         onMockAction: showMockAction,
+        connectionResult,
+        onRunConnectionTest: runConnectionTest,
+        onClearConnectionTest: () => setConnectionResult(null),
       }),
-    [authMode, entry, selectedProfile, selectedProject, step.key],
+    [authMode, connectionResult, entry, selectedProfile, selectedProject, step.key],
   );
 
   useEffect(() => {
     setStepIndex(0);
     setAuthMode(entry === "add-auth" ? "new" : "existing");
     setSelectedProject("Client CRM Discovery");
+    setConnectionResult(null);
   }, [entry]);
 
   const goBack = () => {
@@ -103,9 +119,6 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
           <span className="tl y" />
           <span className="tl g" />
           <span className="tb-title">{flowTitles[entry]}</span>
-        </div>
-        <div className="mock-feedback mock-feedback--wizard" role="status" aria-live="polite">
-          {mockFeedback}
         </div>
         <div className="wizard">
           <div className="wizard-card">
@@ -162,6 +175,9 @@ function renderStep({
   onSelectProject,
   onSelectProfile,
   onMockAction,
+  connectionResult,
+  onRunConnectionTest,
+  onClearConnectionTest,
 }: {
   step: StepKey;
   entry: OnboardingEntry;
@@ -172,6 +188,9 @@ function renderStep({
   onSelectProject: (project: string) => void;
   onSelectProfile: (profile: string) => void;
   onMockAction: MockActionHandler;
+  connectionResult: ConnectionTestResult | null;
+  onRunConnectionTest: (outcome?: "passed" | "failed") => void;
+  onClearConnectionTest: () => void;
 }) {
   if (step === "project") {
     return (
@@ -282,10 +301,18 @@ function renderStep({
           <CheckRow label="Read permission check" detail="Mock check passed without contacting kintone." />
         </div>
         <div className="rowc">
-          <button type="button" className="btn btn--sm" onClick={() => onMockAction("Mock read-only connection test passed. No kintone request was sent.")}>
+          <button type="button" className="btn btn--sm" onClick={() => onRunConnectionTest("passed")}>
             Test connection
           </button>
         </div>
+        {connectionResult ? (
+          <ConnectionTestPanel
+            result={connectionResult}
+            onRetry={() => onRunConnectionTest("passed")}
+            onSimulateFailure={() => onRunConnectionTest("failed")}
+            onDismiss={onClearConnectionTest}
+          />
+        ) : null}
       </>
     );
   }

@@ -1,5 +1,6 @@
 export * from "./AppShell";
 export * from "./Buttons";
+export * from "./ConnectionTestPanel";
 export * from "./ConfirmationModal";
 export * from "./DeveloperFileList";
 export * from "./EmptyState";

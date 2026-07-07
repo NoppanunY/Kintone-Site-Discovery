@@ -17,9 +17,16 @@ import { ScanSetupScreen } from "./screens/ScanSetupScreen";
 import { SensitiveOptionsScreen } from "./screens/SensitiveOptionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SiteOverviewScreen } from "./screens/SiteOverviewScreen";
-import type { MockActionHandler, NavKey, TopMenuModel } from "./types";
+import type { MockActionHandler, MockFeedbackTone, NavKey, TopMenuModel } from "./types";
 
 type OnboardingEntry = "new-project" | "add-site" | "add-auth";
+
+interface MockFeedbackState {
+  id: number;
+  message: string;
+  tone: MockFeedbackTone;
+  sticky: boolean;
+}
 
 function onboardingPath(entry: OnboardingEntry) {
   return `/onboarding?entry=${entry}`;
@@ -27,7 +34,7 @@ function onboardingPath(entry: OnboardingEntry) {
 
 export function App() {
   const [locationKey, setLocationKey] = useState(0);
-  const [mockFeedback, setMockFeedback] = useState("Desktop mock ready. Stub actions do not call kintone or write files.");
+  const [mockFeedback, setMockFeedback] = useState<MockFeedbackState | null>(null);
   const pathname = window.location.pathname;
   const search = window.location.search;
 
@@ -36,6 +43,18 @@ export function App() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!mockFeedback || mockFeedback.sticky) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setMockFeedback((current) => (current?.id === mockFeedback.id ? null : current));
+    }, 4000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [mockFeedback]);
 
   const navigate = (path: string) => {
     window.history.pushState({}, "", path);
@@ -46,8 +65,13 @@ export function App() {
   const activeTabId = activeTabFromPath(pathname);
   const shellVariant = isSiteRoute(pathname) ? "site" : "home";
   const visibleTabs = pathname === "/" || pathname.endsWith("/overview") ? tabsWithSandbox : tabs;
-  const showMockAction: MockActionHandler = (message) => {
-    setMockFeedback(message);
+  const showMockAction: MockActionHandler = (message, options = {}) => {
+    setMockFeedback({
+      id: Date.now(),
+      message,
+      tone: options.tone ?? "info",
+      sticky: options.sticky ?? options.tone === "err",
+    });
   };
   const menus = buildTopMenus(navigate, showMockAction);
   const onboardingEntry = getOnboardingEntry(search);
@@ -77,7 +101,7 @@ export function App() {
 
   return (
     <div className="canvas">
-      <div className={pathname.endsWith("/scan/confirm") ? "modal-host" : ""}>
+      <div className={pathname.endsWith("/scan/confirm") ? "modal-host" : "app-host"}>
         <AppShell
           projectName="Client CRM Discovery"
           tabs={visibleTabs}
@@ -90,9 +114,6 @@ export function App() {
           onSelectTab={(id) => navigate(id === "home" ? "/" : siteRouteByNav.overview)}
           onNavigate={(key: NavKey) => navigate(siteRouteByNav[key])}
         >
-          <div className="mock-feedback" role="status" aria-live="polite">
-            {mockFeedback}
-          </div>
           {screen}
         </AppShell>
         {pathname.endsWith("/scan/confirm") ? (
@@ -111,6 +132,14 @@ export function App() {
               onTertiary={() => navigate(`${siteRouteByNav.scan}/run`)}
               onConfirm={() => navigate(`${siteRouteByNav.scan}/run`)}
             />
+          </div>
+        ) : null}
+        {mockFeedback ? (
+          <div className={`mock-toast mock-toast--${mockFeedback.tone}`} role={mockFeedback.tone === "err" ? "alert" : "status"} aria-live="polite">
+            <span>{mockFeedback.message}</span>
+            <button type="button" aria-label="Dismiss message" onClick={() => setMockFeedback(null)}>
+              ×
+            </button>
           </div>
         ) : null}
       </div>
@@ -133,7 +162,7 @@ function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActio
       items: [
         { label: "Auth profiles", onSelect: () => navigate("/home/accounts") },
         { label: "Add auth profile", onSelect: () => navigate(onboardingPath("add-auth")) },
-        { label: "Test connection", onSelect: () => onMockAction("Mock connection test passed. No kintone request was sent.") },
+        { label: "Test connection", onSelect: () => navigate(`/home/accounts?test=Production%20Admin&testAt=${Date.now()}`) },
       ],
     },
     {
@@ -206,6 +235,7 @@ function renderScreen({
   onMockAction: MockActionHandler;
 }) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
+    const requestedAuthTest = new URLSearchParams(search).get("test");
     return (
       <ProjectHomeScreen
         onAddProfile={() => navigate(onboardingPath("add-auth"))}
@@ -213,6 +243,8 @@ function renderScreen({
         onNewProject={() => navigate(onboardingPath("new-project"))}
         onOpenSite={() => navigate(siteRouteByNav.overview)}
         onMockAction={onMockAction}
+        requestedAuthTest={requestedAuthTest}
+        requestedAuthTestKey={search}
       />
     );
   }
@@ -230,12 +262,15 @@ function renderScreen({
   }
 
   if (pathname.endsWith("/scan/run")) {
+    const source = new URLSearchParams(search).get("source");
     return (
       <ScanRunningScreen
+        source={source === "rerun" ? "rerun" : "new"}
         onCancel={() => {
           onMockAction("Mock scan cancelled. No runner or snapshot was stopped because the runner is not wired yet.");
           navigate(siteRouteByNav.scan);
         }}
+        onChangeSettings={() => navigate(siteRouteByNav.scan)}
       />
     );
   }
@@ -262,7 +297,7 @@ function renderScreen({
   }
 
   if (pathname.endsWith("/snapshot")) {
-    return <LocalSnapshotScreen onRunScan={() => navigate(siteRouteByNav.scan)} onMockAction={onMockAction} />;
+    return <LocalSnapshotScreen onRunScan={() => navigate(`${siteRouteByNav.scan}/run?source=rerun`)} onMockAction={onMockAction} />;
   }
 
   if (pathname.includes("/reports")) {

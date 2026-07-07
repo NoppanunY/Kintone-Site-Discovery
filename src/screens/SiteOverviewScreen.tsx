@@ -1,6 +1,8 @@
-import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { useState } from "react";
+import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
 import { overviewKpis } from "../mockData";
-import type { MockActionHandler } from "../types";
+import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
 interface SiteOverviewScreenProps {
@@ -12,6 +14,20 @@ interface SiteOverviewScreenProps {
 }
 
 export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDeveloperFiles, onMockAction }: SiteOverviewScreenProps) {
+  const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
+  const connectionTarget: ConnectionTestTarget = {
+    siteName: "Client A Production",
+    domain: "client-a.cybozu.com",
+    authProfile: "Client A Admin",
+  };
+
+  function runConnectionTest(outcome: "passed" | "failed" = "passed") {
+    setConnectionResult(createTestingConnectionResult(connectionTarget));
+    window.setTimeout(() => {
+      setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
+    }, 450);
+  }
+
   return (
     <div className="page">
       <PageHeader
@@ -21,11 +37,19 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
         actions={
           <>
             <StatusPill status="ok" label="Connected" dot />
-            <SecondaryActionButton label="Test connection" onClick={() => onMockAction("Mock connection test passed for Client A Production. No kintone request was sent.")} />
+            <SecondaryActionButton label="Test connection" onClick={() => runConnectionTest("passed")} />
             <PrimaryActionButton label="◎ Run scan" onClick={onRunScan} />
           </>
         }
       />
+      {connectionResult ? (
+        <ConnectionTestPanel
+          result={connectionResult}
+          onRetry={() => runConnectionTest("passed")}
+          onSimulateFailure={() => runConnectionTest("failed")}
+          onDismiss={() => setConnectionResult(null)}
+        />
+      ) : null}
       <KpiGrid items={overviewKpis} />
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div className="between">

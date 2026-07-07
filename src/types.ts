@@ -46,7 +46,31 @@ export interface ActionButton {
   variant?: "primary" | "secondary" | "ghost" | "danger";
 }
 
-export type MockActionHandler = (message: string) => void;
+export type MockFeedbackTone = "info" | "ok" | "warn" | "err";
+
+export interface MockFeedbackOptions {
+  tone?: MockFeedbackTone;
+  sticky?: boolean;
+}
+
+export type MockActionHandler = (message: string, options?: MockFeedbackOptions) => void;
+
+export type ConnectionTestStatus = "testing" | "passed" | "failed";
+
+export interface ConnectionTestTarget {
+  siteName: string;
+  domain: string;
+  authProfile: string;
+}
+
+export interface ConnectionTestResult extends ConnectionTestTarget {
+  status: ConnectionTestStatus;
+  checkedAt?: string;
+  checks: string[];
+  errorSummary?: string;
+  likelyCause?: string;
+  nextAction?: string;
+}
 
 export interface KpiModel {
   number: string;

@@ -1,4 +1,4 @@
-import { PrimaryActionButton, StatusPill, WarningBanner } from "../components";
+import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
 import { PageHeader } from "./shared";
 
 const collectorRows = [
@@ -9,16 +9,32 @@ const collectorRows = [
   { status: "Queued", tone: "idle" as const, label: "Dependency detection · preview-vs-live diff", muted: true },
 ];
 
-export function ScanRunningScreen({ onCancel }: { onCancel: () => void }) {
+export function ScanRunningScreen({
+  source,
+  onCancel,
+  onChangeSettings,
+}: {
+  source: "new" | "rerun";
+  onCancel: () => void;
+  onChangeSettings: () => void;
+}) {
+  const isRerun = source === "rerun";
   return (
     <div className="page">
       <PageHeader
         breadcrumb="Client A Production · Scan"
-        title="Scanning…"
+        title={isRerun ? "Re-running scan..." : "Scanning..."}
         titleMeta={<StatusPill status="run" label="Running" dot />}
-        subtitle="Building local snapshot · App 3 of 4 · Support Tickets"
+        subtitle={isRerun ? "Using last saved scan configuration · App 3 of 4 · Support Tickets" : "Building local snapshot · App 3 of 4 · Support Tickets"}
         actions={<PrimaryActionButton label="✕ Cancel scan" tone="danger" onClick={onCancel} />}
       />
+      {isRerun ? (
+        <div className="run-context-line">
+          <StatusPill status="info" label="Last config" />
+          <span className="small muted">Standard Scan · 4 apps · sensitive options off · no real runner is wired yet</span>
+          <SecondaryActionButton label="Change settings" size="sm" variant="ghost" onClick={onChangeSettings} />
+        </div>
+      ) : null}
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="between">
           <span className="h3">Overall progress</span>
