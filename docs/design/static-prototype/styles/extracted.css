@@ -1,0 +1,10 @@
+@import url('./prototype.css');
+body.extracted-screen{margin:0;background:var(--bg);color:var(--text)}
+.extracted-stage{padding:56px 64px;width:max-content;min-height:100vh;box-sizing:border-box}
+.extracted-index{padding:40px 56px 96px;max-width:1180px}
+.extracted-grid{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:12px}
+.extracted-link{display:flex;flex-direction:column;gap:5px;padding:13px 14px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-sm);text-decoration:none;color:var(--text)}
+.extracted-link:hover{border-color:var(--primary);box-shadow:var(--sh-md)}
+.extracted-link .sid{font:700 11px/1 ui-monospace,monospace;color:var(--primary)}
+.extracted-link .sname{font:600 13.5px/1.25 system-ui,sans-serif}
+.extracted-link .sroute{font:500 11.5px/1.25 ui-monospace,monospace;color:var(--text-3)}
