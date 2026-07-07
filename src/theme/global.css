@@ -1152,6 +1152,24 @@ body.desktop-runtime .modal-host > .app {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.wizard-card__footer-left,
+.wizard-card__footer-actions {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-row);
+}
+
+.wizard-card__footer-actions {
+  justify-content: flex-end;
+}
+
+.wizard-card__footer-progress {
+  flex: none;
+  text-align: center;
 }
 
 .subnav {
