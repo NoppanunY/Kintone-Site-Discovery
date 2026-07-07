@@ -37,7 +37,7 @@ export function AppShell({
         <span className="tl r" />
         <span className="tl y" />
         <span className="tl g" />
-        <span className="tb-title">Kintone Site Discovery — {projectName}</span>
+        <span className="tb-title">Kintone Site Discovery - Project: {projectName}</span>
       </div>
       <TopMenuBar menus={menus} />
       <SiteTabBar tabs={tabs} activeId={activeTabId} onAdd={onNewTab} onClose={onCloseTab} onSelect={onSelectTab} />

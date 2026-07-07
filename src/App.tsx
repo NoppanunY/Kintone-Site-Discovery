@@ -132,7 +132,7 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
       items: [
         { label: "Site workspaces", onSelect: () => navigate("/home/sites") },
         { label: "Add site workspace", onSelect: () => navigate(onboardingPath("add-site")) },
-        { label: "Open current site", onSelect: () => navigate(siteRouteByNav.overview) },
+        { label: "Open Client A Production", onSelect: () => navigate(siteRouteByNav.overview) },
         { label: "Apps", onSelect: () => navigate(siteRouteByNav.apps) },
         { label: "Settings", onSelect: () => navigate(siteRouteByNav.settings) },
       ],

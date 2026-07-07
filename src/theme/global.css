@@ -619,6 +619,7 @@ select:focus-visible,
 .input,
 .select {
   height: var(--input-h);
+  width: 100%;
   padding: var(--sp-0) var(--sp-3);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-sm);
@@ -628,6 +629,10 @@ select:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.select {
+  cursor: pointer;
 }
 
 .input--placeholder {
@@ -650,6 +655,10 @@ select:focus-visible,
 
 .choice-list--nested {
   margin-left: calc(var(--pill-h) + var(--sp-3));
+}
+
+.choice-select {
+  width: calc(100% - var(--pill-h) - var(--sp-3));
 }
 
 .choice-row {

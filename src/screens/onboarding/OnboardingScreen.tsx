@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { StatusPill } from "../../components";
-import { profiles } from "../../mockData";
+import { profiles, projectRows } from "../../mockData";
 
 export type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 
@@ -45,6 +45,7 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish }: 
   const steps = flowSteps[entry];
   const [stepIndex, setStepIndex] = useState(0);
   const [authMode, setAuthMode] = useState<AuthMode>(entry === "add-auth" ? "new" : "existing");
+  const [selectedProject, setSelectedProject] = useState("Client CRM Discovery");
   const [selectedProfile, setSelectedProfile] = useState("Client A Admin");
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex === steps.length - 1;
@@ -56,16 +57,19 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish }: 
         step: step.key,
         entry,
         authMode,
+        selectedProject,
         selectedProfile,
         onSelectAuthMode: setAuthMode,
+        onSelectProject: setSelectedProject,
         onSelectProfile: setSelectedProfile,
       }),
-    [authMode, entry, selectedProfile, step.key],
+    [authMode, entry, selectedProfile, selectedProject, step.key],
   );
 
   useEffect(() => {
     setStepIndex(0);
     setAuthMode(entry === "add-auth" ? "new" : "existing");
+    setSelectedProject("Client CRM Discovery");
   }, [entry]);
 
   const goBack = () => {
@@ -130,15 +134,19 @@ function renderStep({
   step,
   entry,
   authMode,
+  selectedProject,
   selectedProfile,
   onSelectAuthMode,
+  onSelectProject,
   onSelectProfile,
 }: {
   step: StepKey;
   entry: OnboardingEntry;
   authMode: AuthMode;
+  selectedProject: string;
   selectedProfile: string;
   onSelectAuthMode: (mode: AuthMode) => void;
+  onSelectProject: (project: string) => void;
   onSelectProfile: (profile: string) => void;
 }) {
   if (step === "project") {
@@ -182,7 +190,17 @@ function renderStep({
             selected={authMode === "existing"}
             onClick={() => onSelectAuthMode("existing")}
           />
-          {authMode === "existing" ? <ProfileChoiceList nested selectedProfile={selectedProfile} onSelectProfile={onSelectProfile} /> : null}
+          {authMode === "existing" ? (
+            <div className="choice-select choice-list--nested">
+              <SelectField
+                label="Auth profile"
+                value={selectedProfile}
+                options={authProfileOptions()}
+                onChange={onSelectProfile}
+                meta="The selected profile will be linked to the site workspace."
+              />
+            </div>
+          ) : null}
           <ChoiceRow
             title="Add new auth profile"
             body="Mock credential fields are shown, but no secret is written yet."
@@ -199,26 +217,39 @@ function renderStep({
     const title = entry === "add-site" ? "Add a site to this project" : "Add the first site workspace";
     const body =
       entry === "add-site"
-        ? "This adds one kintone site workspace under Client CRM Discovery. It does not create a new project."
+        ? `This adds one kintone site workspace under ${selectedProject}. It does not create a new project.`
         : "A site workspace is one kintone domain inside the project. You can add more sites later.";
+    const snapshotPath = `${projectFolder(selectedProject)}/sites/client-a`;
 
     return (
       <>
         <WizardIntro title={title} body={body} />
         <div className="form-grid">
-          <MockField label="Current project" value="Client CRM Discovery" />
+          {entry === "add-site" ? (
+            <SelectField
+              label="Project"
+              value={selectedProject}
+              options={projectOptions()}
+              onChange={onSelectProject}
+              meta="The new site workspace will be added under this project."
+            />
+          ) : (
+            <MockField label="Project" value={selectedProject} />
+          )}
           <MockField label="Site display name" value={entry === "add-site" ? "Client A Staging" : "Client A Production"} />
           <MockField label="kintone domain" value={entry === "add-site" ? "staging.client-a.cybozu.com" : "client-a.cybozu.com"} meta="Domain only, no protocol" />
           {entry === "add-site" ? (
-            <div className="form-group form-group--full">
-              <span className="label">Auth profile</span>
-              <ProfileChoiceList selectedProfile={selectedProfile} onSelectProfile={onSelectProfile} />
-              <span className="hint">Choose the reusable profile to link to this site workspace.</span>
-            </div>
+            <SelectField
+              label="Auth profile"
+              value={selectedProfile}
+              options={authProfileOptions()}
+              onChange={onSelectProfile}
+              meta="Choose the reusable profile to link to this site workspace."
+            />
           ) : (
             <MockField label="Auth profile" value={selectedProfile} meta="Reusable profile linked to this site workspace" />
           )}
-          <MockField label="Save snapshots to" value="~/KintoneDiscovery/client-crm/sites/client-a" action="Browse..." />
+          <MockField label="Save snapshots to" value={snapshotPath} action="Browse..." />
         </div>
       </>
     );
@@ -229,7 +260,7 @@ function renderStep({
       <>
         <WizardIntro title="Test the read-only connection" body="This mock confirms the path through the wizard. No kintone request is sent yet." />
         <div className="list">
-          <CheckRow label="Project folder selected" detail="Client CRM Discovery is the local workspace." />
+          <CheckRow label="Project selected" detail={`${selectedProject} is the local workspace.`} />
           <CheckRow label="Auth profile linked" detail={`${selectedProfile} is selected for this site.`} />
           <CheckRow label="Read permission check" detail="Mock check passed without contacting kintone." />
         </div>
@@ -290,42 +321,6 @@ function SelectedProfileBanner({ selectedProfile }: { selectedProfile: string })
   );
 }
 
-function ProfileChoiceList({
-  nested,
-  selectedProfile,
-  onSelectProfile,
-}: {
-  nested?: boolean;
-  selectedProfile: string;
-  onSelectProfile: (profile: string) => void;
-}) {
-  return (
-    <div className={`choice-list ${nested ? "choice-list--nested" : ""}`} role="listbox" aria-label="Auth profiles">
-      {profiles.map((profile) => (
-        <button
-          key={profile.name}
-          type="button"
-          className={`choice-row choice-row--compact ${profile.name === selectedProfile ? "choice-row--selected" : ""}`}
-          aria-selected={profile.name === selectedProfile}
-          role="option"
-          onClick={() => onSelectProfile(profile.name)}
-        >
-          <span className="choice-row__marker" aria-hidden="true">
-            {profile.name === selectedProfile ? "✓" : ""}
-          </span>
-          <span className="grow">
-            <span className="h3">{profile.name}</span>
-            <span className="small muted2">
-              {profile.user} · {profile.sites}
-            </span>
-          </span>
-          <StatusPill status={profile.tone} label={profile.status} dot />
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function ChoiceRow({ title, body, selected, onClick }: { title: string; body: string; selected: boolean; onClick: () => void }) {
   return (
     <button type="button" className={`choice-row ${selected ? "choice-row--selected" : ""}`} aria-pressed={selected} onClick={onClick}>
@@ -338,6 +333,59 @@ function ChoiceRow({ title, body, selected, onClick }: { title: string; body: st
       </span>
     </button>
   );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  meta,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  meta?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className={`form-group ${meta ? "form-group--full" : ""}`}>
+      <label className="label" htmlFor={`select-${label.replace(/\s+/g, "-").toLowerCase()}`}>
+        {label}
+      </label>
+      <select
+        id={`select-${label.replace(/\s+/g, "-").toLowerCase()}`}
+        className="select"
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {meta ? <span className="hint">{meta}</span> : null}
+    </div>
+  );
+}
+
+function projectOptions() {
+  return projectRows.map((project) => ({
+    value: project.name,
+    label: `${project.name} · ${project.path}`,
+  }));
+}
+
+function authProfileOptions() {
+  return profiles.map((profile) => ({
+    value: profile.name,
+    label: `${profile.name} · ${profile.user} · ${profile.status}`,
+  }));
+}
+
+function projectFolder(projectName: string) {
+  return projectRows.find((project) => project.name === projectName)?.path ?? "~/KintoneDiscovery/client-crm";
 }
 
 function MockField({ label, value, action, meta }: { label: string; value: string; action?: string; meta?: string }) {
