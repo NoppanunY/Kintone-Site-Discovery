@@ -109,6 +109,7 @@ export const fileOrder: FileOrderItem[] = [
 export const historyRuns = [
   {
     title: "Jul 2, 2026 · 10:35",
+    snapshotId: "snap_20260702_1035",
     meta: "4 apps · Required 68/68 ok · Optional 1 skipped · Warnings 2 · 4 redactions",
     status: "Completed with warnings",
     tone: "warn" as const,
@@ -116,12 +117,14 @@ export const historyRuns = [
   },
   {
     title: "Jun 28, 2026 · 16:02",
+    snapshotId: "snap_20260628_1602",
     meta: "12 apps · Required 190/190 ok · Optional 0 skipped · Warnings 0 · 11 redactions",
     status: "Completed",
     tone: "ok" as const,
   },
   {
     title: "Jun 20, 2026 · 09:11",
+    snapshotId: "run_20260620_0911_partial",
     meta: "1 app · Reason: sign-in rejected",
     status: "Failed",
     tone: "err" as const,

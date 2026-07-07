@@ -309,7 +309,7 @@ function renderScreen({
   }
 
   if (pathname.includes("/history")) {
-    return <HistoryScreen onReports={() => navigate(siteRouteByNav.reports)} onDeveloperFiles={() => navigate(siteRouteByNav["developer-files"])} onMockAction={onMockAction} />;
+    return <HistoryScreen onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/settings")) {
