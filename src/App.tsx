@@ -53,7 +53,7 @@ export function App() {
   );
 
   if (pathname.startsWith("/onboarding")) {
-    return <OnboardingScreen onFinish={() => navigate(siteRouteByNav.overview)} />;
+    return <OnboardingScreen onCancel={() => navigate("/")} onFinish={() => navigate(siteRouteByNav.overview)} />;
   }
 
   return (
@@ -164,11 +164,17 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
 
 function renderScreen({ pathname, search, navigate }: { pathname: string; search: string; navigate: (path: string) => void }) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
-    return <ProjectHomeScreen onOpenSite={() => navigate(siteRouteByNav.overview)} />;
+    return (
+      <ProjectHomeScreen
+        onAddSite={() => navigate("/onboarding")}
+        onNewProject={() => navigate("/onboarding")}
+        onOpenSite={() => navigate(siteRouteByNav.overview)}
+      />
+    );
   }
 
   if (pathname === "/new-tab") {
-    return <NewTabScreen onOpenSite={() => navigate(siteRouteByNav.overview)} />;
+    return <NewTabScreen onAddSite={() => navigate("/onboarding")} onOpenSite={() => navigate(siteRouteByNav.overview)} />;
   }
 
   if (pathname.endsWith("/apps")) {

@@ -4,6 +4,8 @@ import { profiles, projectRows, workspaces } from "../mockData";
 import { PageHeader } from "./shared";
 
 interface ProjectHomeScreenProps {
+  onAddSite: () => void;
+  onNewProject: () => void;
   onOpenSite: () => void;
 }
 
@@ -18,14 +20,14 @@ const folderIconStyle: CSSProperties = {
   fontSize: 17,
 };
 
-export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
+export function ProjectHomeScreen({ onAddSite, onNewProject, onOpenSite }: ProjectHomeScreenProps) {
   return (
     <div className="page">
       <PageHeader
         breadcrumb="Home"
         title="Projects"
         subtitle="A project is a local folder that holds your snapshots, reports and developer files."
-        actions={<PrimaryActionButton label="＋ New project" />}
+        actions={<PrimaryActionButton label="＋ New project" onClick={onNewProject} />}
       />
       <div className="list">
         {projectRows.map((project) => (
@@ -70,7 +72,7 @@ export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
       </div>
       <div className="between" style={{ marginTop: 4 }}>
         <h2 className="h2">Site workspaces</h2>
-        <SecondaryActionButton label="＋ Add site" size="sm" />
+        <SecondaryActionButton label="＋ Add site" size="sm" onClick={onAddSite} />
       </div>
       <div className="list">
         {workspaces.map((site) => (

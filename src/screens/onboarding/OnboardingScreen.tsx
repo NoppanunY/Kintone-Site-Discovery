@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { StatusPill } from "../../components";
 
 interface OnboardingScreenProps {
+  onCancel: () => void;
   onFinish: () => void;
 }
 
@@ -9,7 +10,7 @@ const steps = ["Project", "Sign-in", "Site", "Test", "Apps"] as const;
 
 type OnboardingStep = (typeof steps)[number];
 
-export function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
+export function OnboardingScreen({ onCancel, onFinish }: OnboardingScreenProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const step = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -54,8 +55,8 @@ export function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
             </div>
             <div className="wizard-card__body">{content}</div>
             <div className="wizard-card__footer">
-              <button type="button" className="btn btn--ghost" disabled={stepIndex === 0} onClick={goBack}>
-                ← Back
+              <button type="button" className="btn btn--ghost" onClick={stepIndex === 0 ? onCancel : goBack}>
+                {stepIndex === 0 ? "Cancel setup" : "← Back"}
               </button>
               <div className="rowc">
                 <span className="small muted2">
