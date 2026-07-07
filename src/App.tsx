@@ -52,7 +52,7 @@ export function App() {
     [pathname, search, locationKey],
   );
 
-  if (pathname === "/onboarding") {
+  if (pathname.startsWith("/onboarding")) {
     return <OnboardingScreen onFinish={() => navigate(siteRouteByNav.overview)} />;
   }
 
