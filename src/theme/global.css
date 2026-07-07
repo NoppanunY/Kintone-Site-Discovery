@@ -971,6 +971,17 @@ button.checkbox:disabled {
   border-bottom: 1px solid var(--border);
 }
 
+.project-context-line {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-row);
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
 .list {
   overflow: hidden;
 }

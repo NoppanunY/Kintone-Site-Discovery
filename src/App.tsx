@@ -90,7 +90,7 @@ export function App() {
     }
   };
 
-  const menus = buildTopMenus(navigate, showMockAction, activeSite);
+  const menus = buildTopMenus(navigate, showMockAction, activeSite, shellVariant === "site");
   const onboardingEntry = getOnboardingEntry(search);
 
   const screen = useMemo(
@@ -155,8 +155,8 @@ export function App() {
               tertiaryLabel="Turn these off"
               tone="warn"
               onCancel={() => navigate(siteRoutes.scan)}
-              onTertiary={() => navigate(`${siteRoutes.scan}?start=1`)}
-              onConfirm={() => navigate(`${siteRoutes.scan}?start=1`)}
+              onTertiary={() => navigate(`${siteRoutes.scan}/run`)}
+              onConfirm={() => navigate(`${siteRoutes.scan}/run`)}
             />
           </div>
         ) : null}
@@ -173,8 +173,19 @@ export function App() {
   );
 }
 
-function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActionHandler, activeSite: SiteWorkspaceModel): TopMenuModel[] {
+function buildTopMenus(
+  navigate: (path: string) => void,
+  onMockAction: MockActionHandler,
+  activeSite: SiteWorkspaceModel,
+  hasActiveSiteTab: boolean,
+): TopMenuModel[] {
   const activeSiteRoutes = siteRouteByNavForSite(activeSite.id);
+  const activeSiteCommand = (label: string, onSelect: () => void, shortcut?: string) => ({
+    label,
+    shortcut,
+    disabled: !hasActiveSiteTab,
+    onSelect,
+  });
 
   return [
     {
@@ -182,7 +193,7 @@ function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActio
       items: [
         { label: "Projects", shortcut: "Ctrl+1", onSelect: () => navigate("/") },
         { label: "New project", onSelect: () => navigate(onboardingPath("new-project")) },
-        { label: "Open local folder", onSelect: () => onMockAction("Folder opening is not connected yet. No folder was opened.") },
+        { label: "Open project folder...", onSelect: () => onMockAction("Project folder opening is not connected yet. No folder was opened.") },
       ],
     },
     {
@@ -190,7 +201,7 @@ function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActio
       items: [
         { label: "Auth profiles", onSelect: () => navigate("/home/accounts") },
         { label: "Add auth profile", onSelect: () => navigate(onboardingPath("add-auth")) },
-        { label: "Test connection", onSelect: () => navigate(`/home/accounts?test=Production%20Admin&testAt=${Date.now()}`) },
+        { label: "Test selected auth profile", onSelect: () => navigate(`/home/accounts?test=Production%20Admin&testAt=${Date.now()}`) },
       ],
     },
     {
@@ -198,26 +209,26 @@ function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActio
       items: [
         { label: "Site workspaces", onSelect: () => navigate("/home/sites") },
         { label: "Add site workspace", onSelect: () => navigate(onboardingPath("add-site")) },
-        { label: `Open ${activeSite.name}`, onSelect: () => navigate(activeSiteRoutes.overview) },
-        { label: "Apps", onSelect: () => navigate(activeSiteRoutes.apps) },
-        { label: "Settings", onSelect: () => navigate(activeSiteRoutes.settings) },
+        activeSiteCommand(`Active site overview · ${activeSite.name}`, () => navigate(activeSiteRoutes.overview)),
+        activeSiteCommand("Active site apps", () => navigate(activeSiteRoutes.apps)),
+        activeSiteCommand("Active site settings", () => navigate(activeSiteRoutes.settings)),
       ],
     },
     {
       label: "Scan",
       items: [
-        { label: "Choose scan preset", onSelect: () => navigate(activeSiteRoutes.scan) },
-        { label: "Configure sensitive options", onSelect: () => navigate(`${activeSiteRoutes.scan}/advanced`) },
-        { label: "Run scan", onSelect: () => navigate(activeSiteRoutes.scan) },
+        activeSiteCommand("Open scan setup", () => navigate(activeSiteRoutes.scan)),
+        activeSiteCommand("Configure sensitive options", () => navigate(`${activeSiteRoutes.scan}/advanced`)),
+        activeSiteCommand("Open scan progress", () => navigate(`${activeSiteRoutes.scan}/run`)),
       ],
     },
     {
       label: "Snapshot",
       items: [
-        { label: "Local Snapshot", onSelect: () => navigate(activeSiteRoutes.snapshot) },
-        { label: "Reports", onSelect: () => navigate(activeSiteRoutes.reports) },
-        { label: "Developer Files", onSelect: () => navigate(activeSiteRoutes["developer-files"]) },
-        { label: "History", onSelect: () => navigate(activeSiteRoutes.history) },
+        activeSiteCommand("Active site Local Snapshot", () => navigate(activeSiteRoutes.snapshot)),
+        activeSiteCommand("Active site reports", () => navigate(activeSiteRoutes.reports)),
+        activeSiteCommand("Active site developer files", () => navigate(activeSiteRoutes["developer-files"])),
+        activeSiteCommand("Active site history", () => navigate(activeSiteRoutes.history)),
       ],
     },
     {
@@ -329,7 +340,7 @@ function renderScreen({
   }
 
   if (pathname.endsWith("/scan")) {
-    return <ScanSetupScreen site={activeSite} startRequested={new URLSearchParams(search).get("start") === "1"} onAdvanced={() => navigate(`${siteRoutes.scan}/advanced`)} onMockAction={onMockAction} />;
+    return <ScanSetupScreen site={activeSite} onAdvanced={() => navigate(`${siteRoutes.scan}/advanced`)} onStart={() => navigate(`${siteRoutes.scan}/run`)} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/snapshot")) {
@@ -359,7 +370,7 @@ function renderScreen({
   return (
     <SiteOverviewScreen
       site={activeSite}
-      onRunScan={() => navigate(siteRoutes.scan)}
+      onScanSettings={() => navigate(siteRoutes.scan)}
       onSnapshot={() => navigate(siteRoutes.snapshot)}
       onReports={() => navigate(siteRoutes.reports)}
       onDeveloperFiles={() => navigate(siteRoutes["developer-files"])}

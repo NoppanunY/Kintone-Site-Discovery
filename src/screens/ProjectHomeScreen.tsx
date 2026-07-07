@@ -41,6 +41,7 @@ export function ProjectHomeScreen({
   const [connectionResults, setConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
   const [selectedProject, setSelectedProject] = useState(projectRows[0].name);
   const projectSites = workspaces.filter((site) => site.projectName === selectedProject);
+  const projectSiteCount = (projectName: string) => workspaces.filter((site) => site.projectName === projectName).length;
 
   function targetForProfile(profile: Profile): ConnectionTestTarget {
     return {
@@ -97,13 +98,14 @@ export function ProjectHomeScreen({
                 {project.path} · {project.opened}
               </div>
             </div>
+            <StatusPill status="info" label={`${projectSiteCount(project.name)} site${projectSiteCount(project.name) === 1 ? "" : "s"}`} />
             <SecondaryActionButton
-              label={project.name === selectedProject ? "Selected" : "Open project"}
+              label={project.name === selectedProject ? "Sites shown" : "Show sites"}
               size="sm"
               disabled={project.name === selectedProject}
               onClick={() => {
                 setSelectedProject(project.name);
-                onMockAction(`Project "${project.name}" opened. Choose a site workspace below to open a site tab.`);
+                onMockAction(`Showing site workspaces in "${project.name}". No site tab was opened.`);
               }}
             />
           </div>
@@ -165,6 +167,12 @@ export function ProjectHomeScreen({
           </span>
         </h2>
         <SecondaryActionButton label="＋ Add site workspace" size="sm" onClick={onAddSite} />
+      </div>
+      <div className="project-context-line">
+        <StatusPill status="info" label="Project selected" />
+        <span className="small muted">
+          Showing site workspaces in {selectedProject}. A project is a local folder; open a site tab from a site row.
+        </span>
       </div>
       <div className="list">
         {projectSites.map((site) => (
