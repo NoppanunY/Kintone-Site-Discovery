@@ -38,7 +38,7 @@ const browserFallbackBridge: PlatformBridge = {
 
   async getWindowState() {
     return {
-      openSiteTabs: [],
+      openProjectTabs: [],
       activeTabId: "home",
       restored: false,
     };
@@ -52,11 +52,11 @@ const browserFallbackBridge: PlatformBridge = {
     };
   },
 
-  async getOpenSiteTabs() {
+  async getOpenProjectTabs() {
     return [];
   },
 
-  async saveOpenSiteTabs() {
+  async saveOpenProjectTabs() {
     return {
       ok: true,
       code: "FALLBACK",

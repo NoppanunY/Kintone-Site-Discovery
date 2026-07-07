@@ -31,7 +31,7 @@ export function createFailedConnectionResult(target: ConnectionTestTarget): Conn
     checkedAt: checkedAtNow(),
     checks: ["Domain format accepted", "Credential reference found", "Read-only permission check failed", "No kintone request was sent"],
     errorSummary: "Saved credential needs attention",
-    likelyCause: `The mock credential reference for ${target.authProfile} is stale or no longer matches this project site.`,
+    likelyCause: `The mock credential reference for ${target.authProfile} is stale or no longer matches this connected site.`,
     nextAction: "Update the auth profile, confirm the domain, then retry the read-only connection test.",
   };
 }

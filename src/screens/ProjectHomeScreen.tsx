@@ -1,15 +1,16 @@
 import { Fragment, useEffect, type CSSProperties, useState } from "react";
 import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
-import { getSiteWorkspaceById, profiles, projectRows, workspaces } from "../mockData";
-import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../types";
+import { connectedSites, profiles, projectContext, projectRows } from "../mockData";
+import type { ConnectedSiteModel, ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
 interface ProjectHomeScreenProps {
   onAddProfile: () => void;
   onAddSite: () => void;
   onNewProject: () => void;
-  onOpenSite: (id: string) => void;
+  onOpenProject: (id: string) => void;
+  onUseSiteInNewProject: (id: string) => void;
   onMockAction: MockActionHandler;
   requestedAuthTest?: string | null;
   requestedAuthTestKey?: string;
@@ -33,16 +34,26 @@ export function ProjectHomeScreen({
   onAddProfile,
   onAddSite,
   onNewProject,
-  onOpenSite,
+  onOpenProject,
+  onUseSiteInNewProject,
   onMockAction,
   requestedAuthTest,
   requestedAuthTestKey,
 }: ProjectHomeScreenProps) {
-  const [connectionResults, setConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
-  const projects = projectRows.map((project) => ({ ...project, site: getSiteWorkspaceById(project.siteId) }));
+  const [profileConnectionResults, setProfileConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
+  const [siteConnectionResults, setSiteConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
+  const projects = projectRows.map((project) => ({ ...project, context: projectContext(project.id) }));
+
+  function targetForSite(site: ConnectedSiteModel): ConnectionTestTarget {
+    return {
+      siteName: site.name,
+      domain: site.domain,
+      authProfile: site.profile,
+    };
+  }
 
   function targetForProfile(profile: Profile): ConnectionTestTarget {
-    const linkedSite = workspaces.find((site) => site.profile === profile.name) ?? workspaces[0];
+    const linkedSite = connectedSites.find((site) => site.profile === profile.name) ?? connectedSites[0];
     return {
       siteName: linkedSite.name,
       domain: linkedSite.domain,
@@ -50,15 +61,33 @@ export function ProjectHomeScreen({
     };
   }
 
-  function runConnectionTest(profile: Profile, outcome: TestOutcome = "passed") {
+  function runSiteConnectionTest(site: ConnectedSiteModel, outcome: TestOutcome = "passed") {
+    const target = targetForSite(site);
+    setSiteConnectionResults((current) => ({
+      ...current,
+      [site.id]: createTestingConnectionResult(target),
+    }));
+
+    window.setTimeout(() => {
+      setSiteConnectionResults((current) => ({
+        ...current,
+        [site.id]: outcome === "failed" ? createFailedConnectionResult(target) : createPassedConnectionResult(target),
+      }));
+      if (outcome === "passed") {
+        onMockAction(`${site.name} connection test passed. No kintone request was sent.`, { tone: "ok" });
+      }
+    }, 450);
+  }
+
+  function runProfileConnectionTest(profile: Profile, outcome: TestOutcome = "passed") {
     const target = targetForProfile(profile);
-    setConnectionResults((current) => ({
+    setProfileConnectionResults((current) => ({
       ...current,
       [profile.name]: createTestingConnectionResult(target),
     }));
 
     window.setTimeout(() => {
-      setConnectionResults((current) => ({
+      setProfileConnectionResults((current) => ({
         ...current,
         [profile.name]: outcome === "failed" ? createFailedConnectionResult(target) : createPassedConnectionResult(target),
       }));
@@ -75,7 +104,7 @@ export function ProjectHomeScreen({
 
     const requestedProfile = profiles.find((profile) => profile.name === requestedAuthTest);
     if (requestedProfile) {
-      runConnectionTest(requestedProfile, "passed");
+      runProfileConnectionTest(requestedProfile, requestedProfile.tone === "warn" ? "failed" : "passed");
     }
   }, [requestedAuthTest, requestedAuthTestKey]);
 
@@ -84,55 +113,93 @@ export function ProjectHomeScreen({
       <PageHeader
         breadcrumb="Home"
         title="Projects"
-        subtitle="One project is one local folder for one kintone site. The same site/domain can be used again in another project."
+        subtitle="Projects are local folders. Each project selects one connected site, and the same site can be reused by multiple projects."
         actions={
           <>
-            <SecondaryActionButton label="＋ New project from same site" onClick={onAddSite} />
+            <SecondaryActionButton label="＋ Add connected site" onClick={onAddSite} />
             <PrimaryActionButton label="＋ New project" onClick={onNewProject} />
           </>
         }
       />
-      <div className="project-context-line">
-        <StatusPill status="info" label="1 project = 1 site" />
-        <span className="small muted">
-          To review the same kintone site in another folder or with another auth profile, create another project that points to the same domain.
-        </span>
-      </div>
+
       <div className="list">
         {projects.map((project) => (
-          <div className="li" key={project.name}>
+          <div className="li" key={project.id}>
             <div style={folderIconStyle}>📁</div>
             <div className="grow">
               <div className="h3">{project.name}</div>
               <div className="small muted2">
-                {project.site.name} · {project.site.domain} · {project.site.profile}
+                Site: {project.context.name} · {project.context.domain} · {project.context.profile}
               </div>
               <div className="small muted2 mono" style={{ marginTop: 2 }}>
-                {project.path} · {project.opened} · {project.site.meta}
+                {project.path} · {project.opened} · {project.meta}
               </div>
             </div>
-            <StatusPill status={project.site.tone} label={project.site.status} dot />
-            <PrimaryActionButton label="Open project" size="sm" onClick={() => onOpenSite(project.site.id)} />
+            <StatusPill status={project.hasSnapshot ? "ok" : "idle"} label={project.hasSnapshot ? "Snapshot ready" : "No snapshot"} dot />
+            <PrimaryActionButton label="Open project" size="sm" onClick={() => onOpenProject(project.id)} />
           </div>
         ))}
       </div>
 
       <div className="between" style={{ marginTop: 4 }}>
         <h2 className="h2">
+          Sites{" "}
+          <span className="small muted2" style={{ fontWeight: 400 }}>
+            · connected kintone sites, reusable across projects
+          </span>
+        </h2>
+        <SecondaryActionButton label="＋ Add connected site" size="sm" onClick={onAddSite} />
+      </div>
+      <div className="list">
+        {connectedSites.map((site) => {
+          const connectionResult = siteConnectionResults[site.id];
+          return (
+            <Fragment key={site.id}>
+              <div className="li">
+                <div className="grow">
+                  <div className="h3">{site.name}</div>
+                  <div className="small muted2">
+                    {site.domain} · {site.profile}
+                  </div>
+                  <div className="small muted2">{site.meta}</div>
+                </div>
+                <StatusPill status={site.tone} label={site.status} dot />
+                {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
+                {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
+                <SecondaryActionButton label="Test" size="sm" onClick={() => runSiteConnectionTest(site, site.tone === "warn" ? "failed" : "passed")} />
+                <PrimaryActionButton label="Use in new project" size="sm" onClick={() => onUseSiteInNewProject(site.id)} />
+              </div>
+              {connectionResult?.status === "failed" ? (
+                <div className="li li--panel">
+                  <ConnectionTestPanel
+                    result={connectionResult}
+                    onRetry={() => runSiteConnectionTest(site, site.tone === "warn" ? "failed" : "passed")}
+                    onDismiss={() =>
+                      setSiteConnectionResults((current) => ({
+                        ...current,
+                        [site.id]: undefined,
+                      }))
+                    }
+                  />
+                </div>
+              ) : null}
+            </Fragment>
+          );
+        })}
+      </div>
+
+      <div className="between" style={{ marginTop: 4 }}>
+        <h2 className="h2">
           Auth profiles{" "}
           <span className="small muted2" style={{ fontWeight: 400 }}>
-            · global sign-in profiles, reusable across projects
+            · global sign-in profiles, reusable by connected sites
           </span>
         </h2>
         <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />
       </div>
-      <div className="project-context-line">
-        <StatusPill status="idle" label="Global" />
-        <span className="small muted">Auth profiles are shared identities. Each project links one profile to its site.</span>
-      </div>
       <div className="list">
         {profiles.map((profile) => {
-          const connectionResult = connectionResults[profile.name];
+          const connectionResult = profileConnectionResults[profile.name];
           return (
             <Fragment key={profile.name}>
               <div className="li">
@@ -149,15 +216,15 @@ export function ProjectHomeScreen({
                 <span className="small muted2">{profile.sites}</span>
                 {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
                 {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
-                <SecondaryActionButton label="Test" size="sm" onClick={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
+                <SecondaryActionButton label="Test" size="sm" onClick={() => runProfileConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
               </div>
               {connectionResult?.status === "failed" ? (
                 <div className="li li--panel">
                   <ConnectionTestPanel
                     result={connectionResult}
-                    onRetry={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
+                    onRetry={() => runProfileConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
                     onDismiss={() =>
-                      setConnectionResults((current) => ({
+                      setProfileConnectionResults((current) => ({
                         ...current,
                         [profile.name]: undefined,
                       }))

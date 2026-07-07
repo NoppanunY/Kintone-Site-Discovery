@@ -1,23 +1,58 @@
-import type { DeveloperFileItem, FileOrderItem, KpiModel, ReportItem, ScanPreset, SensitiveOption, SiteWorkspaceModel, TabModel } from "./types";
+import type {
+  ConnectedSiteModel,
+  DeveloperFileItem,
+  FileOrderItem,
+  KpiModel,
+  ProjectContextModel,
+  ProjectModel,
+  ReportItem,
+  ScanPreset,
+  SensitiveOption,
+  SiteWorkspaceModel,
+  TabModel,
+} from "./types";
 
+export const projectId = "client-crm-discovery";
 export const siteId = "client-a-production";
 
-export const projectRows = [
-  { name: "Client CRM Discovery", siteId, path: "~/KintoneDiscovery/client-crm", opened: "opened 2h ago" },
-  { name: "Client CRM Sandbox Review", siteId: "dev-sandbox", path: "~/KintoneDiscovery/client-crm-sandbox", opened: "opened 1h ago" },
-  { name: "Vendor Audit 2026", siteId: "vendor-audit-main", path: "~/Work/vendor-audit", opened: "opened yesterday" },
-];
-
-export const siteWorkspaces: SiteWorkspaceModel[] = [
+export const connectedSites: ConnectedSiteModel[] = [
   {
     id: siteId,
-    projectName: "Client CRM Discovery",
     name: "Client A Production",
     domain: "client-a.cybozu.com",
     profile: "Client A Admin",
-    meta: "last snapshot 2h ago",
     status: "Connected",
     tone: "ok",
+    meta: "last tested 2h ago",
+  },
+  {
+    id: "dev-sandbox",
+    name: "Dev Sandbox",
+    domain: "dev.cybozu.com",
+    profile: "Production Admin",
+    status: "Idle",
+    tone: "idle",
+    meta: "not tested yet",
+  },
+  {
+    id: "vendor-audit-main",
+    name: "Vendor Audit Main",
+    domain: "vendor.cybozu.com",
+    profile: "Production Admin",
+    status: "Connected",
+    tone: "ok",
+    meta: "last tested yesterday",
+  },
+];
+
+export const projectRows: ProjectModel[] = [
+  {
+    id: projectId,
+    name: "Client CRM Discovery",
+    siteId,
+    path: "~/KintoneDiscovery/client-crm",
+    opened: "opened 2h ago",
+    meta: "last snapshot 2h ago",
     hasSnapshot: true,
     selectedApps: 4,
     appsAvailable: 18,
@@ -25,29 +60,25 @@ export const siteWorkspaces: SiteWorkspaceModel[] = [
     redactions: 4,
   },
   {
-    id: "dev-sandbox",
-    projectName: "Client CRM Sandbox Review",
-    name: "Dev Sandbox",
-    domain: "dev.cybozu.com",
-    profile: "Production Admin",
+    id: "client-crm-review-copy",
+    name: "Client CRM Review Copy",
+    siteId,
+    path: "~/KintoneDiscovery/client-crm-review-copy",
+    opened: "opened 1h ago",
     meta: "never scanned",
-    status: "Idle",
-    tone: "idle",
     hasSnapshot: false,
     selectedApps: 4,
-    appsAvailable: 9,
+    appsAvailable: 18,
     pluginsCaptured: 0,
     redactions: 0,
   },
   {
-    id: "vendor-audit-main",
-    projectName: "Vendor Audit 2026",
-    name: "Vendor Audit Main",
-    domain: "vendor.cybozu.com",
-    profile: "Production Admin",
+    id: "vendor-audit-2026",
+    name: "Vendor Audit 2026",
+    siteId: "vendor-audit-main",
+    path: "~/Work/vendor-audit",
+    opened: "opened yesterday",
     meta: "last snapshot yesterday",
-    status: "Connected",
-    tone: "ok",
     hasSnapshot: true,
     selectedApps: 6,
     appsAvailable: 14,
@@ -56,27 +87,58 @@ export const siteWorkspaces: SiteWorkspaceModel[] = [
   },
 ];
 
-export function getSiteWorkspaceById(id: string | null | undefined): SiteWorkspaceModel {
-  return siteWorkspaces.find((workspace) => workspace.id === id) ?? siteWorkspaces[0];
+export function getConnectedSiteById(id: string | null | undefined): ConnectedSiteModel {
+  return connectedSites.find((site) => site.id === id) ?? connectedSites[0];
 }
 
-export function tabsForSiteIds(siteIds: string[]): TabModel[] {
+export function getProjectById(id: string | null | undefined): ProjectModel {
+  return projectRows.find((project) => project.id === id) ?? projectRows[0];
+}
+
+export function projectIdForRouteSegment(id: string | null | undefined): string {
+  return projectRows.find((project) => project.id === id)?.id ?? projectRows.find((project) => project.siteId === id)?.id ?? projectRows[0].id;
+}
+
+export function projectContext(id: string | null | undefined): ProjectContextModel {
+  const project = getProjectById(projectIdForRouteSegment(id));
+  const site = getConnectedSiteById(project.siteId);
+
+  return {
+    ...site,
+    id: project.id,
+    projectId: project.id,
+    projectName: project.name,
+    projectPath: project.path,
+    opened: project.opened,
+    siteId: site.id,
+    siteMeta: site.meta,
+    meta: project.meta,
+    hasSnapshot: project.hasSnapshot,
+    selectedApps: project.selectedApps,
+    appsAvailable: project.appsAvailable,
+    pluginsCaptured: project.pluginsCaptured,
+    redactions: project.redactions,
+  };
+}
+
+export const getSiteWorkspaceById = projectContext;
+
+export function tabsForProjectIds(projectIds: string[]): TabModel[] {
   return [
     { id: "home", title: "Home", kind: "home" },
-    ...siteIds.map((id) => {
-      const site = getSiteWorkspaceById(id);
-      return { id: site.id, title: site.projectName, kind: "site" as const };
+    ...projectIds.map((id) => {
+      const project = getProjectById(id);
+      return { id: project.id, title: project.name, kind: "project" as const };
     }),
   ];
 }
 
-export const tabs: TabModel[] = tabsForSiteIds([siteId, "dev-sandbox"]);
+export const tabs: TabModel[] = tabsForProjectIds([projectId, "client-crm-review-copy"]);
 
 export const tabsWithSandbox: TabModel[] = tabs;
 
-export const workspaces = siteWorkspaces.map((site) => ({
+export const workspaces = connectedSites.map((site) => ({
   id: site.id,
-  projectName: site.projectName,
   name: site.name,
   domain: site.domain,
   profile: site.profile,
@@ -99,7 +161,7 @@ export function historyRunsForSite(site: SiteWorkspaceModel) {
     return [];
   }
 
-  if (site.id === "vendor-audit-main") {
+  if (site.projectId === "vendor-audit-2026") {
     return [
       {
         title: "Jul 6, 2026 · 14:20",
@@ -115,11 +177,11 @@ export function historyRunsForSite(site: SiteWorkspaceModel) {
   return historyRuns;
 }
 
-export const overviewKpis: KpiModel[] = overviewKpisForSite(siteWorkspaces[0]);
+export const overviewKpis: KpiModel[] = overviewKpisForSite(projectContext(projectId));
 
 export const profiles = [
-  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 projects" },
-  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 project" },
+  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 sites · 1 project" },
+  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 site · 2 projects" },
 ];
 
 export const apps = [

@@ -30,15 +30,15 @@ export interface BridgeResult {
   message: string;
 }
 
-export interface SiteTabSnapshot {
+export interface ProjectTabSnapshot {
   id: string;
   title: string;
-  siteWorkspaceId?: string;
+  projectId?: string;
   routePath: string;
 }
 
 export interface WindowStateSnapshot {
-  openSiteTabs: SiteTabSnapshot[];
+  openProjectTabs: ProjectTabSnapshot[];
   activeTabId: string;
   restored: boolean;
 }
@@ -55,7 +55,7 @@ export interface PlatformBridge {
   openLocalFolder(request: OpenFolderRequest): Promise<BridgeResult>;
   getWindowState(): Promise<WindowStateSnapshot>;
   saveWindowState(state: WindowStateSnapshot): Promise<BridgeResult>;
-  getOpenSiteTabs(): Promise<SiteTabSnapshot[]>;
-  saveOpenSiteTabs(tabs: SiteTabSnapshot[]): Promise<BridgeResult>;
+  getOpenProjectTabs(): Promise<ProjectTabSnapshot[]>;
+  saveOpenProjectTabs(tabs: ProjectTabSnapshot[]): Promise<BridgeResult>;
   getCredentialStoreStatus(): Promise<CredentialStoreStatus>;
 }

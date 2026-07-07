@@ -2,17 +2,19 @@ import { EmptyState, PrimaryActionButton, SecondaryActionButton } from "../compo
 
 interface NewTabScreenProps {
   onAddSite: () => void;
-  onOpenSite: () => void;
+  onNewProject: () => void;
+  onOpenProject: () => void;
 }
 
-export function NewTabScreen({ onAddSite, onOpenSite }: NewTabScreenProps) {
+export function NewTabScreen({ onAddSite, onNewProject, onOpenProject }: NewTabScreenProps) {
   return (
     <div className="page new-tab-page">
       <div className="new-tab-panel">
-        <EmptyState icon="+" title="Open a project" body="Open an existing project tab or create another project for a kintone site." />
+        <EmptyState icon="+" title="Open a project" body="Open an existing project or create a project that uses a connected site." />
         <div className="btn-row new-tab-actions">
-          <PrimaryActionButton label="Open recent project" onClick={onOpenSite} />
-          <SecondaryActionButton label="New project from site" onClick={onAddSite} />
+          <PrimaryActionButton label="Open recent project" onClick={onOpenProject} />
+          <SecondaryActionButton label="New project" onClick={onNewProject} />
+          <SecondaryActionButton label="Add connected site" onClick={onAddSite} />
         </div>
       </div>
     </div>

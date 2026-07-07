@@ -22,7 +22,7 @@ export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTab
         >
           {tab.kind === "home" ? "🏠 " : tab.running ? "● " : ""}
           {tab.title}
-          {tab.kind === "site" ? (
+          {tab.kind === "project" ? (
             <span
               className="x"
               role="button"

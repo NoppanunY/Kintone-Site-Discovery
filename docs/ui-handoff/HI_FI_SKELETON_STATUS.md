@@ -21,9 +21,10 @@ This note records the first UI skeleton batch implemented from the Claude Design
 
 ## Product model update
 
-- Desktop mock now uses a single-site project model: 1 Project = 1 local folder + 1 configured kintone site.
-- The same kintone domain/site may appear in multiple Projects when separate snapshots, folders, or auth contexts are useful.
-- Legacy internal names such as Site Workspace may remain in code until core workspace/storage wiring begins, but user-facing UI should describe Projects as the primary object.
+- Desktop mock now separates reusable Sites from Projects.
+- `Site` means a connected kintone site: display name, domain, auth profile, and connection status.
+- `Project` means a local folder/workspace that selects one Site. Multiple Projects may reference the same Site/domain.
+- The Home screen should show Projects, Sites, and Auth profiles as separate sections. Tabs and scan/snapshot/report/history routes are Project-scoped, while page copy still shows the linked Site for context.
 
 ## Visual verification notes
 

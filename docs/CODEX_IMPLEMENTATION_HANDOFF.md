@@ -39,9 +39,13 @@ Desktop UI and CLI must eventually wrap the same `packages/core` API surface. Do
 
 ## Current workspace decision
 
-For the desktop MVP mock, treat one Project as one local folder for one configured kintone site. Multiple Projects may point to the same kintone domain/site when the user wants separate folders, snapshots, auth context, or review purpose.
+For the desktop MVP mock, keep `Connected Site` and `Project` as separate objects:
 
-Older specs still use the term Site Workspace. For current desktop UI work, interpret the active Site Workspace as the Project's single site rather than a list of multiple sites inside one Project. Keep the underlying mock/router identifiers stable until the core workspace model is wired.
+- `Connected Site` is a reusable kintone connection: display name, domain, auth profile, and connection status.
+- `Project` is a local folder/workspace that selects exactly one Connected Site.
+- Multiple Projects may reference the same Connected Site/domain when the user wants separate folders, snapshots, or review purposes.
+
+Older specs still use the term Site Workspace. For current desktop UI work, interpret the active screen context as a Project plus its linked Connected Site. User-facing UI should show Projects, Sites, and Auth profiles as separate lists until the core workspace/storage model is wired.
 
 ## MVP boundaries
 

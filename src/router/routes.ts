@@ -1,29 +1,29 @@
 import type { NavKey } from "../types";
-import { getSiteWorkspaceById, siteId } from "../mockData";
+import { projectContext, projectId } from "../mockData";
 
-export function siteRouteByNavForSite(siteWorkspaceId: string): Record<NavKey, string> {
+export function projectRouteByNavForProject(activeProjectId: string): Record<NavKey, string> {
   return {
-    overview: `/site/${siteWorkspaceId}/overview`,
-    apps: `/site/${siteWorkspaceId}/apps`,
-    scan: `/site/${siteWorkspaceId}/scan`,
-    snapshot: `/site/${siteWorkspaceId}/snapshot`,
-    reports: `/site/${siteWorkspaceId}/reports`,
-    "developer-files": `/site/${siteWorkspaceId}/developer-files`,
-    history: `/site/${siteWorkspaceId}/history`,
-    settings: `/site/${siteWorkspaceId}/settings`,
-    advanced: `/site/${siteWorkspaceId}/advanced`,
+    overview: `/project/${activeProjectId}/overview`,
+    apps: `/project/${activeProjectId}/apps`,
+    scan: `/project/${activeProjectId}/scan`,
+    snapshot: `/project/${activeProjectId}/snapshot`,
+    reports: `/project/${activeProjectId}/reports`,
+    "developer-files": `/project/${activeProjectId}/developer-files`,
+    history: `/project/${activeProjectId}/history`,
+    settings: `/project/${activeProjectId}/settings`,
+    advanced: `/project/${activeProjectId}/advanced`,
   };
 }
 
-export const siteRouteByNav: Record<NavKey, string> = siteRouteByNavForSite(siteId);
+export const projectRouteByNav: Record<NavKey, string> = projectRouteByNavForProject(projectId);
 
-export function isSiteRoute(pathname: string) {
-  return pathname.startsWith("/site/");
+export function isProjectRoute(pathname: string) {
+  return pathname.startsWith("/project/") || pathname.startsWith("/site/");
 }
 
-export function siteIdFromPath(pathname: string) {
-  const match = pathname.match(/^\/site\/([^/]+)/);
-  return getSiteWorkspaceById(match?.[1]).id;
+export function projectIdFromPath(pathname: string) {
+  const match = pathname.match(/^\/(?:project|site)\/([^/]+)/);
+  return projectContext(match?.[1]).projectId;
 }
 
 export function navFromPath(pathname: string): NavKey {
@@ -39,5 +39,10 @@ export function navFromPath(pathname: string): NavKey {
 }
 
 export function activeTabFromPath(pathname: string) {
-  return isSiteRoute(pathname) ? siteIdFromPath(pathname) : "home";
+  return isProjectRoute(pathname) ? projectIdFromPath(pathname) : "home";
 }
+
+export const siteRouteByNavForSite = projectRouteByNavForProject;
+export const siteRouteByNav = projectRouteByNav;
+export const isSiteRoute = isProjectRoute;
+export const siteIdFromPath = projectIdFromPath;

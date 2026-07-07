@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export type Id = string;
 
-export type TabKind = "home" | "site";
+export type TabKind = "home" | "project";
 
 export interface TabModel {
   id: Id;
@@ -11,21 +11,45 @@ export interface TabModel {
   running?: boolean;
 }
 
-export interface SiteWorkspaceModel {
+export interface ConnectedSiteModel {
   id: Id;
-  projectName: string;
   name: string;
   domain: string;
   profile: string;
-  meta: string;
   status: string;
   tone: StatusTone;
+  meta: string;
+}
+
+export interface ProjectModel {
+  id: Id;
+  name: string;
+  siteId: Id;
+  path: string;
+  opened: string;
+  meta: string;
   hasSnapshot: boolean;
   selectedApps: number;
   appsAvailable: number;
   pluginsCaptured: number;
   redactions: number;
 }
+
+export interface ProjectContextModel extends ConnectedSiteModel {
+  projectId: Id;
+  projectName: string;
+  projectPath: string;
+  opened: string;
+  siteId: Id;
+  siteMeta: string;
+  hasSnapshot: boolean;
+  selectedApps: number;
+  appsAvailable: number;
+  pluginsCaptured: number;
+  redactions: number;
+}
+
+export type SiteWorkspaceModel = ProjectContextModel;
 
 export interface TopMenuItemModel {
   label: string;

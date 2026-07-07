@@ -6,6 +6,6 @@ export type {
   OpenFolderRequest,
   PlatformBridge,
   PlatformRuntimeInfo,
-  SiteTabSnapshot,
+  ProjectTabSnapshot,
   WindowStateSnapshot,
 } from "./bridgeTypes";

@@ -7,8 +7,8 @@ const platformBridge: PlatformBridge = {
   openLocalFolder: (request) => ipcRenderer.invoke("platform:openLocalFolder", request),
   getWindowState: () => ipcRenderer.invoke("platform:getWindowState"),
   saveWindowState: (state) => ipcRenderer.invoke("platform:saveWindowState", state),
-  getOpenSiteTabs: () => ipcRenderer.invoke("platform:getOpenSiteTabs"),
-  saveOpenSiteTabs: (tabs) => ipcRenderer.invoke("platform:saveOpenSiteTabs", tabs),
+  getOpenProjectTabs: () => ipcRenderer.invoke("platform:getOpenProjectTabs"),
+  saveOpenProjectTabs: (tabs) => ipcRenderer.invoke("platform:saveOpenProjectTabs", tabs),
   getCredentialStoreStatus: () => ipcRenderer.invoke("platform:getCredentialStoreStatus"),
 };
 

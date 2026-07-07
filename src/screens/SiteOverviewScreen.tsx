@@ -124,20 +124,20 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
               <SecondaryActionButton label="⛃ Open Local Snapshot" onClick={onSnapshot} />
               <SecondaryActionButton label="▦ View reports" onClick={onReports} />
               <SecondaryActionButton label="〈〉 Open developer files" onClick={onDeveloperFiles} />
-              <SecondaryActionButton label="Open site folder" variant="ghost" onClick={() => onMockAction("Folder opening is not connected yet. No Windows Explorer window was opened.")} />
+              <SecondaryActionButton label="Open project folder" variant="ghost" onClick={() => onMockAction("Project folder opening is not connected yet. No Windows Explorer window was opened.")} />
             </div>
           </>
         ) : (
           <>
             <div>
-              <div className="h3">No local snapshot for this site yet</div>
+              <div className="h3">No local snapshot for this project yet</div>
               <div className="small muted2" style={{ marginTop: 4 }}>
-                Run a read-only scan to create the first local snapshot for {site.name}.
+                Run a read-only scan to create the first local snapshot for {site.projectName}.
               </div>
             </div>
             <div className="btn-row">
               <PrimaryActionButton label="Run scan" onClick={startOverviewScan} />
-              <SecondaryActionButton label="Open site folder" variant="ghost" onClick={() => onMockAction("Folder opening is not connected yet. No Windows Explorer window was opened.")} />
+              <SecondaryActionButton label="Open project folder" variant="ghost" onClick={() => onMockAction("Project folder opening is not connected yet. No Windows Explorer window was opened.")} />
             </div>
           </>
         )}

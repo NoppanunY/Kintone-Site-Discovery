@@ -8,7 +8,7 @@ import type {
   FolderSelectionResult,
   OpenFolderRequest,
   PlatformRuntimeInfo,
-  SiteTabSnapshot,
+  ProjectTabSnapshot,
   WindowStateSnapshot,
 } from "../src/platform/bridgeTypes";
 
@@ -156,7 +156,7 @@ function registerPlatformBridgeHandlers() {
 
   ipcMain.handle("platform:getWindowState", (): WindowStateSnapshot => {
     return {
-      openSiteTabs: [],
+      openProjectTabs: [],
       activeTabId: "home",
       restored: false,
     };
@@ -170,15 +170,15 @@ function registerPlatformBridgeHandlers() {
     };
   });
 
-  ipcMain.handle("platform:getOpenSiteTabs", (): SiteTabSnapshot[] => {
+  ipcMain.handle("platform:getOpenProjectTabs", (): ProjectTabSnapshot[] => {
     return [];
   });
 
-  ipcMain.handle("platform:saveOpenSiteTabs", (_event, _tabs: SiteTabSnapshot[]): BridgeResult => {
+  ipcMain.handle("platform:saveOpenProjectTabs", (_event, _tabs: ProjectTabSnapshot[]): BridgeResult => {
     return {
       ok: true,
       code: "STUBBED",
-      message: "Site tab persistence is not wired yet.",
+      message: "Project tab persistence is not wired yet.",
     };
   });
 
