@@ -113,13 +113,13 @@ select:focus-visible,
 }
 
 .menubar {
-  height: var(--menubar-h);
+  height: 26px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: var(--sp-0) 8px;
+  gap: 0;
+  padding: var(--sp-0) 4px;
   flex: none;
   overflow: visible;
   position: relative;
@@ -152,32 +152,37 @@ select:focus-visible,
 }
 
 .menubar__button {
-  height: 24px;
-  padding: var(--sp-0) var(--sp-2);
+  height: 22px;
+  padding: var(--sp-0) 9px;
   border: none;
-  border-radius: var(--r-xs);
+  border-radius: 2px;
   background: transparent;
-  color: var(--text-3);
-  font: 400 12px var(--font-ui);
+  color: var(--text-2);
+  font: 400 12px / 1 var(--font-ui);
   cursor: pointer;
 }
 
 .menubar__button:hover,
 .menubar__button.is-open {
-  background: var(--surface-3);
+  background: #e5f1fb;
   color: var(--text);
+}
+
+.menubar__button:focus-visible {
+  outline: 1px solid #8bb8e8;
+  box-shadow: none;
 }
 
 .menu-popover {
   position: absolute;
-  top: calc(100% - 2px);
+  top: calc(100% - 1px);
   left: 0;
-  min-width: 228px;
-  padding: 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  min-width: 206px;
+  padding: 2px;
+  border: 1px solid #aeb7c2;
+  border-radius: 2px;
   background: var(--surface);
-  box-shadow: var(--sh-md);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.16);
   z-index: 50;
 }
 
@@ -188,17 +193,17 @@ select:focus-visible,
 
 .menu-item {
   width: 100%;
-  height: 30px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-6);
-  padding: var(--sp-0) 10px;
+  gap: var(--sp-4);
+  padding: var(--sp-0) 8px;
   border: none;
-  border-radius: var(--r-xs);
+  border-radius: 0;
   background: transparent;
   color: var(--text);
-  font: 500 12.5px var(--font-ui);
+  font: 400 12px / 1 var(--font-ui);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -211,8 +216,10 @@ select:focus-visible,
 
 .menu-item:hover:not(:disabled),
 .menu-item:focus-visible:not(:disabled) {
-  background: var(--primary-tint);
-  color: var(--primary);
+  background: #e5f1fb;
+  color: var(--text);
+  box-shadow: none;
+  outline: none;
 }
 
 .menu-item:disabled {
@@ -222,7 +229,7 @@ select:focus-visible,
 }
 
 .menu-item__shortcut {
-  color: var(--text-3);
+  color: var(--text-2);
   font-weight: 400;
 }
 
