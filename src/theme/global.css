@@ -657,10 +657,6 @@ select:focus-visible,
   margin-left: calc(var(--pill-h) + var(--sp-3));
 }
 
-.choice-select {
-  width: calc(100% - var(--pill-h) - var(--sp-3));
-}
-
 .choice-row {
   width: 100%;
   border: 1px solid var(--border);

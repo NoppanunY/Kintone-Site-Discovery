@@ -27,6 +27,7 @@ const flowSteps: Record<OnboardingEntry, StepDefinition[]> = {
   ],
   "add-site": [
     { key: "site", label: "Site" },
+    { key: "auth", label: "Auth profile" },
     { key: "test", label: "Test" },
     { key: "apps", label: "Apps" },
   ],
@@ -165,50 +166,51 @@ function renderStep({
   }
 
   if (step === "auth") {
-    if (entry === "add-auth") {
-      return (
-        <>
-          <WizardIntro
-            title="Add an auth profile"
-            body="Create a reusable sign-in profile for this project. This UI pass is mock-only and does not store real credentials."
-          />
-          <AuthProfileFields />
-        </>
-      );
-    }
-
     return (
       <>
-        <WizardIntro
-          title="Choose an auth profile"
-          body="Use an existing profile for the first site workspace, or add a new profile in this setup."
-        />
-        <div className="choice-list">
-          <ChoiceRow
-            title="Use existing auth profile"
-            body="Best when the account already exists in this local project."
-            selected={authMode === "existing"}
-            onClick={() => onSelectAuthMode("existing")}
+        <WizardIntro title={authStepTitle(entry)} body={authStepBody(entry, selectedProject)} />
+        {entry === "add-auth" ? (
+          <AuthProfileFields
+            projectMode="select"
+            selectedProject={selectedProject}
+            onSelectProject={onSelectProject}
           />
-          {authMode === "existing" ? (
-            <div className="choice-select choice-list--nested">
-              <SelectField
-                label="Auth profile"
-                value={selectedProfile}
-                options={authProfileOptions()}
-                onChange={onSelectProfile}
-                meta="The selected profile will be linked to the site workspace."
+        ) : (
+          <>
+            <div className="choice-list">
+              <ChoiceRow
+                title="Use existing auth profile"
+                body="Best when the account already exists in this project."
+                selected={authMode === "existing"}
+                onClick={() => onSelectAuthMode("existing")}
+              />
+              <ChoiceRow
+                title="Add new auth profile"
+                body="Mock credential fields are shown, but no secret is written yet."
+                selected={authMode === "new"}
+                onClick={() => onSelectAuthMode("new")}
               />
             </div>
-          ) : null}
-          <ChoiceRow
-            title="Add new auth profile"
-            body="Mock credential fields are shown, but no secret is written yet."
-            selected={authMode === "new"}
-            onClick={() => onSelectAuthMode("new")}
-          />
-        </div>
-        {authMode === "new" ? <AuthProfileFields /> : <SelectedProfileBanner selectedProfile={selectedProfile} />}
+            {authMode === "existing" ? (
+              <>
+                <SelectField
+                  label="Auth profile"
+                  value={selectedProfile}
+                  options={authProfileOptions()}
+                  onChange={onSelectProfile}
+                  meta="The selected profile will be linked to the site workspace."
+                />
+                <SelectedProfileBanner selectedProfile={selectedProfile} />
+              </>
+            ) : (
+              <AuthProfileFields
+                projectMode={entry === "new-project" ? "new-project" : "readonly"}
+                selectedProject={selectedProject}
+                onSelectProject={onSelectProject}
+              />
+            )}
+          </>
+        )}
       </>
     );
   }
@@ -217,7 +219,7 @@ function renderStep({
     const title = entry === "add-site" ? "Add a site to this project" : "Add the first site workspace";
     const body =
       entry === "add-site"
-        ? `This adds one kintone site workspace under ${selectedProject}. It does not create a new project.`
+        ? `This adds one kintone site workspace under ${selectedProject}. You will choose or create an auth profile next.`
         : "A site workspace is one kintone domain inside the project. You can add more sites later.";
     const snapshotPath = `${projectFolder(selectedProject)}/sites/client-a`;
 
@@ -234,21 +236,11 @@ function renderStep({
               meta="The new site workspace will be added under this project."
             />
           ) : (
-            <MockField label="Project" value={selectedProject} />
+            <MockField label="Project being created" value={selectedProject} />
           )}
           <MockField label="Site display name" value={entry === "add-site" ? "Client A Staging" : "Client A Production"} />
           <MockField label="kintone domain" value={entry === "add-site" ? "staging.client-a.cybozu.com" : "client-a.cybozu.com"} meta="Domain only, no protocol" />
-          {entry === "add-site" ? (
-            <SelectField
-              label="Auth profile"
-              value={selectedProfile}
-              options={authProfileOptions()}
-              onChange={onSelectProfile}
-              meta="Choose the reusable profile to link to this site workspace."
-            />
-          ) : (
-            <MockField label="Auth profile" value={selectedProfile} meta="Reusable profile linked to this site workspace" />
-          )}
+          {entry === "new-project" ? <MockField label="Auth profile" value={selectedProfile} meta="Reusable profile linked to this site workspace" /> : null}
           <MockField label="Save snapshots to" value={snapshotPath} action="Browse..." />
         </div>
       </>
@@ -300,13 +292,51 @@ function WizardIntro({ title, body }: { title: string; body: string }) {
   );
 }
 
-function AuthProfileFields() {
+function authStepTitle(entry: OnboardingEntry) {
+  if (entry === "add-auth") {
+    return "Add an auth profile";
+  }
+
+  return "Choose an auth profile";
+}
+
+function authStepBody(entry: OnboardingEntry, selectedProject: string) {
+  if (entry === "add-auth") {
+    return "Create a reusable sign-in profile for a project. This UI pass is mock-only and does not store real credentials.";
+  }
+
+  return `Link the site workspace to an auth profile in ${selectedProject}, or create a new mock profile for it.`;
+}
+
+function AuthProfileFields({
+  projectMode,
+  selectedProject,
+  onSelectProject,
+}: {
+  projectMode: "new-project" | "readonly" | "select";
+  selectedProject: string;
+  onSelectProject: (project: string) => void;
+}) {
   return (
     <div className="form-grid">
+      {projectMode === "select" ? (
+        <SelectField
+          label="Project"
+          value={selectedProject}
+          options={projectOptions()}
+          onChange={onSelectProject}
+          meta="This auth profile will be available to site workspaces in the selected project."
+        />
+      ) : (
+        <MockField
+          label={projectMode === "new-project" ? "Project being created" : "Project"}
+          value={selectedProject}
+          meta="This auth profile will be available to site workspaces in this project."
+        />
+      )}
       <MockField label="Profile name" value="Client A Admin" />
       <MockField label="Username" value="ca-admin@client-a" />
       <MockField label="Password" value="••••••••" meta="Mock only · future build stores this in the OS keychain" />
-      <MockField label="Credential scope" value="This project only" meta="No real credential storage is wired in this skeleton." />
     </div>
   );
 }
