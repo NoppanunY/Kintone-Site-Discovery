@@ -11,6 +11,19 @@ export interface TabModel {
   running?: boolean;
 }
 
+export interface TopMenuItemModel {
+  label: string;
+  onSelect?: () => void;
+  disabled?: boolean;
+  shortcut?: string;
+}
+
+export interface TopMenuModel {
+  label: string;
+  items: TopMenuItemModel[];
+  align?: "start" | "end";
+}
+
 export type NavKey =
   | "overview"
   | "apps"

@@ -17,7 +17,7 @@ import { ScanSetupScreen } from "./screens/ScanSetupScreen";
 import { SensitiveOptionsScreen } from "./screens/SensitiveOptionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SiteOverviewScreen } from "./screens/SiteOverviewScreen";
-import type { NavKey } from "./types";
+import type { NavKey, TopMenuModel } from "./types";
 
 export function App() {
   const [locationKey, setLocationKey] = useState(0);
@@ -39,6 +39,7 @@ export function App() {
   const activeTabId = activeTabFromPath(pathname);
   const shellVariant = isSiteRoute(pathname) ? "site" : "home";
   const visibleTabs = pathname === "/" || pathname.endsWith("/overview") ? tabsWithSandbox : tabs;
+  const menus = buildTopMenus(navigate);
 
   const screen = useMemo(
     () =>
@@ -63,6 +64,7 @@ export function App() {
           tabs={visibleTabs}
           activeTabId={activeTabId}
           activeNav={activeNav}
+          menus={menus}
           variant={shellVariant}
           onNewTab={() => navigate("/new-tab")}
           onCloseTab={() => navigate("/")}
@@ -92,6 +94,72 @@ export function App() {
       </div>
     </div>
   );
+}
+
+function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
+  return [
+    {
+      label: "Project",
+      items: [
+        { label: "Projects", shortcut: "Ctrl+1", onSelect: () => navigate("/") },
+        { label: "New project", onSelect: () => navigate("/onboarding") },
+        { label: "Open local folder", disabled: true },
+      ],
+    },
+    {
+      label: "Account",
+      items: [
+        { label: "Auth profiles", onSelect: () => navigate("/home/accounts") },
+        { label: "Add profile", onSelect: () => navigate("/home/accounts") },
+        { label: "Test connection", disabled: true },
+      ],
+    },
+    {
+      label: "Site",
+      items: [
+        { label: "Site workspaces", onSelect: () => navigate("/home/sites") },
+        { label: "Open current site", onSelect: () => navigate(siteRouteByNav.overview) },
+        { label: "Apps", onSelect: () => navigate(siteRouteByNav.apps) },
+        { label: "Settings", onSelect: () => navigate(siteRouteByNav.settings) },
+      ],
+    },
+    {
+      label: "Scan",
+      items: [
+        { label: "Choose scan preset", onSelect: () => navigate(siteRouteByNav.scan) },
+        { label: "Configure sensitive options", onSelect: () => navigate(`${siteRouteByNav.scan}/advanced`) },
+        { label: "Run scan", onSelect: () => navigate(`${siteRouteByNav.scan}/run`) },
+      ],
+    },
+    {
+      label: "Snapshot",
+      items: [
+        { label: "Local Snapshot", onSelect: () => navigate(siteRouteByNav.snapshot) },
+        { label: "Reports", onSelect: () => navigate(siteRouteByNav.reports) },
+        { label: "Developer Files", onSelect: () => navigate(siteRouteByNav["developer-files"]) },
+        { label: "History", onSelect: () => navigate(siteRouteByNav.history) },
+      ],
+    },
+    {
+      label: "Window",
+      items: [
+        { label: "New tab", shortcut: "Ctrl+T", onSelect: () => navigate("/new-tab") },
+        { label: "Home", shortcut: "Ctrl+H", onSelect: () => navigate("/") },
+        { label: "Close tab", shortcut: "Ctrl+W", onSelect: () => navigate("/") },
+      ],
+    },
+    {
+      label: "Help",
+      align: "end",
+      items: [
+        {
+          label: "About Kintone Site Discovery",
+          onSelect: () => window.alert("Kintone Site Discovery\nMVP 1 desktop mock shell"),
+        },
+        { label: "Documentation", disabled: true },
+      ],
+    },
+  ];
 }
 
 function renderScreen({ pathname, search, navigate }: { pathname: string; search: string; navigate: (path: string) => void }) {

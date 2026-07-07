@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { NavKey, TabModel } from "../types";
+import type { NavKey, TabModel, TopMenuModel } from "../types";
 import { SiteSidebar } from "./SiteSidebar";
 import { SiteTabBar } from "./SiteTabBar";
 import { TopMenuBar } from "./TopMenuBar";
@@ -9,6 +9,7 @@ interface AppShellProps {
   tabs: TabModel[];
   activeTabId: string;
   activeNav?: NavKey;
+  menus: TopMenuModel[];
   variant: "home" | "site";
   children: ReactNode;
   onNewTab: () => void;
@@ -22,6 +23,7 @@ export function AppShell({
   tabs,
   activeTabId,
   activeNav = "overview",
+  menus,
   variant,
   children,
   onNewTab,
@@ -37,7 +39,7 @@ export function AppShell({
         <span className="tl g" />
         <span className="tb-title">Kintone Site Discovery — {projectName}</span>
       </div>
-      <TopMenuBar />
+      <TopMenuBar menus={menus} />
       <SiteTabBar tabs={tabs} activeId={activeTabId} onAdd={onNewTab} onClose={onCloseTab} onSelect={onSelectTab} />
       <div className="appbody">
         {variant === "site" ? <SiteSidebar active={activeNav} onNavigate={onNavigate} /> : null}

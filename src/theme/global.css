@@ -118,9 +118,12 @@ select:focus-visible,
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: var(--sp-0) 15px;
+  gap: 2px;
+  padding: var(--sp-0) 8px;
   flex: none;
+  overflow: visible;
+  position: relative;
+  z-index: 20;
 }
 
 .menubar__item {
@@ -135,6 +138,92 @@ select:focus-visible,
 
 .menubar__spacer {
   margin-left: auto;
+}
+
+.menu-root {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.menu-root--end {
+  margin-left: auto;
+}
+
+.menubar__button {
+  height: 24px;
+  padding: var(--sp-0) var(--sp-2);
+  border: none;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text-3);
+  font: 400 12px var(--font-ui);
+  cursor: pointer;
+}
+
+.menubar__button:hover,
+.menubar__button.is-open {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.menu-popover {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 0;
+  min-width: 228px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--sh-md);
+  z-index: 50;
+}
+
+.menu-root--end .menu-popover {
+  right: 0;
+  left: auto;
+}
+
+.menu-item {
+  width: 100%;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  padding: var(--sp-0) 10px;
+  border: none;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text);
+  font: 500 12.5px var(--font-ui);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menu-item span {
+  color: inherit;
+  font: inherit;
+}
+
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible:not(:disabled) {
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+
+.menu-item:disabled {
+  color: var(--text-3);
+  cursor: default;
+  opacity: 0.58;
+}
+
+.menu-item__shortcut {
+  color: var(--text-3);
+  font-weight: 400;
 }
 
 .sitetabs {
