@@ -12,7 +12,7 @@ export function NewTabScreen({ onAddSite, onOpenSite }: NewTabScreenProps) {
         <EmptyState icon="+" title="Open a site workspace" body="Open an existing site tab or add a new read-only workspace." />
         <div className="btn-row new-tab-actions">
           <PrimaryActionButton label="Open in tab" onClick={onOpenSite} />
-          <SecondaryActionButton label="Add site" onClick={onAddSite} />
+          <SecondaryActionButton label="Add site workspace" onClick={onAddSite} />
         </div>
       </div>
     </div>

@@ -19,6 +19,12 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { SiteOverviewScreen } from "./screens/SiteOverviewScreen";
 import type { NavKey, TopMenuModel } from "./types";
 
+type OnboardingEntry = "new-project" | "add-site" | "add-auth";
+
+function onboardingPath(entry: OnboardingEntry) {
+  return `/onboarding?entry=${entry}`;
+}
+
 export function App() {
   const [locationKey, setLocationKey] = useState(0);
   const pathname = window.location.pathname;
@@ -40,6 +46,7 @@ export function App() {
   const shellVariant = isSiteRoute(pathname) ? "site" : "home";
   const visibleTabs = pathname === "/" || pathname.endsWith("/overview") ? tabsWithSandbox : tabs;
   const menus = buildTopMenus(navigate);
+  const onboardingEntry = getOnboardingEntry(search);
 
   const screen = useMemo(
     () =>
@@ -53,7 +60,13 @@ export function App() {
   );
 
   if (pathname.startsWith("/onboarding")) {
-    return <OnboardingScreen onCancel={() => navigate("/")} onFinish={() => navigate(siteRouteByNav.overview)} />;
+    return (
+      <OnboardingScreen
+        entry={onboardingEntry}
+        onCancel={() => navigate("/")}
+        onFinish={() => navigate(onboardingEntry === "add-auth" ? "/home/accounts" : siteRouteByNav.overview)}
+      />
+    );
   }
 
   return (
@@ -102,7 +115,7 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
       label: "Project",
       items: [
         { label: "Projects", shortcut: "Ctrl+1", onSelect: () => navigate("/") },
-        { label: "New project", onSelect: () => navigate("/onboarding") },
+        { label: "New project", onSelect: () => navigate(onboardingPath("new-project")) },
         { label: "Open local folder", disabled: true },
       ],
     },
@@ -110,7 +123,7 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
       label: "Account",
       items: [
         { label: "Auth profiles", onSelect: () => navigate("/home/accounts") },
-        { label: "Add profile", onSelect: () => navigate("/home/accounts") },
+        { label: "Add auth profile", onSelect: () => navigate(onboardingPath("add-auth")) },
         { label: "Test connection", disabled: true },
       ],
     },
@@ -118,6 +131,7 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
       label: "Site",
       items: [
         { label: "Site workspaces", onSelect: () => navigate("/home/sites") },
+        { label: "Add site workspace", onSelect: () => navigate(onboardingPath("add-site")) },
         { label: "Open current site", onSelect: () => navigate(siteRouteByNav.overview) },
         { label: "Apps", onSelect: () => navigate(siteRouteByNav.apps) },
         { label: "Settings", onSelect: () => navigate(siteRouteByNav.settings) },
@@ -162,19 +176,29 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
   ];
 }
 
+function getOnboardingEntry(search: string): OnboardingEntry {
+  const entry = new URLSearchParams(search).get("entry");
+  if (entry === "add-site" || entry === "add-auth") {
+    return entry;
+  }
+
+  return "new-project";
+}
+
 function renderScreen({ pathname, search, navigate }: { pathname: string; search: string; navigate: (path: string) => void }) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
     return (
       <ProjectHomeScreen
-        onAddSite={() => navigate("/onboarding")}
-        onNewProject={() => navigate("/onboarding")}
+        onAddProfile={() => navigate(onboardingPath("add-auth"))}
+        onAddSite={() => navigate(onboardingPath("add-site"))}
+        onNewProject={() => navigate(onboardingPath("new-project"))}
         onOpenSite={() => navigate(siteRouteByNav.overview)}
       />
     );
   }
 
   if (pathname === "/new-tab") {
-    return <NewTabScreen onAddSite={() => navigate("/onboarding")} onOpenSite={() => navigate(siteRouteByNav.overview)} />;
+    return <NewTabScreen onAddSite={() => navigate(onboardingPath("add-site"))} onOpenSite={() => navigate(siteRouteByNav.overview)} />;
   }
 
   if (pathname.endsWith("/apps")) {

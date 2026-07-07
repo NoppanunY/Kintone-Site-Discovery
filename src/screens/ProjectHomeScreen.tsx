@@ -4,6 +4,7 @@ import { profiles, projectRows, workspaces } from "../mockData";
 import { PageHeader } from "./shared";
 
 interface ProjectHomeScreenProps {
+  onAddProfile: () => void;
   onAddSite: () => void;
   onNewProject: () => void;
   onOpenSite: () => void;
@@ -20,7 +21,7 @@ const folderIconStyle: CSSProperties = {
   fontSize: 17,
 };
 
-export function ProjectHomeScreen({ onAddSite, onNewProject, onOpenSite }: ProjectHomeScreenProps) {
+export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpenSite }: ProjectHomeScreenProps) {
   return (
     <div className="page">
       <PageHeader
@@ -50,7 +51,7 @@ export function ProjectHomeScreen({ onAddSite, onNewProject, onOpenSite }: Proje
             · reusable across sites
           </span>
         </h2>
-        <SecondaryActionButton label="＋ Add profile" size="sm" />
+        <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />
       </div>
       <div className="list">
         {profiles.map((profile) => (
@@ -72,7 +73,7 @@ export function ProjectHomeScreen({ onAddSite, onNewProject, onOpenSite }: Proje
       </div>
       <div className="between" style={{ marginTop: 4 }}>
         <h2 className="h2">Site workspaces</h2>
-        <SecondaryActionButton label="＋ Add site" size="sm" onClick={onAddSite} />
+        <SecondaryActionButton label="＋ Add site workspace" size="sm" onClick={onAddSite} />
       </div>
       <div className="list">
         {workspaces.map((site) => (
