@@ -112,9 +112,16 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish }: 
             </div>
             <div className="wizard-card__body">{content}</div>
             <div className="wizard-card__footer">
-              <button type="button" className="btn btn--ghost" onClick={stepIndex === 0 ? onCancel : goBack}>
-                {stepIndex === 0 ? cancelLabel : "← Back"}
-              </button>
+              <div className="rowc">
+                <button type="button" className="btn btn--ghost" onClick={onCancel}>
+                  {cancelLabel}
+                </button>
+                {stepIndex > 0 ? (
+                  <button type="button" className="btn btn--ghost" onClick={goBack}>
+                    ← Back
+                  </button>
+                ) : null}
+              </div>
               <div className="rowc">
                 <span className="small muted2">
                   Step {stepIndex + 1} of {steps.length}
