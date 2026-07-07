@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import type { MockActionHandler } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
@@ -17,9 +17,6 @@ export function LocalSnapshotScreen({ onRunScan, onMockAction }: { onRunScan: ()
           </>
         }
       />
-      <WarningBanner tone="info" icon="⛃">
-        This snapshot is the canonical record. <b>Reports</b> and <b>Developer Files</b> are generated from it and refresh whenever it changes.
-      </WarningBanner>
       <KpiGrid
         items={[
           { number: "48.2", label: "MB on disk" },

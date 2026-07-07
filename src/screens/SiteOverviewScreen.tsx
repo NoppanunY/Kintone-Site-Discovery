@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
 import { overviewKpis } from "../mockData";
 import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../types";
@@ -25,6 +25,9 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
     setConnectionResult(createTestingConnectionResult(connectionTarget));
     window.setTimeout(() => {
       setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
+      if (outcome === "passed") {
+        onMockAction("Client A Production connection test passed. No kintone request was sent.", { tone: "ok" });
+      }
     }, 450);
   }
 
@@ -37,16 +40,17 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
         actions={
           <>
             <StatusPill status="ok" label="Connected" dot />
+            {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
+            {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
             <SecondaryActionButton label="Test connection" onClick={() => runConnectionTest("passed")} />
             <PrimaryActionButton label="◎ Run scan" onClick={onRunScan} />
           </>
         }
       />
-      {connectionResult ? (
+      {connectionResult?.status === "failed" ? (
         <ConnectionTestPanel
           result={connectionResult}
           onRetry={() => runConnectionTest("passed")}
-          onSimulateFailure={() => runConnectionTest("failed")}
           onDismiss={() => setConnectionResult(null)}
         />
       ) : null}
@@ -84,9 +88,6 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
           <SecondaryActionButton label="Open folder" variant="ghost" onClick={() => onMockAction("Open folder bridge stub triggered. No Windows Explorer window was opened.")} />
         </div>
       </div>
-      <WarningBanner tone="info">
-        The snapshot is the canonical record of this pull. Reports and Developer Files are generated from it — re-running a scan replaces the snapshot and regenerates both.
-      </WarningBanner>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import type { MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
@@ -48,7 +48,6 @@ export function ReportsScreen({ onMockAction }: { onMockAction: MockActionHandle
           </div>
         ))}
       </div>
-      <WarningBanner tone="info">Reports regenerate automatically from the snapshot. If you re-run a scan, these refresh to match.</WarningBanner>
     </div>
   );
 }

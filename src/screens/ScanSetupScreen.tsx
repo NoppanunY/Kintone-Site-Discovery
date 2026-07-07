@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { PrimaryActionButton, ScanPresetCard, SecondaryActionButton, WarningBanner } from "../components";
+import { PrimaryActionButton, ScanPresetCard, SecondaryActionButton } from "../components";
 import { presets } from "../mockData";
 import type { MockActionHandler, ScanPreset } from "../types";
 import { PageHeader } from "./shared";
@@ -39,9 +39,6 @@ export function ScanSetupScreen({ onAdvanced, onStart, onMockAction }: ScanSetup
         subtitle="4 apps selected · app list fetched 2 hours ago"
         actions={<SecondaryActionButton label="⟳ Reload app list" size="sm" onClick={() => onMockAction("Mock app list reloaded from local seed data. No kintone request was sent.")} />}
       />
-      <WarningBanner tone="info" icon="🔒">
-        Every preset is read-only and always includes the 17 required categories. No site data is changed.
-      </WarningBanner>
       <div className="preset-grid" role="radiogroup" aria-label="Scan preset">
         {presetCards.map((preset) => (
           <ScanPresetCard key={preset.id} preset={preset} onSelect={setSelectedPresetId} onConfigure={handleAdvancedOptions} />

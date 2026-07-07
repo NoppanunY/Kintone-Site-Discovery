@@ -1,4 +1,4 @@
-import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import { PageHeader } from "./shared";
 
 const collectorRows = [
@@ -25,16 +25,14 @@ export function ScanRunningScreen({
         breadcrumb="Client A Production · Scan"
         title={isRerun ? "Re-running scan..." : "Scanning..."}
         titleMeta={<StatusPill status="run" label="Running" dot />}
-        subtitle={isRerun ? "Using last saved scan configuration · App 3 of 4 · Support Tickets" : "Building local snapshot · App 3 of 4 · Support Tickets"}
-        actions={<PrimaryActionButton label="✕ Cancel scan" tone="danger" onClick={onCancel} />}
+        subtitle={isRerun ? "Standard Scan · 4 apps · sensitive options off" : "Building local snapshot · App 3 of 4 · Support Tickets"}
+        actions={
+          <>
+            {isRerun ? <SecondaryActionButton label="Change settings" size="sm" variant="ghost" onClick={onChangeSettings} /> : null}
+            <PrimaryActionButton label="✕ Cancel scan" tone="danger" onClick={onCancel} />
+          </>
+        }
       />
-      {isRerun ? (
-        <div className="run-context-line">
-          <StatusPill status="info" label="Last config" />
-          <span className="small muted">Standard Scan · 4 apps · sensitive options off · no real runner is wired yet</span>
-          <SecondaryActionButton label="Change settings" size="sm" variant="ghost" onClick={onChangeSettings} />
-        </div>
-      ) : null}
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="between">
           <span className="h3">Overall progress</span>
@@ -53,9 +51,6 @@ export function ScanRunningScreen({
           </div>
         ))}
       </div>
-      <WarningBanner tone="info">
-        Optional collectors that fail are skipped and recorded as warnings — the scan keeps going. Only a failed <b>required</b> collector stops the run.
-      </WarningBanner>
     </div>
   );
 }

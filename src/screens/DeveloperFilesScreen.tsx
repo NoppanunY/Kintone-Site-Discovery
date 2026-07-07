@@ -1,4 +1,4 @@
-import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import type { MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
@@ -56,9 +56,6 @@ export function DeveloperFilesScreen({ onMockAction }: { onMockAction: MockActio
           <FileOrderRow index={3} name="003-finalize.js" confidence="high · api · confidence: medium" />
         </div>
       </div>
-      <WarningBanner tone="info">
-        File order (orderIndex · orderSource · confidence) is stored in the snapshot manifest and shown here verbatim — never re-sorted A–Z.
-      </WarningBanner>
     </div>
   );
 }

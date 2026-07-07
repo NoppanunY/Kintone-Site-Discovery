@@ -65,10 +65,17 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
     authProfile: selectedProfile,
   };
 
-  function runConnectionTest(outcome: "passed" | "failed" = "passed") {
+  function connectionOutcomeForProfile(profileName: string) {
+    return profiles.find((profile) => profile.name === profileName)?.tone === "warn" ? "failed" : "passed";
+  }
+
+  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForProfile(selectedProfile)) {
     setConnectionResult(createTestingConnectionResult(connectionTarget));
     window.setTimeout(() => {
       setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
+      if (outcome === "passed") {
+        showMockAction(`${selectedProfile} connection test passed. No kintone request was sent.`, { tone: "ok" });
+      }
     }, 450);
   }
 
@@ -301,15 +308,16 @@ function renderStep({
           <CheckRow label="Read permission check" detail="Mock check passed without contacting kintone." />
         </div>
         <div className="rowc">
-          <button type="button" className="btn btn--sm" onClick={() => onRunConnectionTest("passed")}>
+          <button type="button" className="btn btn--sm" onClick={() => onRunConnectionTest()}>
             Test connection
           </button>
+          {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
+          {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
         </div>
-        {connectionResult ? (
+        {connectionResult?.status === "failed" ? (
           <ConnectionTestPanel
             result={connectionResult}
-            onRetry={() => onRunConnectionTest("passed")}
-            onSimulateFailure={() => onRunConnectionTest("failed")}
+            onRetry={() => onRunConnectionTest()}
             onDismiss={onClearConnectionTest}
           />
         ) : null}
@@ -328,11 +336,9 @@ function renderStep({
         <AppRow name="Support Tickets" detail="App 122 · has customization" />
         <AppRow name="Contracts" detail="App 130 · has plugins" />
       </div>
-      <div className="banner banner--ok">
-        <span className="bi">✓</span>
-        <div>
-          <b>You're all set.</b> The site workspace is ready in the mock flow. Choose a scan preset next; most people start with Standard.
-        </div>
+      <div className="setup-complete-line">
+        <StatusPill status="ok" label="Ready" dot />
+        <span className="small muted2">Site workspace is ready in the mock flow.</span>
       </div>
     </>
   );

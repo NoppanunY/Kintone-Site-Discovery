@@ -60,6 +60,9 @@ export function ProjectHomeScreen({
         ...current,
         [profile.name]: outcome === "failed" ? createFailedConnectionResult(target) : createPassedConnectionResult(target),
       }));
+      if (outcome === "passed") {
+        onMockAction(`${profile.name} connection test passed. No kintone request was sent.`, { tone: "ok" });
+      }
     }, 450);
   }
 
@@ -120,16 +123,17 @@ export function ProjectHomeScreen({
                     </div>
                   </div>
                 </div>
-                <StatusPill status={profile.tone} label={profile.status} dot />
-                <span className="small muted2">{profile.sites}</span>
-                <SecondaryActionButton label="Test" size="sm" onClick={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
-              </div>
-              {connectionResult ? (
+              <StatusPill status={profile.tone} label={profile.status} dot />
+              <span className="small muted2">{profile.sites}</span>
+              {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
+              {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
+              <SecondaryActionButton label="Test" size="sm" onClick={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
+            </div>
+              {connectionResult?.status === "failed" ? (
                 <div className="li li--panel">
                   <ConnectionTestPanel
                     result={connectionResult}
-                    onRetry={() => runConnectionTest(profile, "passed")}
-                    onSimulateFailure={() => runConnectionTest(profile, "failed")}
+                    onRetry={() => runConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
                     onDismiss={() =>
                       setConnectionResults((current) => ({
                         ...current,
