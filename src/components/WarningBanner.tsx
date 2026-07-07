@@ -7,10 +7,11 @@ interface WarningBannerProps {
 }
 
 export function WarningBanner({ tone, icon, children }: WarningBannerProps) {
+  const defaultIcon = tone === "danger" ? "✕" : tone === "warn" ? "⚠" : tone === "ok" ? "✓" : "ⓘ";
   return (
     <div className={`banner banner--${tone}`} role={tone === "warn" || tone === "danger" ? "alert" : "status"}>
-      <span className="banner__icon" aria-hidden="true">
-        {icon ?? (tone === "danger" || tone === "warn" ? "!" : "i")}
+      <span className="bi" aria-hidden="true">
+        {icon ?? defaultIcon}
       </span>
       <div>{children}</div>
     </div>

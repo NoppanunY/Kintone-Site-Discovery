@@ -19,7 +19,7 @@ const groups: { label: string; items: { key: NavKey; label: string; icon: string
     items: [
       { key: "snapshot", label: "Local Snapshot", icon: "⛃", canonical: true },
       { key: "reports", label: "Reports", icon: "▦" },
-      { key: "developer-files", label: "Developer Files", icon: "〈〉" },
+      { key: "developer-files", label: "Developer Files", icon: "{}" },
       { key: "history", label: "History", icon: "⟳" },
     ],
   },
@@ -42,15 +42,15 @@ export function SiteSidebar({ active, onNavigate }: SiteSidebarProps) {
             <button
               type="button"
               key={item.key}
-              className={`nav-item ${item.canonical ? "nav-item--canonical" : ""} ${item.warn ? "nav-item--warn" : ""}`}
+              className={`nav-item ${active === item.key ? "active" : ""} ${item.canonical ? "canonical" : ""} ${item.warn ? "warn" : ""}`}
               aria-current={active === item.key ? "page" : undefined}
               onClick={() => onNavigate(item.key)}
             >
-              <span className="nav-item__icon" aria-hidden="true">
+              <span className="ic" aria-hidden="true">
                 {item.icon}
               </span>
               {item.label}
-              {item.canonical ? <span className="nav-item__tag">source</span> : null}
+              {item.canonical ? <span className="tagdot">source</span> : null}
             </button>
           ))}
         </div>

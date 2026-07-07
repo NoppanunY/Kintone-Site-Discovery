@@ -15,16 +15,16 @@ export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTab
         <button
           type="button"
           key={tab.id}
-          className="stab"
+          className={`stab ${tab.id === activeId ? "active" : ""}`}
           role="tab"
           aria-selected={tab.id === activeId}
           onClick={() => onSelect(tab.id)}
         >
-          <span aria-hidden="true">{tab.kind === "home" ? "🏠" : tab.running ? "●" : null}</span>
+          {tab.kind === "home" ? "🏠 " : tab.running ? "● " : ""}
           {tab.title}
           {tab.kind === "site" ? (
             <span
-              className="stab__close"
+              className="x"
               role="button"
               aria-label={`Close ${tab.title}`}
               tabIndex={0}
@@ -44,7 +44,7 @@ export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTab
           ) : null}
         </button>
       ))}
-      <button type="button" className="stab stab--add" role="tab" aria-selected="false" onClick={onAdd}>
+      <button type="button" className="stab add" role="tab" aria-selected="false" onClick={onAdd}>
         ＋
       </button>
     </div>

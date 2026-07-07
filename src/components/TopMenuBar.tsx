@@ -6,9 +6,9 @@ const defaultMenus = ["Project", "Account", "Site", "Scan", "Snapshot", "Window"
 
 export function TopMenuBar({ menus = defaultMenus }: TopMenuBarProps) {
   return (
-    <div className="menubar" role="menubar" aria-label="Application menu">
+    <div className="menubar">
       {menus.map((menu, index) => (
-        <span key={menu} className={`menubar__item ${index === menus.length - 1 ? "menubar__spacer" : ""}`} role="menuitem">
+        <span key={menu} style={index === menus.length - 1 ? { marginLeft: "auto" } : undefined}>
           {menu}
         </span>
       ))}

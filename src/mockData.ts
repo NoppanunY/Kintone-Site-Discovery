@@ -7,6 +7,11 @@ export const tabs: TabModel[] = [
   { id: siteId, title: "Client A Production", kind: "site" },
 ];
 
+export const tabsWithSandbox: TabModel[] = [
+  ...tabs,
+  { id: "dev-sandbox", title: "Dev Sandbox", kind: "site" },
+];
+
 export const projectRows = [
   { name: "Client CRM Discovery", path: "~/KintoneDiscovery/client-crm", opened: "opened 2h ago" },
   { name: "Vendor Audit 2026", path: "~/Work/vendor-audit", opened: "opened yesterday" },

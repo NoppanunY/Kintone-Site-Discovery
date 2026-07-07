@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, ConfirmationModal } from "./components";
-import { tabs } from "./mockData";
+import { tabs, tabsWithSandbox } from "./mockData";
 import { activeTabFromPath, isSiteRoute, navFromPath, siteRouteByNav } from "./router/routes";
 import { AdvancedInternalDataScreen } from "./screens/AdvancedInternalDataScreen";
 import { AppsScreen } from "./screens/AppsScreen";
@@ -38,6 +38,7 @@ export function App() {
   const activeNav = navFromPath(pathname);
   const activeTabId = activeTabFromPath(pathname);
   const shellVariant = isSiteRoute(pathname) ? "site" : "home";
+  const visibleTabs = pathname === "/" || pathname.endsWith("/overview") ? tabsWithSandbox : tabs;
 
   const screen = useMemo(
     () =>
@@ -59,7 +60,7 @@ export function App() {
       <div className={pathname.endsWith("/scan/confirm") ? "modal-host" : ""}>
         <AppShell
           projectName="Client CRM Discovery"
-          tabs={tabs}
+          tabs={visibleTabs}
           activeTabId={activeTabId}
           activeNav={activeNav}
           variant={shellVariant}
@@ -107,7 +108,7 @@ function renderScreen({ pathname, search, navigate }: { pathname: string; search
   }
 
   if (pathname.endsWith("/scan/advanced") || pathname.endsWith("/scan/confirm")) {
-    return <SensitiveOptionsScreen onBack={() => navigate(siteRouteByNav.scan)} onConfirm={() => navigate(`${siteRouteByNav.scan}/confirm`)} />;
+    return <SensitiveOptionsScreen compact={pathname.endsWith("/scan/confirm")} onBack={() => navigate(siteRouteByNav.scan)} onConfirm={() => navigate(`${siteRouteByNav.scan}/confirm`)} />;
   }
 
   if (pathname.endsWith("/scan/run")) {

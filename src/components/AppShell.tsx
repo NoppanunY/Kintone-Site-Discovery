@@ -30,12 +30,12 @@ export function AppShell({
   onNavigate,
 }: AppShellProps) {
   return (
-    <div className="app">
+    <div className="app tall">
       <div className="titlebar">
-        <span className="traffic-light traffic-light--red" />
-        <span className="traffic-light traffic-light--yellow" />
-        <span className="traffic-light traffic-light--green" />
-        <span className="titlebar__title">Kintone Site Discovery — {projectName}</span>
+        <span className="tl r" />
+        <span className="tl y" />
+        <span className="tl g" />
+        <span className="tb-title">Kintone Site Discovery — {projectName}</span>
       </div>
       <TopMenuBar />
       <SiteTabBar tabs={tabs} activeId={activeTabId} onAdd={onNewTab} onClose={onCloseTab} onSelect={onSelectTab} />

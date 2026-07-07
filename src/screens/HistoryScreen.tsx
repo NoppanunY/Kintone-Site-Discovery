@@ -11,7 +11,7 @@ export function HistoryScreen() {
           <div className="li" key={run.title}>
             <div className="grow">
               <div className="h3">
-                {run.title} {run.current ? <StatusPill status="info" label="Current snapshot" /> : null}
+                {run.title} {run.current ? <span style={{ marginLeft: 6 }}><StatusPill status="info" label="Current snapshot" /></span> : null}
               </div>
               <div className="small muted2">{run.meta}</div>
             </div>

@@ -29,13 +29,13 @@ export function PageHeader({
   );
 }
 
-export function KpiGrid({ items }: { items: KpiModel[] }) {
+export function KpiGrid({ items, columns = 4 }: { items: KpiModel[]; columns?: number }) {
   return (
-    <div className="kpi-grid">
+    <div className="kpi-grid" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
       {items.map((item) => (
         <div className="kpi" key={item.label}>
-          <div className="kpi__number">{item.number}</div>
-          <div className="kpi__label">{item.label}</div>
+          <div className="n">{item.number}</div>
+          <div className="l">{item.label}</div>
         </div>
       ))}
     </div>

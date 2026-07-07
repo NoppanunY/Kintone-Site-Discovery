@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { PrimaryActionButton, SecondaryActionButton } from "./Buttons";
 
 interface ConfirmationModalProps {
@@ -31,55 +32,81 @@ export function ConfirmationModal({
   onTertiary,
 }: ConfirmationModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+  const icon = tone === "danger" ? "✕" : "⚠";
+
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="modal__section">
-        <div className="rowc">
-          <span className={`modal__tone pill pill--${tone === "danger" ? "err" : "warn"}`}>⚠</span>
+      <div className="card-pad" style={{ borderBottom: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: "var(--r-md)",
+            background: tone === "danger" ? "var(--danger-tint)" : "var(--warn-tint)",
+            color: tone === "danger" ? "var(--danger)" : "var(--warn)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 19,
+            flex: "0 0 auto",
+          }}
+        >
+          {icon}
+        </div>
+        <div>
           <h2 id="confirm-title" className="h1">
             {title}
           </h2>
+          <p className="body muted" style={{ marginTop: 4 }}>
+            {body}
+          </p>
         </div>
-        <p className="body muted">{body}</p>
       </div>
-      {items.length > 0 ? (
-        <div className="modal__section">
-          <div className="h3">Will be captured</div>
-          <div className="list">
-            {items.map((item) => (
-              <div key={item} className="li">
-                <span className="checkbox checkbox--checked" aria-hidden="true">
-                  ✓
-                </span>
-                <span className="body">{item}</span>
-              </div>
-            ))}
-          </div>
+      {items.length > 0 || requireAck ? (
+        <div className="card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {items.length > 0 ? (
+            <>
+              <span className="cap">Will be captured</span>
+              {items.map((item) => (
+                <CaptureRow key={item}>{item}</CaptureRow>
+              ))}
+            </>
+          ) : null}
+          {requireAck ? (
+            <>
+              <div className="divider" style={{ margin: "4px 0" }} />
+              <label className="rowc" style={{ gap: 10 }}>
+                <button
+                  type="button"
+                  className={`checkbox ${acknowledged ? "checked" : ""}`}
+                  aria-pressed={acknowledged}
+                  aria-label={ackLabel}
+                  onClick={() => setAcknowledged((current) => !current)}
+                >
+                  {acknowledged ? "✓" : ""}
+                </button>
+                <span className="body">{ackLabel}</span>
+              </label>
+            </>
+          ) : null}
         </div>
       ) : null}
-      {requireAck ? (
-        <div className="modal__section">
-          <div className="rowc ack-control">
-            <button
-              type="button"
-              className={`checkbox ${acknowledged ? "checkbox--checked" : ""}`}
-              aria-pressed={acknowledged}
-              aria-label={ackLabel}
-              onClick={() => setAcknowledged((current) => !current)}
-            >
-              {acknowledged ? "✓" : ""}
-            </button>
-            <span className="body">{ackLabel}</span>
-          </div>
-        </div>
-      ) : null}
-      <div className="modal__section between">
+      <div className="card-pad between" style={{ borderTop: "1px solid var(--border)" }}>
         <SecondaryActionButton label={cancelLabel} variant="ghost" onClick={onCancel} />
         <div className="rowc">
           {tertiaryLabel ? <SecondaryActionButton label={tertiaryLabel} onClick={onTertiary} /> : null}
           <PrimaryActionButton label={confirmLabel} disabled={requireAck && !acknowledged} onClick={onConfirm} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function CaptureRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="rowc">
+      <span className="checkbox checked">✓</span>
+      <span className="body">{children}</span>
     </div>
   );
 }

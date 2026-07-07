@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
 import { KpiGrid, PageHeader } from "./shared";
 
@@ -7,7 +8,7 @@ export function LocalSnapshotScreen({ onRunScan }: { onRunScan: () => void }) {
       <PageHeader
         breadcrumb="Client A Production · Local Snapshot"
         title="Local Snapshot"
-        subtitle="Captured Jul 2, 2026 · 10:35 · 48.2 MB · ~/KintoneDiscovery/client-a/snapshot"
+        subtitle="The complete local copy this scan produced — the source for every report and file."
         actions={
           <>
             <SecondaryActionButton label="Open folder" />
@@ -15,30 +16,47 @@ export function LocalSnapshotScreen({ onRunScan }: { onRunScan: () => void }) {
           </>
         }
       />
-      <WarningBanner tone="info">The snapshot is the canonical record of this pull. Reports and Developer Files are generated from it.</WarningBanner>
+      <WarningBanner tone="info" icon="⛃">
+        This snapshot is the canonical record. <b>Reports</b> and <b>Developer Files</b> are generated from it and refresh whenever it changes.
+      </WarningBanner>
       <KpiGrid
         items={[
-          { number: "48.2", label: "MB" },
+          { number: "48.2", label: "MB on disk" },
           { number: "12", label: "Apps" },
           { number: "5", label: "Plugins" },
           { number: "4", label: "Redactions" },
         ]}
       />
-      <div className="list">
-        {["apps", "plugins", "customization files · order preserved", "org", "dependencies"].map((item) => (
-          <div className="li between" key={item}>
-            <span className="body">{item}</span>
-            <span className="mono muted2">ready</span>
-          </div>
-        ))}
+      <div className="card">
+        <div className="card-pad between" style={{ borderBottom: "1px solid var(--border)" }}>
+          <span className="h2">Contents</span>
+          <StatusPill status="warn" label="Completed with warnings" dot />
+        </div>
+        <SnapshotContent icon="📱" label="App configurations & forms" value="12 apps" />
+        <SnapshotContent icon="🧩" label="Plugin inventory & saved config" value="5 plugins" />
+        <SnapshotContent icon="📄" label={<>Customization JS / CSS files <span className="small muted2">· order preserved</span></>} value="31 files" />
+        <SnapshotContent icon="👥" label="Users, groups, departments & spaces" value="included" />
+        <SnapshotContent icon="🔗" label="Dependency & preview-vs-live diff data" value="included" />
       </div>
       <div className="card card-pad between">
-        <div>
-          <h2 className="h2">Integrity OK</h2>
-          <p className="body muted">manifest verified · file-order metadata present</p>
+        <div className="rowc">
+          <StatusPill status="ok" label="Integrity OK" dot />
+          <span className="small muted">Manifest verified · captured Jul 2, 2026 · 10:35</span>
         </div>
-        <StatusPill status="ok" label="Integrity OK" dot />
+        <span className="mono small muted2">snapshot/manifest.json</span>
       </div>
+    </div>
+  );
+}
+
+function SnapshotContent({ icon, label, value }: { icon: string; label: ReactNode; value: string }) {
+  return (
+    <div className="li">
+      <span className="grow rowc">
+        <span style={{ width: 20 }}>{icon}</span>
+        <div className="body">{label}</div>
+      </span>
+      <span className="small muted2">{value}</span>
     </div>
   );
 }

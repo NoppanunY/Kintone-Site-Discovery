@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import { profiles, projectRows, workspaces } from "../mockData";
 import { PageHeader } from "./shared";
@@ -6,6 +7,17 @@ interface ProjectHomeScreenProps {
   onOpenSite: () => void;
 }
 
+const folderIconStyle: CSSProperties = {
+  width: 36,
+  height: 36,
+  borderRadius: "var(--r-sm)",
+  background: "var(--primary-tint)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 17,
+};
+
 export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
   return (
     <div className="page">
@@ -13,14 +25,12 @@ export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
         breadcrumb="Home"
         title="Projects"
         subtitle="A project is a local folder that holds your snapshots, reports and developer files."
-        actions={<PrimaryActionButton label="New project" icon="＋" />}
+        actions={<PrimaryActionButton label="＋ New project" />}
       />
-      <section className="list" aria-label="Recent projects">
+      <div className="list">
         {projectRows.map((project) => (
           <div className="li" key={project.name}>
-            <span className="row-icon" aria-hidden="true">
-              📁
-            </span>
+            <div style={folderIconStyle}>📁</div>
             <div className="grow">
               <div className="h3">{project.name}</div>
               <div className="small muted2 mono">
@@ -30,51 +40,52 @@ export function ProjectHomeScreen({ onOpenSite }: ProjectHomeScreenProps) {
             <SecondaryActionButton label="Open" size="sm" />
           </div>
         ))}
-      </section>
-      <section>
-        <div className="between">
-          <h2 className="h2">Auth profiles · reusable across sites</h2>
-          <SecondaryActionButton label="Add profile" icon="＋" />
-        </div>
-        <div className="list">
-          {profiles.map((profile) => (
-            <div className="li" key={profile.name}>
-              <span className="row-icon" aria-hidden="true">
-                👤
-              </span>
-              <div className="grow">
+      </div>
+      <div className="between" style={{ marginTop: 4 }}>
+        <h2 className="h2">
+          Auth profiles{" "}
+          <span className="small muted2" style={{ fontWeight: 400 }}>
+            · reusable across sites
+          </span>
+        </h2>
+        <SecondaryActionButton label="＋ Add profile" size="sm" />
+      </div>
+      <div className="list">
+        {profiles.map((profile) => (
+          <div className="li" key={profile.name}>
+            <div className="grow rowc">
+              <span style={{ fontSize: 16 }}>👤</span>
+              <div>
                 <div className="h3">{profile.name}</div>
                 <div className="small muted2">
-                  {profile.user} · password <span className="secret-mask">••••••</span>
+                  {profile.user} · password ••••••
                 </div>
               </div>
-              <StatusPill status={profile.tone} label={profile.status} />
-              <span className="small muted2">{profile.sites}</span>
-              <SecondaryActionButton label="Test" size="sm" />
             </div>
-          ))}
-        </div>
-      </section>
-      <section>
-        <div className="between">
-          <h2 className="h2">Site workspaces</h2>
-          <SecondaryActionButton label="Add site" icon="＋" />
-        </div>
-        <div className="list">
-          {workspaces.map((site) => (
-            <div className="li" key={site.name}>
-              <div className="grow">
-                <div className="h3">{site.name}</div>
-                <div className="small muted2">
-                  {site.domain} · {site.profile} · {site.meta}
-                </div>
+            <StatusPill status={profile.tone} label={profile.status} dot />
+            <span className="small muted2">{profile.sites}</span>
+            <SecondaryActionButton label="Test" size="sm" />
+          </div>
+        ))}
+      </div>
+      <div className="between" style={{ marginTop: 4 }}>
+        <h2 className="h2">Site workspaces</h2>
+        <SecondaryActionButton label="＋ Add site" size="sm" />
+      </div>
+      <div className="list">
+        {workspaces.map((site) => (
+          <div className="li" key={site.name}>
+            <div className="grow">
+              <div className="h3">{site.name}</div>
+              <div className="small muted2">
+                {site.domain} · {site.profile} · {site.meta}
               </div>
-              <StatusPill status={site.tone} label={site.status} />
-              <PrimaryActionButton label="Open" size="sm" onClick={onOpenSite} />
             </div>
-          ))}
-        </div>
-      </section>
+            <StatusPill status={site.tone} label={site.status} dot />
+            <PrimaryActionButton label="Open" size="sm" onClick={onOpenSite} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
