@@ -72,7 +72,35 @@ A later product setting may allow users to export/share selected packages, but g
 
 ## 3. Core domain entities
 
-### 3.1 ProjectConfig
+### 3.1 GlobalAuthProfileStore
+
+Stored outside project folders in the app's global data directory.
+
+```json
+{
+  "schemaVersion": 1,
+  "authProfiles": [
+    {
+      "authProfileId": "auth_prod_admin_01",
+      "displayName": "Production Admin",
+      "authType": "password",
+      "username": "admin@example.com",
+      "credentialRef": "keychain:kintone-site-discovery/auth_prod_admin_01/password",
+      "createdAt": "2026-07-02T10:00:00+07:00",
+      "updatedAt": "2026-07-02T10:00:00+07:00"
+    }
+  ]
+}
+```
+
+Rules:
+
+- Auth Profiles are global app-level records, not owned by a project.
+- `credentialRef` is only a reference.
+- Never store password/token/cookie in this file.
+- Project and site files store only `authProfileId` references.
+
+### 3.2 ProjectConfig
 
 Stored in `.kintone/project.json`.
 
@@ -83,15 +111,6 @@ Stored in `.kintone/project.json`.
   "projectName": "Client CRM Discovery",
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00",
-  "authProfiles": [
-    {
-      "authProfileId": "auth_prod_admin_01",
-      "displayName": "Production Admin",
-      "authType": "password",
-      "username": "admin@example.com",
-      "credentialRef": "keychain:kintone-site-discovery/auth_prod_admin_01/password"
-    }
-  ],
   "siteWorkspaces": [
     {
       "siteWorkspaceId": "site_ws_prod",
@@ -106,12 +125,12 @@ Stored in `.kintone/project.json`.
 
 Rules:
 
-- `credentialRef` is only a reference.
-- Never store password/token/cookie in this file.
+- `authProfileId` references a global Auth Profile.
+- Never store password/token/cookie/credentialRef in this file.
 
-### 3.2 AuthProfile
+### 3.3 AuthProfile
 
-A reusable authentication identity.
+A global reusable authentication identity.
 
 ```json
 {
@@ -126,7 +145,7 @@ A reusable authentication identity.
 }
 ```
 
-### 3.3 SiteWorkspace
+### 3.4 SiteWorkspace
 
 Represents one configured kintone site.
 
@@ -164,7 +183,7 @@ Represents one configured kintone site.
 }
 ```
 
-### 3.4 ScanJob
+### 3.5 ScanJob
 
 Represents one scan execution.
 
@@ -182,7 +201,7 @@ Represents one scan execution.
 }
 ```
 
-### 3.5 CollectorResult
+### 3.6 CollectorResult
 
 Every collector returns a result object.
 

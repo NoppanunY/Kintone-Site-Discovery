@@ -10,7 +10,7 @@ The app should work as a reusable multi-site desktop workspace rather than a one
 
 Users should be able to:
 
-- Create reusable authentication profiles/accounts.
+- Create global reusable authentication profiles/accounts.
 - Connect different kintone sites with different credentials.
 - Open each site in a separate tab.
 - Create a new tab for another site or another local project folder.
@@ -46,7 +46,9 @@ Implementation may choose any layout as long as these functional requirements ar
 
 ### 3.1 Auth Profile / Account
 
-An Auth Profile is a reusable credential identity used to authenticate to kintone.
+An Auth Profile is a global reusable credential identity used to authenticate to kintone.
+
+Auth Profiles belong to the app-level profile store, not to a single project. A project or Site Workspace links to a profile by `authProfileId`.
 
 Examples:
 
@@ -136,7 +138,7 @@ Required information:
 
 Purpose:
 
-- Manage reusable authentication identities.
+- Manage global reusable authentication identities.
 
 Required actions:
 
@@ -155,7 +157,7 @@ Required information:
 - Auth type.
 - Username.
 - Credential status, for example `saved`, `missing`, or `needs update`.
-- Linked Site Workspaces.
+- Linked Site Workspaces and their projects.
 
 Safety behavior:
 
@@ -366,7 +368,7 @@ Required settings groups:
 - Linked Auth Profile.
 - Test connection.
 - Change linked Auth Profile.
-- Forget credential if profile is site-specific.
+- Forget credential for the linked global Auth Profile.
 
 #### Scan defaults
 
@@ -587,13 +589,14 @@ Future auth types may include:
 Credential storage rules:
 
 - Store password only in OS keychain or secure credential provider.
-- Project files store only `credentialRef`.
+- Global profile metadata stores only `credentialRef`.
+- Project and site files store only `authProfileId` references to global profiles.
 - Logs must never include username/password headers or cookies.
 - Browser sessions must not be serialized to project files unless a future encrypted session store is designed.
 
 ### 7.3 Account reuse
 
-A single Auth Profile may be reused by multiple Site Workspaces.
+A single Auth Profile may be reused by multiple Site Workspaces across one or more projects.
 
 If deleting an Auth Profile that is still used, UI must warn and require reassignment or confirmation.
 

@@ -179,17 +179,13 @@ function renderStep({
       <>
         <WizardIntro title={authStepTitle(entry)} body={authStepBody(entry, selectedProject)} />
         {entry === "add-auth" ? (
-          <AuthProfileFields
-            projectMode="select"
-            selectedProject={selectedProject}
-            onSelectProject={onSelectProject}
-          />
+          <AuthProfileFields />
         ) : (
           <>
             <div className="choice-list">
               <ChoiceRow
                 title="Use existing auth profile"
-                body="Best when the account already exists in this project."
+                body="Best when the account already exists in the global profile list."
                 selected={authMode === "existing"}
                 onClick={() => onSelectAuthMode("existing")}
               />
@@ -207,16 +203,12 @@ function renderStep({
                   value={selectedProfile}
                   options={authProfileOptions()}
                   onChange={onSelectProfile}
-                  meta="The selected profile will be linked to the site workspace."
+                  meta="Global auth profiles can be linked to site workspaces in any project."
                 />
                 <SelectedProfileBanner selectedProfile={selectedProfile} />
               </>
             ) : (
-              <AuthProfileFields
-                projectMode={entry === "new-project" ? "new-project" : "readonly"}
-                selectedProject={selectedProject}
-                onSelectProject={onSelectProject}
-              />
+              <AuthProfileFields />
             )}
           </>
         )}
@@ -262,7 +254,7 @@ function renderStep({
         <WizardIntro title="Test the read-only connection" body="This mock confirms the path through the wizard. No kintone request is sent yet." />
         <div className="list">
           <CheckRow label="Project selected" detail={`${selectedProject} is the local workspace.`} />
-          <CheckRow label="Auth profile linked" detail={`${selectedProfile} is selected for this site.`} />
+          <CheckRow label="Global auth profile linked" detail={`${selectedProfile} is selected for this site.`} />
           <CheckRow label="Read permission check" detail="Mock check passed without contacting kintone." />
         </div>
       </>
@@ -311,41 +303,19 @@ function authStepTitle(entry: OnboardingEntry) {
 
 function authStepBody(entry: OnboardingEntry, selectedProject: string) {
   if (entry === "add-auth") {
-    return "Create a reusable sign-in profile for a project. This UI pass is mock-only and does not store real credentials.";
+    return "Create a reusable global sign-in profile. This UI pass is mock-only and does not store real credentials.";
   }
 
-  return `Link the site workspace to an auth profile in ${selectedProject}, or create a new mock profile for it.`;
+  return `Link the site workspace in ${selectedProject} to a global auth profile, or create a new mock profile.`;
 }
 
-function AuthProfileFields({
-  projectMode,
-  selectedProject,
-  onSelectProject,
-}: {
-  projectMode: "new-project" | "readonly" | "select";
-  selectedProject: string;
-  onSelectProject: (project: string) => void;
-}) {
+function AuthProfileFields() {
   return (
     <div className="form-grid">
-      {projectMode === "select" ? (
-        <SelectField
-          label="Project"
-          value={selectedProject}
-          options={projectOptions()}
-          onChange={onSelectProject}
-          meta="This auth profile will be available to site workspaces in the selected project."
-        />
-      ) : (
-        <MockField
-          label={projectMode === "new-project" ? "Project being created" : "Project"}
-          value={selectedProject}
-          meta="This auth profile will be available to site workspaces in this project."
-        />
-      )}
       <MockField label="Profile name" value="Client A Admin" />
       <MockField label="Username" value="ca-admin@client-a" />
       <MockField label="Password" value="••••••••" meta="Mock only · future build stores this in the OS keychain" />
+      <MockField label="Availability" value="Global" meta="Can be linked to site workspaces in any project." />
     </div>
   );
 }
@@ -354,7 +324,7 @@ function SelectedProfileBanner({ selectedProfile }: { selectedProfile: string })
   return (
     <div className="banner screen-note">
       <div>
-        <b>{selectedProfile}</b> will be linked to the site workspace in this mock flow. Real credential lookup remains a future bridge task.
+        <b>{selectedProfile}</b> will be linked to this site workspace in the mock flow. Real credential lookup remains a future bridge task.
       </div>
     </div>
   );

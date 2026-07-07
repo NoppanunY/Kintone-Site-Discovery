@@ -11,7 +11,7 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 - **Purpose:** Get a first-time user from install to a ready-to-scan site in one guided path.
 - **Primary goal:** Create/open a project, sign in, add a site, test the connection, fetch apps.
 - **Sections:** Stepper (5 steps); step body (Project / Sign-in / Site / Test / Apps); footer nav (Back · Continue).
-- **Required data:** project name+folder; auth username+password (→ keychain); site name+domain+folder; connection test result; app list count.
+- **Required data:** project name+folder; existing global auth profile or new auth username+password (→ keychain); site name+domain+folder; connection test result; app list count.
 - **Primary actions:** Continue → (advance/validate); Finish → Go to site Overview.
 - **Secondary actions:** Back; Browse folder; Cancel setup.
 - **Empty:** N/A (wizard is the empty state of the app).
@@ -27,10 +27,10 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 
 ## SCR-02 · Project Home
 - **Route:** `/` (Home tab)
-- **Purpose:** Manage projects and the reusable auth profiles + site workspaces they share.
+- **Purpose:** Manage projects, global reusable auth profiles, and site workspaces.
 - **Primary goal:** Open a project or a site; keep credentials and sites organized.
 - **Sections:** Projects list; Auth profiles list; Site workspaces list.
-- **Required data:** recent projects (name, path, opened-at); profiles (name, username, credential status, linked-site count); sites (name, domain, profile, status, last-snapshot).
+- **Required data:** recent projects (name, path, opened-at); global profiles (name, username, credential status, linked-site/project count); sites (name, domain, profile, status, last-snapshot).
 - **Primary actions:** New project; Open (project/site); Add profile; Add site.
 - **Secondary actions:** Test profile; Edit; Forget credential; Remove from list; Open folder.
 - **Empty:** No projects → large "Create your first project" CTA; empty profiles/sites → inline add prompt.
@@ -41,7 +41,7 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 - **Acceptance criteria:**
   - Passwords render as fixed `••••••`; no reveal anywhere.
   - Delete/remove never deletes local files unless the explicit trash confirm is used.
-  - Profile shows "Used by N sites"; site shows its linked profile name.
+  - Profile shows linked site/project usage; site shows its linked profile name.
 
 ## SCR-03 · Site Overview
 - **Route:** `/site/:siteId/overview`

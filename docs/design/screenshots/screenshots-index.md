@@ -32,7 +32,7 @@ Global frame present in every screenshot: **title bar → secondary menu bar (Pr
 
 ## SCR-02 · Project Home
 - **Description:** Home tab. Projects, Auth profiles, Site workspaces.
-- **Match:** Home tab active in tab bar; page H1 "Projects" + **New project** primary; recent-project rows (folder icon, name, mono path, Open); Auth profiles rows with StatusPill (Credential saved / Needs update), "Used by N sites", masked `••••••`; Site workspaces rows with Connected/Idle pills + **Open** primary.
+- **Match:** Home tab active in tab bar; page H1 "Projects" + **New project** primary; recent-project rows (folder icon, name, mono path, Open); global Auth profiles rows with StatusPill (Credential saved / Needs update), linked site/project usage, masked `••••••`; Site workspaces rows with Connected/Idle pills + **Open** primary.
 
 ## SCR-03 · Site Overview
 - **Description:** Site cockpit — connection + snapshot status, primary Run scan.

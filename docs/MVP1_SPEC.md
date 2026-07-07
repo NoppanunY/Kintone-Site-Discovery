@@ -14,7 +14,7 @@ A useful analogy is SourceTree cloning a Git repository to the local machine, ex
 
 MVP 1 includes:
 
-- Create reusable authentication profiles/accounts.
+- Create global reusable authentication profiles/accounts.
 - Add and test kintone site connection.
 - Authenticate using admin username/password.
 - Open each configured site in a separate tab.
@@ -113,8 +113,9 @@ Required fields:
 Behavior:
 
 - Store password in OS keychain or secure credential provider.
-- Store only `credentialRef` in project files.
-- Allow profile reuse across multiple sites.
+- Store only `credentialRef` in global profile metadata.
+- Store only `authProfileId` references in project/site files.
+- Allow profile reuse across multiple sites and projects.
 
 ### 4.3 Add site workspace
 
@@ -538,7 +539,8 @@ Machine-managed output:
 ### 10.1 Credential storage
 
 - Store admin password in OS keychain only.
-- Store credential reference in project metadata.
+- Store credential reference in global profile metadata.
+- Store only global `authProfileId` references in project/site metadata.
 - Never write password, session cookies, or auth headers to disk.
 - Provide a `Forget credential` action.
 
@@ -580,7 +582,7 @@ The UI should summarize failures in user-readable terms.
 MVP 1 is considered production-usable when all criteria pass:
 
 1. User can create a local project.
-2. User can create reusable Auth Profiles.
+2. User can create global reusable Auth Profiles.
 3. User can add a kintone site workspace using an Auth Profile.
 4. User can open each site in a separate tab.
 5. User can configure separate local folders and settings per site.

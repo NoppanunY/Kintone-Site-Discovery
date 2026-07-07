@@ -19,14 +19,13 @@ Re-running a scan does **not** overwrite or delete the previous snapshot. It:
 ```
 <ProjectRoot>/                      # Project.folderPath
 ├── project.json                    # Project (DATA_CONTRACT #1)
-├── auth-profiles.json              # AuthProfile[] (NO secrets; keychainRef only)
 ├── sites/                          # one folder per SiteWorkspace
 │   └── <siteId>/                   # see §2
 └── .app/                           # app-managed project metadata
     ├── schema-version.json
     └── recent.json                 # recent-open bookkeeping
 ```
-Secrets are never in any file here — passwords live in the OS keychain, referenced by `AuthProfile.keychainRef`.
+Secrets and credential references are never in any project file here. Passwords live in the OS keychain, referenced by global `AuthProfile.keychainRef` records in the app-level profile store. Project/site files store only `authProfileId` links to those global profiles.
 
 ## 2. Site workspace folder structure
 ```

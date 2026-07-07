@@ -51,12 +51,11 @@ interface Project {
   createdAt: ISODateString;
   lastOpenedAt: ISODateString;
   siteIds: Id[];               // SiteWorkspace.id[]
-  authProfileIds: Id[];        // AuthProfile.id[]
   schemaVersion: number;       // storage schema version (see SNAPSHOT_STORAGE_SPEC)
 }
 
 // ────────────────────────────────────────────────────────────
-// 2. AuthProfile  (reusable credential identity — NEVER holds the secret)
+// 2. AuthProfile  (global reusable credential identity — NEVER holds the secret)
 // ────────────────────────────────────────────────────────────
 interface AuthProfile {
   id: Id;
@@ -65,7 +64,7 @@ interface AuthProfile {
   authType: AuthType;          // 'password'
   credentialStatus: CredentialStatus;
   keychainRef: string;         // opaque handle into the OS keychain (not the secret)
-  linkedSiteIds: Id[];         // sites using this profile
+  linkedSiteIds: Id[];         // SiteWorkspace.id[] using this global profile
   lastTestedAt?: ISODateString;
 }
 
@@ -76,7 +75,7 @@ interface SiteWorkspace {
   id: Id;
   displayName: string;         // "Client A Production"
   domain: string;              // "client-a.cybozu.com" (validated, no scheme)
-  authProfileId: Id;
+  authProfileId: Id;           // → global AuthProfile.id
   folderPath: string;          // absolute local path to the site workspace folder
   connectionStatus: ConnectionStatus;
   currentSnapshotId?: Id;      // → SnapshotSummary.id of the current snapshot
@@ -290,5 +289,6 @@ interface ErrorStateModel {
 1. `ScanResult.status === 'completed'` **requires** `requiredOk === requiredTotal`. Any required failure ⇒ `'failed'`. Optional skips only ⇒ `'completed_with_warnings'`.
 2. Exactly one `SnapshotSummary.isCurrent === true` per site — mirrors the current-snapshot pointer (see `SNAPSHOT_STORAGE_SPEC.md`).
 3. `FileOrderItem[]` is authored into `SnapshotManifest.fileOrder`; Developer Files renders it verbatim, ordered by `orderIndex`, never alphabetized.
-4. No model exposes secrets. `AuthProfile` carries `credentialStatus` + `keychainRef` only.
-5. `ReportItem` / `DeveloperFileItem` paths are always relative to their snapshot — they are views generated from it, not independent artifacts.
+4. `AuthProfile` records are global app-level profiles. Projects do not own or duplicate profiles; Site Workspaces link to them by `authProfileId`.
+5. No model exposes secrets. `AuthProfile` carries `credentialStatus` + `keychainRef` only.
+6. `ReportItem` / `DeveloperFileItem` paths are always relative to their snapshot — they are views generated from it, not independent artifacts.

@@ -48,7 +48,7 @@ export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpe
         <h2 className="h2">
           Auth profiles{" "}
           <span className="small muted2" style={{ fontWeight: 400 }}>
-            · reusable across sites
+            · global, reusable across projects and sites
           </span>
         </h2>
         <SecondaryActionButton label="＋ Add auth profile" size="sm" onClick={onAddProfile} />

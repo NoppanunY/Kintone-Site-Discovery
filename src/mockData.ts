@@ -18,8 +18,8 @@ export const projectRows = [
 ];
 
 export const profiles = [
-  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 sites" },
-  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 site" },
+  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 sites · 2 projects" },
+  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 site · 1 project" },
 ];
 
 export const workspaces = [

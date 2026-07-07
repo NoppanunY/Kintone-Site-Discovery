@@ -8,7 +8,7 @@ The CLI exists for automation, testing, and future agent control. It must wrap t
 
 The CLI provides a stable, deterministic, headless interface for:
 
-- validating project/site/auth configuration,
+- validating global auth profiles and project/site configuration,
 - testing kintone read access,
 - fetching app lists,
 - running read-only scans,
@@ -180,13 +180,13 @@ Purpose: create/open/read project metadata. Does not connect to kintone.
 ### 6.2 Auth commands
 
 ```bash
-ksd auth add --project ./client-crm --name "Production Admin" --username admin@example.com
-ksd auth set-password --project ./client-crm --profile prod-admin
-ksd auth test --project ./client-crm --profile prod-admin --domain client-a.cybozu.com --json
-ksd auth list --project ./client-crm --json
+ksd auth add --name "Production Admin" --username admin@example.com
+ksd auth set-password --profile prod-admin
+ksd auth test --profile prod-admin --domain client-a.cybozu.com --json
+ksd auth list --json
 ```
 
-Purpose: manage reusable auth profiles. Passwords go only to OS keychain.
+Purpose: manage global reusable auth profiles. Passwords go only to OS keychain.
 
 ### 6.3 Site commands
 
@@ -196,7 +196,7 @@ ksd site list --project ./client-crm --json
 ksd site info --project ./client-crm --site client-a-production --json
 ```
 
-Purpose: configure/read SiteWorkspace records. Does not run a scan.
+Purpose: configure/read SiteWorkspace records in a project. `--profile` links to a global AuthProfile. Does not run a scan.
 
 ### 6.4 App list commands
 

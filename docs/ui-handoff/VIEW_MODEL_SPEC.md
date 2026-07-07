@@ -16,7 +16,7 @@ Every site-tab screen also receives `site: SiteWorkspace` and `nav: { active: Na
 interface OnboardingVM {
   step: 1|2|3|4|5;
   project: { mode:'create'|'open'; name:string; folderPath:string; valid:boolean };
-  signIn: { username:string; hasSecretEntered:boolean; profileDraftId?:Id }; // secret write-only
+  signIn: { mode:'existing'|'new'; authProfileId?:Id; username:string; hasSecretEntered:boolean; profileDraftId?:Id }; // secret write-only
   siteDraft: { displayName:string; domain:string; domainValid:boolean; folderPath:string };
   test: Async<{ domainReachable:boolean; credentialsAccepted:boolean; readPermission:boolean }>;
   appFetch: Async<{ appCount:number }>;
@@ -35,7 +35,7 @@ Notes: Step 4 must resolve all three checks true before `canContinue`. Secret ne
 interface ProjectHomeVM {
   shell: ShellVM;
   recentProjects: { id:Id; name:string; folderPath:string; lastOpenedAt:ISODateString; folderMissing?:boolean }[];
-  authProfiles: AuthProfile[];       // rendered via credentialStatus; never secrets
+  authProfiles: AuthProfile[];       // global profiles rendered via credentialStatus; never secrets
   sites: (SiteWorkspace & { lastSnapshot?: SnapshotSummary })[];
   onNewProject():void; onOpenProject(id:Id):void; onRemoveProject(id:Id):void;
   onAddProfile():void; onEditProfile(id:Id):void; onTestProfile(id:Id):void; onForgetCredential(id:Id):void;
