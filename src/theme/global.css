@@ -363,6 +363,20 @@ select:focus-visible,
   background: var(--surface-2);
 }
 
+.mock-feedback {
+  margin: 10px var(--page-pad-x) 0;
+  padding: 7px 10px;
+  border: 1px solid #b9d7f0;
+  border-radius: var(--r-sm);
+  background: #eef7ff;
+  color: var(--text-2);
+  font: 400 12px / 1.35 var(--font-ui);
+}
+
+.mock-feedback--wizard {
+  margin: 10px 18px 0;
+}
+
 .page {
   padding: var(--page-pad-y) var(--page-pad-x);
   display: flex;

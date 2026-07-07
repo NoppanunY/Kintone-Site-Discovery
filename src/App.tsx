@@ -17,7 +17,7 @@ import { ScanSetupScreen } from "./screens/ScanSetupScreen";
 import { SensitiveOptionsScreen } from "./screens/SensitiveOptionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SiteOverviewScreen } from "./screens/SiteOverviewScreen";
-import type { NavKey, TopMenuModel } from "./types";
+import type { MockActionHandler, NavKey, TopMenuModel } from "./types";
 
 type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 
@@ -27,6 +27,7 @@ function onboardingPath(entry: OnboardingEntry) {
 
 export function App() {
   const [locationKey, setLocationKey] = useState(0);
+  const [mockFeedback, setMockFeedback] = useState("Desktop mock ready. Stub actions do not call kintone or write files.");
   const pathname = window.location.pathname;
   const search = window.location.search;
 
@@ -45,7 +46,10 @@ export function App() {
   const activeTabId = activeTabFromPath(pathname);
   const shellVariant = isSiteRoute(pathname) ? "site" : "home";
   const visibleTabs = pathname === "/" || pathname.endsWith("/overview") ? tabsWithSandbox : tabs;
-  const menus = buildTopMenus(navigate);
+  const showMockAction: MockActionHandler = (message) => {
+    setMockFeedback(message);
+  };
+  const menus = buildTopMenus(navigate, showMockAction);
   const onboardingEntry = getOnboardingEntry(search);
 
   const screen = useMemo(
@@ -54,6 +58,7 @@ export function App() {
         pathname,
         search,
         navigate,
+        onMockAction: showMockAction,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pathname, search, locationKey],
@@ -65,6 +70,7 @@ export function App() {
         entry={onboardingEntry}
         onCancel={() => navigate("/")}
         onFinish={() => navigate(onboardingEntry === "add-auth" ? "/home/accounts" : siteRouteByNav.overview)}
+        onMockAction={showMockAction}
       />
     );
   }
@@ -84,6 +90,9 @@ export function App() {
           onSelectTab={(id) => navigate(id === "home" ? "/" : siteRouteByNav.overview)}
           onNavigate={(key: NavKey) => navigate(siteRouteByNav[key])}
         >
+          <div className="mock-feedback" role="status" aria-live="polite">
+            {mockFeedback}
+          </div>
           {screen}
         </AppShell>
         {pathname.endsWith("/scan/confirm") ? (
@@ -109,14 +118,14 @@ export function App() {
   );
 }
 
-function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
+function buildTopMenus(navigate: (path: string) => void, onMockAction: MockActionHandler): TopMenuModel[] {
   return [
     {
       label: "Project",
       items: [
         { label: "Projects", shortcut: "Ctrl+1", onSelect: () => navigate("/") },
         { label: "New project", onSelect: () => navigate(onboardingPath("new-project")) },
-        { label: "Open local folder", disabled: true },
+        { label: "Open local folder", onSelect: () => onMockAction("Folder picker/open-folder bridge stub triggered. No folder was opened.") },
       ],
     },
     {
@@ -124,7 +133,7 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
       items: [
         { label: "Auth profiles", onSelect: () => navigate("/home/accounts") },
         { label: "Add auth profile", onSelect: () => navigate(onboardingPath("add-auth")) },
-        { label: "Test connection", disabled: true },
+        { label: "Test connection", onSelect: () => onMockAction("Mock connection test passed. No kintone request was sent.") },
       ],
     },
     {
@@ -168,9 +177,9 @@ function buildTopMenus(navigate: (path: string) => void): TopMenuModel[] {
       items: [
         {
           label: "About Kintone Site Discovery",
-          onSelect: () => window.alert("Kintone Site Discovery\nMVP 1 desktop mock shell"),
+          onSelect: () => onMockAction("Kintone Site Discovery · MVP 1 desktop mock shell."),
         },
-        { label: "Documentation", disabled: true },
+        { label: "Documentation", onSelect: () => onMockAction("Documentation link is a placeholder in this desktop mock.") },
       ],
     },
   ];
@@ -185,7 +194,17 @@ function getOnboardingEntry(search: string): OnboardingEntry {
   return "new-project";
 }
 
-function renderScreen({ pathname, search, navigate }: { pathname: string; search: string; navigate: (path: string) => void }) {
+function renderScreen({
+  pathname,
+  search,
+  navigate,
+  onMockAction,
+}: {
+  pathname: string;
+  search: string;
+  navigate: (path: string) => void;
+  onMockAction: MockActionHandler;
+}) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
     return (
       <ProjectHomeScreen
@@ -193,6 +212,7 @@ function renderScreen({ pathname, search, navigate }: { pathname: string; search
         onAddSite={() => navigate(onboardingPath("add-site"))}
         onNewProject={() => navigate(onboardingPath("new-project"))}
         onOpenSite={() => navigate(siteRouteByNav.overview)}
+        onMockAction={onMockAction}
       />
     );
   }
@@ -202,7 +222,7 @@ function renderScreen({ pathname, search, navigate }: { pathname: string; search
   }
 
   if (pathname.endsWith("/apps")) {
-    return <AppsScreen onContinue={() => navigate(siteRouteByNav.scan)} />;
+    return <AppsScreen onContinue={() => navigate(siteRouteByNav.scan)} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/scan/advanced") || pathname.endsWith("/scan/confirm")) {
@@ -210,7 +230,14 @@ function renderScreen({ pathname, search, navigate }: { pathname: string; search
   }
 
   if (pathname.endsWith("/scan/run")) {
-    return <ScanRunningScreen />;
+    return (
+      <ScanRunningScreen
+        onCancel={() => {
+          onMockAction("Mock scan cancelled. No runner or snapshot was stopped because the runner is not wired yet.");
+          navigate(siteRouteByNav.scan);
+        }}
+      />
+    );
   }
 
   if (pathname.endsWith("/scan/result")) {
@@ -223,32 +250,35 @@ function renderScreen({ pathname, search, navigate }: { pathname: string; search
         onSnapshot={() => navigate(siteRouteByNav.snapshot)}
         onDeveloperFiles={() => navigate(siteRouteByNav["developer-files"])}
         onRetry={() => navigate(siteRouteByNav.scan)}
+        onFixConnection={() => navigate("/home/accounts")}
+        onPartialSummary={() => navigate(siteRouteByNav.snapshot)}
+        onMockAction={onMockAction}
       />
     );
   }
 
   if (pathname.endsWith("/scan")) {
-    return <ScanSetupScreen onAdvanced={() => navigate(`${siteRouteByNav.scan}/advanced`)} onStart={() => navigate(`${siteRouteByNav.scan}/run`)} />;
+    return <ScanSetupScreen onAdvanced={() => navigate(`${siteRouteByNav.scan}/advanced`)} onStart={() => navigate(`${siteRouteByNav.scan}/run`)} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/snapshot")) {
-    return <LocalSnapshotScreen onRunScan={() => navigate(siteRouteByNav.scan)} />;
+    return <LocalSnapshotScreen onRunScan={() => navigate(siteRouteByNav.scan)} onMockAction={onMockAction} />;
   }
 
   if (pathname.includes("/reports")) {
-    return <ReportsScreen />;
+    return <ReportsScreen onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/developer-files")) {
-    return <DeveloperFilesScreen />;
+    return <DeveloperFilesScreen onMockAction={onMockAction} />;
   }
 
   if (pathname.includes("/history")) {
-    return <HistoryScreen />;
+    return <HistoryScreen onReports={() => navigate(siteRouteByNav.reports)} onDeveloperFiles={() => navigate(siteRouteByNav["developer-files"])} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/settings")) {
-    return <SettingsScreen />;
+    return <SettingsScreen onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/advanced")) {
@@ -261,6 +291,7 @@ function renderScreen({ pathname, search, navigate }: { pathname: string; search
       onSnapshot={() => navigate(siteRouteByNav.snapshot)}
       onReports={() => navigate(siteRouteByNav.reports)}
       onDeveloperFiles={() => navigate(siteRouteByNav["developer-files"])}
+      onMockAction={onMockAction}
     />
   );
 }

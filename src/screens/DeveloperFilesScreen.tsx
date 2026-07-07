@@ -1,7 +1,8 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import type { MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
-export function DeveloperFilesScreen() {
+export function DeveloperFilesScreen({ onMockAction }: { onMockAction: MockActionHandler }) {
   return (
     <div className="page">
       <PageHeader
@@ -11,8 +12,8 @@ export function DeveloperFilesScreen() {
         subtitle="Structured data generated from the snapshot, for developers and handoff. Most admins can stay in Reports."
         actions={
           <>
-            <SecondaryActionButton label="Reveal folder" />
-            <PrimaryActionButton label="Create review package" />
+            <SecondaryActionButton label="Reveal folder" onClick={() => onMockAction("Reveal developer files folder bridge stub triggered. No folder was opened.")} />
+            <PrimaryActionButton label="Create review package" onClick={() => onMockAction("Review package creation is a mock stub. No zip file was written.")} />
           </>
         }
       />
@@ -26,7 +27,7 @@ export function DeveloperFilesScreen() {
             <div className="small muted2">1,204 records · 2.1 MB</div>
           </div>
           <StatusPill status="ok" label="Redacted" dot />
-          <SecondaryActionButton label="Open" size="sm" />
+          <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction("Opened mock developer file: structured-data.jsonl.")} />
         </div>
         <div className="li">
           <span className="mono small" style={{ width: 22 }}>
@@ -36,7 +37,7 @@ export function DeveloperFilesScreen() {
             <div className="h3 mono">export-manifest.json</div>
             <div className="small muted2">Index of everything in this export · 18 KB</div>
           </div>
-          <SecondaryActionButton label="Open" size="sm" />
+          <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction("Opened mock developer file: export-manifest.json.")} />
         </div>
       </div>
       <div className="card">

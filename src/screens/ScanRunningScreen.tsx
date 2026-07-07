@@ -9,7 +9,7 @@ const collectorRows = [
   { status: "Queued", tone: "idle" as const, label: "Dependency detection · preview-vs-live diff", muted: true },
 ];
 
-export function ScanRunningScreen() {
+export function ScanRunningScreen({ onCancel }: { onCancel: () => void }) {
   return (
     <div className="page">
       <PageHeader
@@ -17,7 +17,7 @@ export function ScanRunningScreen() {
         title="Scanning…"
         titleMeta={<StatusPill status="run" label="Running" dot />}
         subtitle="Building local snapshot · App 3 of 4 · Support Tickets"
-        actions={<PrimaryActionButton label="✕ Cancel scan" tone="danger" />}
+        actions={<PrimaryActionButton label="✕ Cancel scan" tone="danger" onClick={onCancel} />}
       />
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="between">

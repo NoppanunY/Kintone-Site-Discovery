@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import type { MockActionHandler } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
-export function LocalSnapshotScreen({ onRunScan }: { onRunScan: () => void }) {
+export function LocalSnapshotScreen({ onRunScan, onMockAction }: { onRunScan: () => void; onMockAction: MockActionHandler }) {
   return (
     <div className="page">
       <PageHeader
@@ -11,7 +12,7 @@ export function LocalSnapshotScreen({ onRunScan }: { onRunScan: () => void }) {
         subtitle="The complete local copy this scan produced — the source for every report and file."
         actions={
           <>
-            <SecondaryActionButton label="Open folder" />
+            <SecondaryActionButton label="Open folder" onClick={() => onMockAction("Open snapshot folder bridge stub triggered. No folder was opened.")} />
             <PrimaryActionButton label="◎ Re-run scan" onClick={onRunScan} />
           </>
         }

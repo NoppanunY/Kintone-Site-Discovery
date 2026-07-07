@@ -1,5 +1,6 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
 import { overviewKpis } from "../mockData";
+import type { MockActionHandler } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
 interface SiteOverviewScreenProps {
@@ -7,9 +8,10 @@ interface SiteOverviewScreenProps {
   onSnapshot: () => void;
   onReports: () => void;
   onDeveloperFiles: () => void;
+  onMockAction: MockActionHandler;
 }
 
-export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDeveloperFiles }: SiteOverviewScreenProps) {
+export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDeveloperFiles, onMockAction }: SiteOverviewScreenProps) {
   return (
     <div className="page">
       <PageHeader
@@ -19,7 +21,7 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
         actions={
           <>
             <StatusPill status="ok" label="Connected" dot />
-            <SecondaryActionButton label="Test connection" />
+            <SecondaryActionButton label="Test connection" onClick={() => onMockAction("Mock connection test passed for Client A Production. No kintone request was sent.")} />
             <PrimaryActionButton label="◎ Run scan" onClick={onRunScan} />
           </>
         }
@@ -55,7 +57,7 @@ export function SiteOverviewScreen({ onRunScan, onSnapshot, onReports, onDevelop
           <SecondaryActionButton label="⛃ Open Local Snapshot" onClick={onSnapshot} />
           <SecondaryActionButton label="▦ View reports" onClick={onReports} />
           <SecondaryActionButton label="〈〉 Developer files" onClick={onDeveloperFiles} />
-          <SecondaryActionButton label="Open folder in Finder" variant="ghost" />
+          <SecondaryActionButton label="Open folder" variant="ghost" onClick={() => onMockAction("Open folder bridge stub triggered. No Windows Explorer window was opened.")} />
         </div>
       </div>
       <WarningBanner tone="info">

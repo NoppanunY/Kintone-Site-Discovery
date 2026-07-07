@@ -46,6 +46,8 @@ export interface ActionButton {
   variant?: "primary" | "secondary" | "ghost" | "danger";
 }
 
+export type MockActionHandler = (message: string) => void;
+
 export interface KpiModel {
   number: string;
   label: string;

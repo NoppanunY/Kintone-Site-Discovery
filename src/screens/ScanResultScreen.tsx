@@ -1,4 +1,5 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import type { MockActionHandler } from "../types";
 import { KpiGrid, PageHeader } from "./shared";
 
 type ResultMode = "completed" | "warnings" | "failed";
@@ -9,9 +10,12 @@ interface ScanResultScreenProps {
   onSnapshot: () => void;
   onDeveloperFiles: () => void;
   onRetry: () => void;
+  onFixConnection: () => void;
+  onPartialSummary: () => void;
+  onMockAction: MockActionHandler;
 }
 
-export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles, onRetry }: ScanResultScreenProps) {
+export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles, onRetry, onFixConnection, onPartialSummary, onMockAction }: ScanResultScreenProps) {
   if (mode === "failed") {
     return (
       <div className="page">
@@ -33,8 +37,8 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
         </div>
         <div className="btn-row">
           <PrimaryActionButton label="Retry scan" onClick={onRetry} />
-          <SecondaryActionButton label="Fix connection" />
-          <SecondaryActionButton label="Review partial scan summary" variant="ghost" />
+          <SecondaryActionButton label="Fix connection" onClick={onFixConnection} />
+          <SecondaryActionButton label="Review partial scan summary" variant="ghost" onClick={onPartialSummary} />
         </div>
       </div>
     );
@@ -104,12 +108,12 @@ export function ScanResultScreen({ mode, onReports, onSnapshot, onDeveloperFiles
         <div className="li">
           <StatusPill status="warn" label="Skipped" dot />
           <div className="grow body">1 plugin config — runtime unavailable</div>
-          <SecondaryActionButton label="Retry item" size="sm" />
+          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Mock retry queued for plugin config. No runner was started.")} />
         </div>
         <div className="li">
           <StatusPill status="warn" label="Skipped" dot />
           <div className="grow body">1 app — screenshots unavailable</div>
-          <SecondaryActionButton label="Retry item" size="sm" />
+          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Mock retry queued for app screenshots. No runner was started.")} />
         </div>
       </div>
       <div className="btn-row">

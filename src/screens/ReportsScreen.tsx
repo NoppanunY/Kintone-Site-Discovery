@@ -1,4 +1,5 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
+import type { MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
 const reports = [
@@ -8,14 +9,14 @@ const reports = [
   ["Dependency report", "Detected links between apps, plugins and files"],
 ];
 
-export function ReportsScreen() {
+export function ReportsScreen({ onMockAction }: { onMockAction: MockActionHandler }) {
   return (
     <div className="page">
       <PageHeader
         breadcrumb="Client A Production · Reports"
         title="Reports"
         subtitle="Generated from the local snapshot captured Jul 2, 10:35. Readable summaries — no code needed."
-        actions={<SecondaryActionButton label="Reveal folder" />}
+        actions={<SecondaryActionButton label="Reveal folder" onClick={() => onMockAction("Reveal reports folder bridge stub triggered. No folder was opened.")} />}
       />
       <div className="list">
         {reports.map(([title, description], index) => (
@@ -39,7 +40,11 @@ export function ReportsScreen() {
               <div className="small muted2">{description}</div>
             </div>
             <StatusPill status="ok" label="Up to date" dot />
-            {index === 0 ? <PrimaryActionButton label="Open" size="sm" /> : <SecondaryActionButton label="Open" size="sm" />}
+            {index === 0 ? (
+              <PrimaryActionButton label="Open" size="sm" onClick={() => onMockAction(`Opened mock report: ${title}.`)} />
+            ) : (
+              <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction(`Opened mock report: ${title}.`)} />
+            )}
           </div>
         ))}
       </div>

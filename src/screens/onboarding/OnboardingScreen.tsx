@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { StatusPill } from "../../components";
 import { profiles, projectRows } from "../../mockData";
+import type { MockActionHandler } from "../../types";
 
 export type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 
@@ -8,6 +9,7 @@ interface OnboardingScreenProps {
   entry?: OnboardingEntry;
   onCancel: () => void;
   onFinish: () => void;
+  onMockAction?: MockActionHandler;
 }
 
 type StepKey = "project" | "auth" | "site" | "test" | "apps";
@@ -42,16 +44,22 @@ const flowTitles: Record<OnboardingEntry, string> = {
 
 type AuthMode = "existing" | "new";
 
-export function OnboardingScreen({ entry = "new-project", onCancel, onFinish }: OnboardingScreenProps) {
+export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, onMockAction }: OnboardingScreenProps) {
   const steps = flowSteps[entry];
   const [stepIndex, setStepIndex] = useState(0);
   const [authMode, setAuthMode] = useState<AuthMode>(entry === "add-auth" ? "new" : "existing");
   const [selectedProject, setSelectedProject] = useState("Client CRM Discovery");
   const [selectedProfile, setSelectedProfile] = useState("Client A Admin");
+  const [mockFeedback, setMockFeedback] = useState("Wizard ready");
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex === steps.length - 1;
   const cancelLabel = entry === "add-site" ? "Cancel add site" : entry === "add-auth" ? "Cancel add profile" : "Cancel setup";
   const finishLabel = entry === "add-auth" ? "Save auth profile" : "Open site Overview";
+  const showMockAction: MockActionHandler = (message) => {
+    setMockFeedback(message);
+    onMockAction?.(message);
+  };
+
   const content = useMemo(
     () =>
       renderStep({
@@ -63,6 +71,7 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish }: 
         onSelectAuthMode: setAuthMode,
         onSelectProject: setSelectedProject,
         onSelectProfile: setSelectedProfile,
+        onMockAction: showMockAction,
       }),
     [authMode, entry, selectedProfile, selectedProject, step.key],
   );
@@ -94,6 +103,9 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish }: 
           <span className="tl y" />
           <span className="tl g" />
           <span className="tb-title">{flowTitles[entry]}</span>
+        </div>
+        <div className="mock-feedback mock-feedback--wizard" role="status" aria-live="polite">
+          {mockFeedback}
         </div>
         <div className="wizard">
           <div className="wizard-card">
@@ -149,6 +161,7 @@ function renderStep({
   onSelectAuthMode,
   onSelectProject,
   onSelectProfile,
+  onMockAction,
 }: {
   step: StepKey;
   entry: OnboardingEntry;
@@ -158,6 +171,7 @@ function renderStep({
   onSelectAuthMode: (mode: AuthMode) => void;
   onSelectProject: (project: string) => void;
   onSelectProfile: (profile: string) => void;
+  onMockAction: MockActionHandler;
 }) {
   if (step === "project") {
     return (
@@ -168,7 +182,12 @@ function renderStep({
         />
         <div className="form-grid">
           <MockField label="Project name" value="Client CRM Discovery" />
-          <MockField label="Local folder" value="~/KintoneDiscovery/client-crm" action="Browse..." />
+          <MockField
+            label="Local folder"
+            value="~/KintoneDiscovery/client-crm"
+            action="Browse..."
+            onAction={() => onMockAction("Folder picker bridge stub triggered for project folder. No folder was selected.")}
+          />
         </div>
       </>
     );
@@ -242,7 +261,12 @@ function renderStep({
           <MockField label="Site display name" value={entry === "add-site" ? "Client A Staging" : "Client A Production"} />
           <MockField label="kintone domain" value={entry === "add-site" ? "staging.client-a.cybozu.com" : "client-a.cybozu.com"} meta="Domain only, no protocol" />
           {entry === "new-project" ? <MockField label="Auth profile" value={selectedProfile} meta="Reusable profile linked to this site workspace" /> : null}
-          <MockField label="Save snapshots to" value={snapshotPath} action="Browse..." />
+          <MockField
+            label="Save snapshots to"
+            value={snapshotPath}
+            action="Browse..."
+            onAction={() => onMockAction("Folder picker bridge stub triggered for snapshot folder. No folder was selected.")}
+          />
         </div>
       </>
     );
@@ -256,6 +280,11 @@ function renderStep({
           <CheckRow label="Project selected" detail={`${selectedProject} is the local workspace.`} />
           <CheckRow label="Global auth profile linked" detail={`${selectedProfile} is selected for this site.`} />
           <CheckRow label="Read permission check" detail="Mock check passed without contacting kintone." />
+        </div>
+        <div className="rowc">
+          <button type="button" className="btn btn--sm" onClick={() => onMockAction("Mock read-only connection test passed. No kintone request was sent.")}>
+            Test connection
+          </button>
         </div>
       </>
     );
@@ -397,14 +426,14 @@ function projectFolder(projectName: string) {
   return projectRows.find((project) => project.name === projectName)?.path ?? "~/KintoneDiscovery/client-crm";
 }
 
-function MockField({ label, value, action, meta }: { label: string; value: string; action?: string; meta?: string }) {
+function MockField({ label, value, action, meta, onAction }: { label: string; value: string; action?: string; meta?: string; onAction?: () => void }) {
   return (
     <div className={`form-group ${action || meta ? "form-group--full" : ""}`}>
       <span className="label">{label}</span>
       <div className="input filled">
         <span>{value}</span>
         {action ? (
-          <button type="button" className="btn btn--sm" disabled>
+          <button type="button" className="btn btn--sm" onClick={onAction}>
             {action}
           </button>
         ) : null}

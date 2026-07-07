@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
+import type { MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
 interface AppsScreenProps {
   onContinue: () => void;
+  onMockAction: MockActionHandler;
 }
 
 const appRows = [
@@ -14,7 +16,7 @@ const appRows = [
   { id: "108", name: "Projects Tracker", space: "Delivery", facts: "has customization", checked: true, status: "Not captured", tone: "idle" as const },
 ];
 
-export function AppsScreen({ onContinue }: AppsScreenProps) {
+export function AppsScreen({ onContinue, onMockAction }: AppsScreenProps) {
   const [query, setQuery] = useState("");
   const [spaceFilter, setSpaceFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState(() => new Set(appRows.filter((app) => app.checked).map((app) => app.id)));
@@ -69,7 +71,7 @@ export function AppsScreen({ onContinue }: AppsScreenProps) {
         subtitle={`${appRows.length} apps · ${selectedCount} selected · app list fetched 2 hours ago`}
         actions={
           <>
-            <SecondaryActionButton label="⟳ Reload list" size="sm" />
+            <SecondaryActionButton label="⟳ Reload list" size="sm" onClick={() => onMockAction("Mock app list reloaded from local seed data. No kintone request was sent.")} />
             <PrimaryActionButton label="Continue to scan →" disabled={selectedCount === 0} onClick={onContinue} />
           </>
         }

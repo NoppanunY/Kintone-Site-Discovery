@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import { profiles, projectRows, workspaces } from "../mockData";
+import type { MockActionHandler } from "../types";
 import { PageHeader } from "./shared";
 
 interface ProjectHomeScreenProps {
@@ -8,6 +9,7 @@ interface ProjectHomeScreenProps {
   onAddSite: () => void;
   onNewProject: () => void;
   onOpenSite: () => void;
+  onMockAction: MockActionHandler;
 }
 
 const folderIconStyle: CSSProperties = {
@@ -21,7 +23,7 @@ const folderIconStyle: CSSProperties = {
   fontSize: 17,
 };
 
-export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpenSite }: ProjectHomeScreenProps) {
+export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpenSite, onMockAction }: ProjectHomeScreenProps) {
   return (
     <div className="page">
       <PageHeader
@@ -40,7 +42,7 @@ export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpe
                 {project.path} · {project.opened}
               </div>
             </div>
-            <SecondaryActionButton label="Open" size="sm" />
+            <SecondaryActionButton label="Open" size="sm" onClick={() => onMockAction(`Project "${project.name}" selected in the mock workspace list.`)} />
           </div>
         ))}
       </div>
@@ -67,7 +69,7 @@ export function ProjectHomeScreen({ onAddProfile, onAddSite, onNewProject, onOpe
             </div>
             <StatusPill status={profile.tone} label={profile.status} dot />
             <span className="small muted2">{profile.sites}</span>
-            <SecondaryActionButton label="Test" size="sm" />
+            <SecondaryActionButton label="Test" size="sm" onClick={() => onMockAction(`Mock connection test passed for ${profile.name}. No kintone request was sent.`)} />
           </div>
         ))}
       </div>
