@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, net, protocol } from "electron";
+import { app, BrowserWindow, Menu, ipcMain, net, protocol } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -194,6 +194,7 @@ function registerPlatformBridgeHandlers() {
 }
 
 app.setAppUserModelId("com.kintone-site-discovery.desktop");
+Menu.setApplicationMenu(null);
 
 app.whenReady().then(createMainWindow);
 

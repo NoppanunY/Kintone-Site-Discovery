@@ -812,6 +812,37 @@ select:focus-visible,
   box-shadow: none;
 }
 
+body.desktop-runtime {
+  overflow: hidden;
+}
+
+body.desktop-runtime .canvas {
+  width: 100vw;
+  min-height: 100vh;
+  padding: 0;
+}
+
+body.desktop-runtime .app,
+body.desktop-runtime .app.tall {
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.desktop-runtime .titlebar {
+  display: none;
+}
+
+body.desktop-runtime .modal-host,
+body.desktop-runtime .modal-host > .app {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .modal-overlay {
   position: absolute;
   inset: 0;
