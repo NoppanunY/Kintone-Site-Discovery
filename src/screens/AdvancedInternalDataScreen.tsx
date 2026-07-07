@@ -2,7 +2,7 @@ import { SecondaryActionButton, WarningBanner } from "../components";
 
 export function AdvancedInternalDataScreen() {
   return (
-    <div className="page" style={{ maxWidth: 720 }}>
+    <div className="page advanced-gate-page">
       <div>
         <div className="breadcrumb">Client A Production · Advanced Internal Data</div>
         <h1 className="h-display" style={{ color: "var(--text-2)" }}>

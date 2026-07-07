@@ -1082,6 +1082,10 @@ body.desktop-runtime .modal-host > .app {
   flex-wrap: wrap;
 }
 
+.advanced-gate-page {
+  width: min(100%, 960px);
+}
+
 .screen-note {
   border-left: 3px solid var(--primary);
   color: var(--text-2);
