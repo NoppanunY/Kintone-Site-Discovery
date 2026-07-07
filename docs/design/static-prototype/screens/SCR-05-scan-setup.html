@@ -1,1 +1,44 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCR-05 Scan Setup</title><link rel="stylesheet" href="../styles/prototype.css"></head><body><main class="canvas single-canvas"><section class="screen"><div class="screen-h"><span class="screen-id">SCR-05</span><h3 class="screen-name">Scan Setup</h3><span class="screen-route">/site/:siteId/scan</span></div><p class="screen-purpose">Choose a scan preset before writing a new Local Snapshot.</p><div class="frame-row"><div class="app tall"><div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Client A Production</span></div><div class="menubar"><span>File</span><span>Project</span><span>View</span><span>Help</span></div><div class="sitetabs"><div class="stab">Home</div><div class="stab active">Client A <span class="x">×</span></div><div class="stab add">＋</div></div><div class="appbody"><aside class="sidebar"><div class="side-label">Site</div><div class="nav-item"><span class="ic">⌁</span>Overview</div><div class="nav-item"><span class="ic">▦</span>Apps</div><div class="nav-item active"><span class="ic">▶</span>Scan</div><div class="side-label">Snapshot</div><div class="nav-item canonical"><span class="ic">◆</span>Local Snapshot<span class="tagdot">Source</span></div><div class="nav-item"><span class="ic">▤</span>Reports</div><div class="nav-item"><span class="ic">{ }</span>Developer Files</div></aside><main class="content"><div class="page"><div class="page-head"><div><div class="breadcrumb">Client A Production</div><h1 class="h-display">Run discovery scan</h1><p class="body muted">Every successful scan creates a new Local Snapshot and marks it current.</p></div></div><div class="card"><div class="card-pad" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"><div class="card" style="border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)"><div class="card-pad"><h2 class="h2">Standard Discovery</h2><p class="body muted">Apps, fields, views, forms, process, permissions.</p><span class="pill pill--info">Recommended</span></div></div><div class="card"><div class="card-pad"><h2 class="h2">Quick Inventory</h2><p class="body muted">Fast app list and high-level metadata.</p><span class="pill pill--idle">Fast</span></div></div><div class="card"><div class="card-pad"><h2 class="h2">Full Discovery</h2><p class="body muted">Adds optional internal data after configuration.</p><span class="pill pill--warn">Requires confirm</span></div></div></div></div><div class="banner banner--info"><span class="bi">◆</span><div>Output will be saved locally as a new Local Snapshot. Existing snapshots remain in History.</div></div><div class="between"><button class="btn">Validate access</button><button class="btn btn--primary">Start scan</button></div></div></main></div></div></div></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCR-05 · Scan Setup</title>
+  <link rel="stylesheet" href="../styles/extracted.css" />
+</head>
+<body class="extracted-screen">
+  <main class="extracted-stage" aria-label="SCR-05 Scan Setup">
+<div class="app tall" data-dc-tpl="396">
+<div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Kintone Site Discovery — Client CRM Discovery</span></div>
+<div class="menubar"><span>Project</span><span>Account</span><span>Site</span><span>Scan</span><span>Snapshot</span><span>Window</span><span style="margin-left: auto;">Help</span></div>
+<div class="sitetabs"><div class="stab">🏠 Home</div><div class="stab active">Client A Production <span class="x">✕</span></div><div class="stab add">＋</div></div>
+<div class="appbody">
+<div class="sidebar">
+<div class="side-label">Site</div>
+<div class="nav-item"><span class="ic">◱</span>Overview</div>
+<div class="nav-item"><span class="ic">▤</span>Apps</div>
+<div class="nav-item active"><span class="ic">◎</span>Scan</div>
+<div class="side-label">Snapshot</div>
+<div class="nav-item canonical"><span class="ic">⛃</span>Local Snapshot <span class="tagdot">source</span></div>
+<div class="nav-item"><span class="ic">▦</span>Reports</div>
+<div class="nav-item"><span class="ic">〈〉</span>Developer Files</div>
+<div class="nav-item"><span class="ic">⟳</span>History</div>
+<div class="side-label">Configure</div>
+<div class="nav-item"><span class="ic">⚙</span>Settings</div>
+<div class="nav-item warn"><span class="ic">⚑</span>Advanced Internal Data</div>
+</div>
+<div class="content"><div class="page">
+<div class="page-head"><div><div class="breadcrumb">Client A Production · Scan</div><h1 class="h-display">Choose a scan preset</h1><p class="body muted" style="margin-top: 5px;">4 apps selected · app list fetched 2 hours ago</p></div><button class="btn btn--sm">⟳ Reload app list</button></div>
+<div class="banner banner--info"><span class="bi">🔒</span><div>Every preset is read-only and always includes the 17 required categories. Nothing is written back to kintone.</div></div>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<div class="card card-pad between" style="cursor: pointer;"><div class="rowc"><span class="checkbox"></span><div><div class="h3">Quick Scan</div><div class="small muted2">Structure only — apps, fields, views, permissions, plugin inventory. Fastest.</div></div></div><span class="pill pill--idle">Required only</span></div>
+<div class="card card-pad between" style="border: 2px solid var(--primary); background: var(--primary-tint);"><div class="rowc"><span class="checkbox checked">✓</span><div><div class="h3">Standard Scan <span class="pill pill--info" style="margin-left: 6px;">Recommended</span></div><div class="small muted" style="color: var(--primary-600);">Quick + users &amp; groups, spaces, JS/CSS files, plugin saved config, dependency &amp; preview-vs-live diff.</div></div></div></div>
+<div class="card card-pad between" style="cursor: pointer;"><div class="rowc"><span class="checkbox"></span><div><div class="h3">Full Discovery</div><div class="small muted2">Standard + opt-in captures. Opens <b>Configure sensitive options</b> — nothing sensitive turns on until you configure and confirm.</div></div></div><button class="btn btn--sm">Configure ›</button></div>
+</div>
+<div class="between"><button class="btn btn--ghost">▾ Show advanced options</button><div class="rowc"><span class="small muted2">17 required categories · always on 🔒</span><button class="btn btn--primary">Review &amp; start →</button></div></div>
+</div></div>
+</div>
+</div>
+  </main>
+</body>
+</html>

@@ -1,1 +1,50 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCR-04 Apps</title><link rel="stylesheet" href="../styles/prototype.css"></head><body><main class="canvas single-canvas"><section class="screen"><div class="screen-h"><span class="screen-id">SCR-04</span><h3 class="screen-name">Apps</h3><span class="screen-route">/site/:siteId/apps</span></div><p class="screen-purpose">Browsable app inventory from the current Local Snapshot.</p><div class="frame-row"><div class="app tall"><div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Client A Production</span></div><div class="menubar"><span>File</span><span>Project</span><span>View</span><span>Help</span></div><div class="sitetabs"><div class="stab">Home</div><div class="stab active">Client A <span class="x">×</span></div><div class="stab add">＋</div></div><div class="appbody"><aside class="sidebar"><div class="side-label">Site</div><div class="nav-item"><span class="ic">⌁</span>Overview</div><div class="nav-item active"><span class="ic">▦</span>Apps</div><div class="nav-item"><span class="ic">▶</span>Scan</div><div class="side-label">Snapshot</div><div class="nav-item canonical"><span class="ic">◆</span>Local Snapshot<span class="tagdot">Source</span></div><div class="nav-item"><span class="ic">▤</span>Reports</div><div class="nav-item"><span class="ic">{ }</span>Developer Files</div></aside><main class="content"><div class="page"><div class="page-head"><div><div class="breadcrumb">Client A Production</div><h1 class="h-display">Apps</h1><p class="body muted">48 apps discovered in the current snapshot.</p></div><div class="btn-row"><button class="btn">Filter</button><button class="btn btn--primary">Run scan</button></div></div><div class="input ph">Search apps by name, ID, space, or note…</div><div class="list"><div class="li"><div class="grow"><h3 class="h3">Sales Pipeline</h3><p class="small muted">App ID 42 · Space Sales · 38 fields</p></div><span class="pill pill--ok">Active</span><button class="btn btn--sm">View</button></div><div class="li"><div class="grow"><h3 class="h3">Customer Master</h3><p class="small muted">App ID 7 · Space CRM · 52 fields</p></div><span class="pill pill--ok">Active</span><button class="btn btn--sm">View</button></div><div class="li"><div class="grow"><h3 class="h3">Legacy Requests</h3><p class="small muted">App ID 103 · Space Operations · 21 fields</p></div><span class="pill pill--warn">Has warnings</span><button class="btn btn--sm">View</button></div></div></div></main></div></div></div></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCR-04 · Apps</title>
+  <link rel="stylesheet" href="../styles/extracted.css" />
+</head>
+<body class="extracted-screen">
+  <main class="extracted-stage" aria-label="SCR-04 Apps">
+<div class="app tall" data-dc-tpl="286">
+<div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Kintone Site Discovery — Client CRM Discovery</span></div>
+<div class="menubar"><span>Project</span><span>Account</span><span>Site</span><span>Scan</span><span>Snapshot</span><span>Window</span><span style="margin-left: auto;">Help</span></div>
+<div class="sitetabs"><div class="stab">🏠 Home</div><div class="stab active">Client A Production <span class="x">✕</span></div><div class="stab add">＋</div></div>
+<div class="appbody">
+<div class="sidebar">
+<div class="side-label">Site</div>
+<div class="nav-item"><span class="ic">◱</span>Overview</div>
+<div class="nav-item active"><span class="ic">▤</span>Apps</div>
+<div class="nav-item"><span class="ic">◎</span>Scan</div>
+<div class="side-label">Snapshot</div>
+<div class="nav-item canonical"><span class="ic">⛃</span>Local Snapshot <span class="tagdot">source</span></div>
+<div class="nav-item"><span class="ic">▦</span>Reports</div>
+<div class="nav-item"><span class="ic">〈〉</span>Developer Files</div>
+<div class="nav-item"><span class="ic">⟳</span>History</div>
+<div class="side-label">Configure</div>
+<div class="nav-item"><span class="ic">⚙</span>Settings</div>
+<div class="nav-item warn"><span class="ic">⚑</span>Advanced Internal Data</div>
+</div>
+<div class="content"><div class="page">
+<div class="page-head"><div><div class="breadcrumb">Client A Production · Apps</div><h1 class="h-display">Apps</h1><p class="body muted" style="margin-top: 5px;">18 apps · 4 selected · app list fetched 2 hours ago</p></div><div class="rowc"><button class="btn btn--sm">⟳ Reload list</button><button class="btn btn--primary">Continue to scan →</button></div></div>
+<div class="rowc" style="gap: 10px;">
+<div class="input ph" style="flex: 1 1 0%;"><span>🔍  Search apps by name, ID or space…</span></div>
+<div class="select" style="width: 150px;">Space: All ▾</div>
+<button class="btn btn--sm">Select all</button><button class="btn btn--sm btn--ghost">Clear</button>
+</div>
+<div class="list">
+<div class="li"><span class="checkbox checked">✓</span><div class="grow"><div class="h3">Sales Management</div><div class="small muted2">ID 101 · Space: CRM · has plugins · has customization</div></div><span class="pill pill--ok"><span class="dot"></span>In snapshot</span></div>
+<div class="li"><span class="checkbox checked">✓</span><div class="grow"><div class="h3">Support Tickets</div><div class="small muted2">ID 102 · Space: CRM · has plugins</div></div><span class="pill pill--idle"><span class="dot"></span>Not captured</span></div>
+<div class="li"><span class="checkbox"></span><div class="grow"><div class="h3">Contacts</div><div class="small muted2">ID 103 · Guest space · has customization</div></div><span class="pill pill--idle"><span class="dot"></span>Not captured</span></div>
+<div class="li"><span class="checkbox checked">✓</span><div class="grow"><div class="h3">Invoices</div><div class="small muted2">ID 104 · Space: Finance</div></div><span class="pill pill--warn"><span class="dot"></span>Last scan: warning</span></div>
+<div class="li"><span class="checkbox checked">✓</span><div class="grow"><div class="h3">Projects Tracker</div><div class="small muted2">ID 108 · Space: Delivery · has customization</div></div><span class="pill pill--idle"><span class="dot"></span>Not captured</span></div>
+</div>
+<div class="between"><span class="small muted">4 of 18 selected</span><span class="small muted2">Sorted by App ID</span></div>
+</div></div>
+</div>
+</div>
+  </main>
+</body>
+</html>

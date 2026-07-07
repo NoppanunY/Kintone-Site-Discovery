@@ -1,1 +1,41 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCR-17 Advanced Internal Data</title><link rel="stylesheet" href="../styles/prototype.css"></head><body><main class="canvas single-canvas"><section class="screen"><div class="screen-h"><span class="screen-id">SCR-17</span><h3 class="screen-name">Advanced Internal Data</h3><span class="screen-route">/site/:siteId/advanced</span></div><p class="screen-purpose">Warning gate for internal diagnostic views.</p><div class="frame-row"><div class="app tall"><div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Client A Production</span></div><div class="appbody"><aside class="sidebar"><div class="side-label">Configure</div><div class="nav-item warn active"><span class="ic">⚠</span>Advanced</div></aside><main class="content"><div class="page"><div class="page-head"><div><div class="breadcrumb">Advanced</div><h1 class="h-display">Advanced Internal Data</h1><p class="body muted">For troubleshooting and implementation review.</p></div></div><div class="banner banner--warn"><span class="bi">!</span><div>This area is intended for technical review. Continue only when needed.</div></div><div class="card"><div class="card-pad"><h2 class="h2">Internal data viewer</h2><p class="body muted" style="margin-top:8px">Open raw local metadata generated from the current Local Snapshot.</p></div></div><div class="btn-row"><button class="btn">Back</button><button class="btn btn--primary">Continue</button></div></div></main></div></div></div></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCR-17 · Advanced Internal Data — warning gate</title>
+  <link rel="stylesheet" href="../styles/extracted.css" />
+</head>
+<body class="extracted-screen">
+  <main class="extracted-stage" aria-label="SCR-17 Advanced Internal Data — warning gate">
+<div class="app tall" data-dc-tpl="1611">
+<div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Kintone Site Discovery — Client CRM Discovery</span></div>
+<div class="menubar"><span>Project</span><span>Account</span><span>Site</span><span>Scan</span><span>Snapshot</span><span>Window</span><span style="margin-left: auto;">Help</span></div>
+<div class="sitetabs"><div class="stab">🏠 Home</div><div class="stab active">Client A Production <span class="x">✕</span></div><div class="stab add">＋</div></div>
+<div class="appbody">
+<div class="sidebar">
+<div class="side-label">Site</div>
+<div class="nav-item"><span class="ic">◱</span>Overview</div><div class="nav-item"><span class="ic">▤</span>Apps</div><div class="nav-item"><span class="ic">◎</span>Scan</div>
+<div class="side-label">Snapshot</div>
+<div class="nav-item canonical"><span class="ic">⛃</span>Local Snapshot <span class="tagdot">source</span></div><div class="nav-item"><span class="ic">▦</span>Reports</div><div class="nav-item"><span class="ic">〈〉</span>Developer Files</div><div class="nav-item"><span class="ic">⟳</span>History</div>
+<div class="side-label">Configure</div>
+<div class="nav-item"><span class="ic">⚙</span>Settings</div><div class="nav-item warn active"><span class="ic">⚑</span>Advanced Internal Data</div>
+</div>
+<div class="content"><div class="page" style="max-width: 720px;">
+<div><div class="breadcrumb">Client A Production · Advanced Internal Data</div><h1 class="h-display" style="color: var(--text-2);">Advanced Internal Data</h1></div>
+<div class="banner banner--danger"><span class="bi">⚠</span><div><b>This folder is machine-managed. Do not edit files manually.</b> The <span class="mono">.kintone/</span> folder holds raw and internal data the app maintains for debugging only. You don't need it for normal use, and editing it can corrupt the snapshot.</div></div>
+<div class="card">
+<div class="card-pad" style="border-bottom: 1px solid var(--border);"><span class="h3">What's inside</span></div>
+<div class="li between"><span class="body">Raw snapshots</span><span class="small muted2 mono">312 files</span></div>
+<div class="li between"><span class="body">Normalized JSON</span><span class="small muted2 mono">288 files</span></div>
+<div class="li between"><span class="body">Collector results</span><span class="small muted2 mono">69 entries</span></div>
+<div class="li between"><span class="body">Logs</span><span class="small muted2 mono">4 files</span></div>
+</div>
+<label class="rowc" style="gap: 10px;"><span class="checkbox"></span><span class="body">I understand this folder is machine-managed and should not be edited manually.</span></label>
+<div class="rowc"><button class="btn is-disabled">Open .kintone folder</button><span class="small muted2">Enabled after you acknowledge above</span></div>
+</div></div>
+</div>
+</div>
+  </main>
+</body>
+</html>

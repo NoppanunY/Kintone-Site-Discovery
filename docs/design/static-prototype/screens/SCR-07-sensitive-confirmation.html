@@ -1,1 +1,54 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCR-07 Review Modal</title><link rel="stylesheet" href="../styles/prototype.css"></head><body><main class="canvas single-canvas"><section class="screen"><div class="screen-h"><span class="screen-id">SCR-07</span><h3 class="screen-name">Full Discovery Review Modal</h3><span class="screen-route">modal · over /scan</span></div><p class="screen-purpose">Review modal before Full Discovery begins.</p><div class="frame-row"><div class="modal-scrim"><div class="modal"><div class="card-pad" style="border-bottom:1px solid var(--border)"><h2 class="h1">Review Full Discovery</h2><p class="body muted" style="margin-top:6px">Selected options will be used for the next Local Snapshot.</p></div><div class="card-pad" style="display:flex;flex-direction:column;gap:14px"><div class="banner banner--warn"><span class="bi">!</span><div>Review the selected options before continuing.</div></div><div class="li" style="border:1px solid var(--border);border-radius:var(--r-md)"><span class="checkbox checked">✓</span><div class="grow"><h3 class="h3">I reviewed the selected options.</h3><p class="small muted">The scan remains read-only.</p></div></div><div class="between"><button class="btn">Cancel</button><button class="btn btn--primary">Start scan</button></div></div></div></div></div></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCR-07 · Sensitive Capture Confirmation Modal</title>
+  <link rel="stylesheet" href="../styles/extracted.css" />
+</head>
+<body class="extracted-screen">
+  <main class="extracted-stage" aria-label="SCR-07 Sensitive Capture Confirmation Modal">
+<div class="modal-host" data-dc-tpl="620">
+<div class="app">
+<div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Kintone Site Discovery — Client CRM Discovery</span></div>
+<div class="menubar"><span>Project</span><span>Account</span><span>Site</span><span>Scan</span><span>Snapshot</span><span>Window</span><span style="margin-left: auto;">Help</span></div>
+<div class="sitetabs"><div class="stab">🏠 Home</div><div class="stab active">Client A Production <span class="x">✕</span></div><div class="stab add">＋</div></div>
+<div class="appbody">
+<div class="sidebar">
+<div class="side-label">Site</div>
+<div class="nav-item"><span class="ic">◱</span>Overview</div><div class="nav-item"><span class="ic">▤</span>Apps</div><div class="nav-item active"><span class="ic">◎</span>Scan</div>
+<div class="side-label">Snapshot</div>
+<div class="nav-item canonical"><span class="ic">⛃</span>Local Snapshot <span class="tagdot">source</span></div><div class="nav-item"><span class="ic">▦</span>Reports</div><div class="nav-item"><span class="ic">〈〉</span>Developer Files</div><div class="nav-item"><span class="ic">⟳</span>History</div>
+<div class="side-label">Configure</div>
+<div class="nav-item"><span class="ic">⚙</span>Settings</div><div class="nav-item warn"><span class="ic">⚑</span>Advanced Internal Data</div>
+</div>
+<div class="content"><div class="page">
+<div class="page-head"><div><div class="breadcrumb">Client A Production · Scan · Advanced</div><h1 class="h-display">Configure sensitive options</h1><p class="body muted" style="margin-top: 5px;">Full Discovery · 4 apps</p></div><button class="btn btn--sm btn--ghost">▴ Hide</button></div>
+<div class="card"><div class="card-pad" style="border-bottom: 1px solid var(--border);"><div class="rowc"><span class="pill pill--warn">Additional · sensitive</span><span class="h3">Off by default</span></div></div>
+<div class="li"><span class="toggle on"></span><div class="grow"><div class="h3">Plugin desktop / config assets (JS/CSS/HTML)</div></div><span class="pill pill--warn"><span class="dot"></span>Sensitive</span></div>
+<div class="li"><span class="toggle on"></span><div class="grow"><div class="h3">Sample records <span class="small muted2">· redacted · max 25</span></div></div><span class="pill pill--warn"><span class="dot"></span>Sensitive</span></div>
+</div>
+<div class="between"><button class="btn">← Back to presets</button><button class="btn btn--primary">Confirm &amp; start →</button></div>
+</div></div>
+</div>
+</div>
+<div class="modal-overlay">
+<div class="modal">
+<div class="card-pad" style="border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start;">
+<div style="width: 38px; height: 38px; border-radius: var(--r-md); background: var(--warn-tint); color: var(--warn); display: flex; align-items: center; justify-content: center; font-size: 19px; flex: 0 0 auto;">⚠</div>
+<div><h2 class="h1">Confirm sensitive capture</h2><p class="body muted" style="margin-top: 4px;">This scan will capture data that may include proprietary code or personal information. It stays local and redacted.</p></div>
+</div>
+<div class="card-pad" style="display: flex; flex-direction: column; gap: 10px;">
+<span class="cap">Will be captured</span>
+<div class="rowc"><span class="checkbox checked">✓</span><span class="body">Plugin desktop / config assets (JS/CSS/HTML)</span></div>
+<div class="rowc"><span class="checkbox checked">✓</span><span class="body">Sample records — redacted · max 25</span></div>
+<div class="divider" style="margin: 4px 0px;"></div>
+<label class="rowc" style="gap: 10px;"><span class="checkbox"></span><span class="body">I understand these outputs may contain sensitive data.</span></label>
+</div>
+<div class="card-pad between" style="border-top: 1px solid var(--border);"><button class="btn btn--ghost">Cancel</button><div class="rowc"><button class="btn">Turn these off</button><button class="btn btn--primary is-disabled">Confirm &amp; start scan</button></div></div>
+</div>
+</div>
+</div>
+  </main>
+</body>
+</html>

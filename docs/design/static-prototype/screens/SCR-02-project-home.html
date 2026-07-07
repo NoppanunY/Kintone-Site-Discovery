@@ -1,1 +1,35 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCR-02 Project Home</title><link rel="stylesheet" href="../styles/prototype.css"></head><body><main class="canvas single-canvas"><section class="screen"><div class="screen-h"><span class="screen-id">SCR-02</span><h3 class="screen-name">Project Home</h3><span class="screen-route">/</span></div><p class="screen-purpose">Home tab showing project-level sites and recent snapshots.</p><div class="frame-row"><div class="app tall"><div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Kintone Site Discovery</span></div><div class="menubar"><span>File</span><span>Project</span><span>View</span><span>Help</span></div><div class="sitetabs"><div class="stab active">Home</div><div class="stab">Client A <span class="x">×</span></div><div class="stab">Sandbox <span class="x">×</span></div><div class="stab add">＋</div></div><div class="appbody"><aside class="sidebar"><div class="side-label">Project</div><div class="nav-item active"><span class="ic">⌂</span>Home</div><div class="nav-item"><span class="ic">＋</span>Add site</div><div class="side-label">Recent</div><div class="nav-item"><span class="ic">●</span>Client A</div><div class="nav-item"><span class="ic">●</span>Sandbox</div></aside><main class="content"><div class="page"><div class="page-head"><div><div class="breadcrumb">Project</div><h1 class="h-display">Kintone Discovery Workspace</h1><p class="body muted">Manage read-only local snapshots for your kintone sites.</p></div><button class="btn btn--primary">Add kintone site</button></div><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="n">2</div><div class="l">Sites</div></div><div class="kpi"><div class="n">14</div><div class="l">Snapshots</div></div><div class="kpi"><div class="n">0</div><div class="l">Active scans</div></div></div><div class="list"><div class="li"><div class="grow"><h3 class="h3">Client A Production</h3><p class="small muted">Last snapshot today · 48 apps</p></div><span class="pill pill--ok"><span class="dot"></span>Completed</span><button class="btn btn--sm">Open</button></div><div class="li"><div class="grow"><h3 class="h3">Sandbox</h3><p class="small muted">Last snapshot yesterday · 12 apps</p></div><span class="pill pill--warn"><span class="dot"></span>Warnings</span><button class="btn btn--sm">Open</button></div></div></div></main></div></div></div></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCR-02 · Project Home</title>
+  <link rel="stylesheet" href="../styles/extracted.css" />
+</head>
+<body class="extracted-screen">
+  <main class="extracted-stage" aria-label="SCR-02 Project Home">
+<div class="app tall" data-dc-tpl="81">
+<div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="tb-title">Kintone Site Discovery — Client CRM Discovery</span></div>
+<div class="menubar"><span>Project</span><span>Account</span><span>Site</span><span>Scan</span><span>Snapshot</span><span>Window</span><span style="margin-left: auto;">Help</span></div>
+<div class="sitetabs"><div class="stab active">🏠 Home</div><div class="stab">Client A Production</div><div class="stab">Dev Sandbox</div><div class="stab add">＋</div></div>
+<div class="content"><div class="page">
+<div class="page-head"><div><div class="breadcrumb">Home</div><h1 class="h-display">Projects</h1><p class="body muted" style="margin-top: 5px;">A project is a local folder that holds your snapshots, reports and developer files.</p></div><button class="btn btn--primary">＋ New project</button></div>
+<div class="list">
+<div class="li"><div style="width: 36px; height: 36px; border-radius: var(--r-sm); background: var(--primary-tint); display: flex; align-items: center; justify-content: center; font-size: 17px;">📁</div><div class="grow"><div class="h3">Client CRM Discovery</div><div class="small muted2 mono">~/KintoneDiscovery/client-crm · opened 2h ago</div></div><button class="btn btn--sm">Open</button></div>
+<div class="li"><div style="width: 36px; height: 36px; border-radius: var(--r-sm); background: var(--primary-tint); display: flex; align-items: center; justify-content: center; font-size: 17px;">📁</div><div class="grow"><div class="h3">Vendor Audit 2026</div><div class="small muted2 mono">~/Work/vendor-audit · opened yesterday</div></div><button class="btn btn--sm">Open</button></div>
+</div>
+<div class="between" style="margin-top: 4px;"><h2 class="h2">Auth profiles <span class="small muted2" style="font-weight: 400;">· reusable across sites</span></h2><button class="btn btn--sm">＋ Add profile</button></div>
+<div class="list">
+<div class="li"><div class="grow rowc"><span style="font-size: 16px;">👤</span><div><div class="h3">Production Admin</div><div class="small muted2">admin@example.com · password ••••••</div></div></div><span class="pill pill--ok"><span class="dot"></span>Credential saved</span><span class="small muted2">Used by 2 sites</span><button class="btn btn--sm">Test</button></div>
+<div class="li"><div class="grow rowc"><span style="font-size: 16px;">👤</span><div><div class="h3">Client A Admin</div><div class="small muted2">ca-admin@client-a · password ••••••</div></div></div><span class="pill pill--warn"><span class="dot"></span>Needs update</span><span class="small muted2">Used by 1 site</span><button class="btn btn--sm">Test</button></div>
+</div>
+<div class="between" style="margin-top: 4px;"><h2 class="h2">Site workspaces</h2><button class="btn btn--sm">＋ Add site</button></div>
+<div class="list">
+<div class="li"><div class="grow"><div class="h3">Client A Production</div><div class="small muted2">client-a.cybozu.com · Client A Admin · last snapshot 2h ago</div></div><span class="pill pill--ok"><span class="dot"></span>Connected</span><button class="btn btn--sm btn--primary">Open</button></div>
+<div class="li"><div class="grow"><div class="h3">Dev Sandbox</div><div class="small muted2">dev.cybozu.com · Production Admin · never scanned</div></div><span class="pill pill--idle"><span class="dot"></span>Idle</span><button class="btn btn--sm btn--primary">Open</button></div>
+</div>
+</div></div>
+</div>
+  </main>
+</body>
+</html>

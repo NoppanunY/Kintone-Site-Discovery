@@ -2,7 +2,7 @@
 
 This folder contains per-screen static HTML extracted from `../Kintone-Site-Discovery-HiFi-rendered.html`, which was saved from the rendered Claude Design Hi-Fi page.
 
-This directory replaces the earlier simplified `static-prototype` reference. These files are intended to be the closer implementation reference for Codex because they preserve the rendered Hi-Fi DOM structure, class names, inline layout styles, app frame, menu bar, site tab bar, sidebar, content area, cards, buttons, pills, tables, banners, and modal composition.
+Unlike `../static-prototype/`, these files are intended to be the closer implementation reference for Codex because they preserve the rendered Hi-Fi DOM structure, class names, inline layout styles, app frame, menu bar, site tab bar, sidebar, content area, cards, buttons, pills, tables, banners, and modal composition.
 
 ## Important
 
@@ -45,7 +45,7 @@ This directory replaces the earlier simplified `static-prototype` reference. The
 Use these files before porting UI:
 
 1. Open `docs/design/Kintone-Site-Discovery-HiFi.html` as the original visual source of truth.
-2. Open `docs/design/static-prototype/index.html` and the per-screen files as readable implementation references.
+2. Open `docs/design/static-extracted/index.html` and the per-screen files as readable implementation references.
 3. Port the screen structure into reusable React components.
 4. Preserve visual layout and component composition.
 5. Do not add deploy, import, write-back, Git client, AI, rollback, or safe deploy behavior.
