@@ -86,7 +86,7 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 - **Sections:** Header (selected apps + freshness); read-only info banner; 3 preset cards; footer (Show advanced options · required note · Review & start).
 - **Required data:** selected app count; current preset; freshness.
 - **Primary actions:** Review & start → (or Configure › for Full Discovery).
-- **Secondary actions:** Show advanced options; Reload app list.
+- **Secondary actions:** Show advanced options.
 - **Empty:** 0 apps selected → redirect/guard to Apps ("Select apps first").
 - **Loading:** none (instant).
 - **Error:** none here; surfaced during run.

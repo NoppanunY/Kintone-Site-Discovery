@@ -39,7 +39,6 @@ export function ScanSetupScreen({ site, onAdvanced, onStart, onMockAction }: Sca
         breadcrumb={`${site.name} · Scan`}
         title="Choose a scan preset"
         subtitle={`${site.selectedApps} apps selected · app list fetched 2 hours ago`}
-        actions={<SecondaryActionButton label="⟳ Reload app list" size="sm" onClick={() => onMockAction("Sample app list reloaded. No kintone request was sent.")} />}
       />
       <div className="preset-grid" role="radiogroup" aria-label="Scan preset">
         {presetCards.map((preset) => (

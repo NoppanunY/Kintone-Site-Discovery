@@ -80,7 +80,6 @@ interface ScanSetupVM {
   requiredCategoryCount:number;      // shown as "17 required · always on"
   onSelectPreset(id:PresetId):void;
   onShowAdvanced():void;             // → SCR-06
-  onReloadAppList():void;
   onReviewAndStart():void;           // full_discovery/advanced ⇒ SCR-06; else start or SCR-07 if sensitive armed
   canStart:boolean;                  // false when selectedAppCount===0
 }
