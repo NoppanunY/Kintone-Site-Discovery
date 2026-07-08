@@ -2,7 +2,7 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
-For the next Codex implementation pass, read `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md` first. That file is the active checklist for N4-N5 and includes the P0 contract/flow corrections that must happen before local metadata persistence is allowed to become the app's source of truth.
+For the next Codex implementation pass, read `docs/CODEX_N5_HARDENING_PLAN.md` first. That file is the active checklist after the first N4/N5 metadata foundation landed on `develop`.
 
 The product is a **Windows desktop app**. The React/Vite UI is the renderer, not the final product boundary. The app must run locally on Windows, keep local project data on the user's machine, and read from kintone without writing anything back.
 
@@ -20,6 +20,10 @@ The `develop` branch has completed:
 - N2 Desktop shell scaffold
 - N3 Typed platform bridge stubs
 - UI consistency pass for Project / Connected Site / Auth Profile terminology
+- Initial N4 Core domain package
+- Initial N5 Local workspace metadata storage primitives
+
+The initial N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, and tests.
 
 Desktop runtime decision:
 
@@ -59,23 +63,27 @@ Definitions for the next phase:
 - Do not create temporary branches unless asked.
 - Use Conventional Commits.
 - Keep changes small and reviewable.
-- Run `pnpm typecheck`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` after implementation changes.
+- Run `pnpm typecheck`, `pnpm test`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` after implementation changes.
 - If `pnpm desktop:build` fails only because Vite/esbuild is blocked by the sandbox with `Cannot read directory "../../.."`, rerun the same command outside the sandbox for build verification.
 
 ## Active next implementation batch
 
-Implement only the P0 corrections listed below plus N4 and N5 next. Stop before N6-N10.
+Implement only N5 hardening next. Stop before N6-N10.
 
-P0 corrections are part of the N4-N5 batch because they prevent unsafe persistence of the wrong model shape:
+N5 hardening is required because the first metadata foundation exists but still needs safety and correctness work before secure credentials or read-only kintone access can be built on top of it.
 
-- Align renderer data models with `docs/ui-handoff/DATA_CONTRACT.md` before writing project metadata to disk.
-- Replace UI-label status unions with canonical snake_case status values plus label maps.
-- Replace scan preset id `full` with canonical `full_discovery`.
-- Replace project `authProfileId`-only assumptions with `Project.authSelection`.
-- Make sensitive confirmation state-derived and route-guarded.
-- Add onboarding step validation and block Apps until the mocked connection test has passed.
-- Add scan route guards for selected apps and sensitive confirmation.
-- Fix nested interactive controls in the tab bar before treating it as production shell behavior.
+Hardening focus:
+
+- Use persisted Connected Sites and Auth Profiles in the New Project wizard.
+- Validate all persisted metadata on read and write, not just JSON parse/cast.
+- Use core validators in UI submit paths for project names, paths, domains, and auth/site metadata.
+- Preserve project-local auth when editing project metadata.
+- Persist and hydrate app-list / selected-app state from project metadata.
+- Restrict `openLocalFolder` to allowed project/app-data paths.
+- Reuse core deterministic/no-secret serialization in desktop storage.
+- Make project/site/auth local IDs collision-safe.
+- Make mock/browser fallback boundaries explicit.
+- Add tests for all of the above.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
@@ -83,94 +91,40 @@ P0 corrections are part of the N4-N5 batch because they prevent unsafe persisten
 | N1 | Done | Windows desktop runtime ADR | Electron selected and documented. |
 | N2 | Done | Desktop shell scaffold | Existing renderer launches inside the desktop shell. |
 | N3 | Done | Typed platform bridge stubs | Safe typed bridge stubs exist for future desktop operations. |
-| P0 | Next | Contract and flow corrections | Fix model/route/wizard/sensitive-flow issues before persistence. |
-| N4 | Next | Core domain package | Add shared pure TypeScript domain models, validators, constants, and safe helpers. |
-| N5 | Next | Local workspace storage | Add project/connected-site/auth-profile metadata persistence and project-folder primitives. |
+| P0 | Done | Contract and flow corrections | Initial model/route/wizard/sensitive-flow fixes are implemented. |
+| N4 | Done | Core domain package | Initial shared pure TypeScript domain models, validators, constants, and safe helpers exist. |
+| N5 | In progress | Local workspace storage hardening | Harden metadata persistence before secure credentials and kintone reads. |
 | N6 | Later | OS secure storage | Add real secure credential handling through the platform layer. |
 | N7 | Later | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
 | N8 | Later | Scan runner | Add scan orchestration with fixture collectors first. |
 | N9 | Later | Reports and Developer Files | Generate derived outputs from Local Snapshot. |
 | N10 | Later | Windows packaging | Package the app for Windows after the core path is stable. |
 
-## N4 - Core domain package
+## N5 hardening - local metadata safety
 
-Goal: create the shared pure TypeScript foundation that both desktop UI and future CLI can use.
-
-Recommended scope:
-
-- Add `packages/core` and update workspace config so `packages/*` is included.
-- Move or mirror canonical domain types from `docs/ui-handoff/DATA_CONTRACT.md`.
-- Define constants for capture presets and category tiers.
-- Add pure validators and normalizers for:
-  - kintone domain strings,
-  - project names,
-  - Windows-safe local paths,
-  - local IDs,
-  - app selection state,
-  - Project / ConnectedSite / AuthProfile / authSelection metadata.
-- Add result/error shapes that match the UI state matrix.
-- Add deterministic JSON serialization helpers where useful.
-- Add no-secret serialization checks/helpers.
-
-Rules:
-
-- Pure TypeScript only.
-- No filesystem writes.
-- No Electron, Node privileged APIs, browser globals, kintone calls, scan runner, or keychain access.
-- No CLI command behavior.
-- No deploy/import/write-back verbs.
-
-Acceptance:
-
-- `packages/core` exports stable typed interfaces and pure helpers.
-- Renderer can import types/helpers without pulling in Node-only code.
-- Renderer uses canonical enum values for persistable state.
-- UI labels are derived through mapping/copy helpers rather than stored as data values.
-- TypeScript passes.
-- Unit tests or focused type/runtime checks cover validators, sensitive-option derivation, no-secret serialization, and preset/category defaults if a test runner is added in this batch.
-
-## N5 - Local workspace storage
-
-Goal: introduce real local metadata persistence without connecting to kintone or writing scan snapshots.
+Goal: make the existing local metadata foundation safe, validated, and stable enough to support N6 secure credential storage and N7 read-only kintone access.
 
 Recommended scope:
 
-- Add an app-level metadata store under the desktop app data directory for:
-  - recent projects,
-  - connected sites,
-  - auth profile metadata without secrets,
-  - window/tab state.
-- Add project-folder primitives for one-site-per-project storage:
-  - create/open/validate Project folder,
-  - write/read `project.json`,
-  - write/read selected ConnectedSite metadata cache,
-  - initialize `app-list.json`, `current.json`, `history.json`, `snapshots/`, `.app/`, and `.kintone/` placeholders as needed.
-- Extend the typed platform bridge narrowly for workspace operations. Renderer code must not gain unrestricted filesystem access.
-- Wire folder picker/open-folder through the platform bridge.
-- Use atomic JSON writes (temp file + rename).
-- Use Windows-safe path handling and clear user-facing errors.
-
-Rules:
-
-- No real credential storage. Auth profile files may contain only metadata and future keychain references, never secrets.
-- No kintone API calls.
-- No app list fetching from kintone.
-- No scan runner.
-- No snapshot capture or report/developer-file generation yet.
-- No CLI behavior.
+- Follow `docs/CODEX_N5_HARDENING_PLAN.md` exactly.
+- Keep all work inside local metadata, UI binding, bridge boundaries, validation, and tests.
+- Do not add kintone clients, real credential providers, scan runner, snapshot writer, reports generator, CLI behavior, or packaging.
 
 Acceptance:
 
-- Desktop can create/open a mock Project folder and persist metadata locally.
-- Home can be backed by persisted Projects / ConnectedSites / AuthProfiles, while still using mock app/snapshot data for scan screens.
-- Open project tabs and active tab state can persist across restart.
-- Corrupt/missing project metadata shows recoverable errors; it does not crash the renderer.
-- Secret-like values are never written to app-level or project-level metadata files.
-- `pnpm typecheck`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` pass.
+- Persisted sites/auth profiles are available in New Project.
+- Invalid metadata is reported as recoverable and never silently treated as valid.
+- Project-local auth cannot be accidentally converted to global auth by editing project metadata.
+- Persisted app-list metadata hydrates app counts and selected app state.
+- `openLocalFolder` rejects arbitrary absolute paths outside known app/project roots.
+- ID generation avoids collisions for duplicate project/site/auth names.
+- Desktop storage uses shared core no-secret serialization checks.
+- Empty desktop metadata does not masquerade as sample/mock projects.
+- `pnpm typecheck`, `pnpm test`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` pass or have documented environment-only failures.
 
-## Later steps after N4-N5 review
+## Later steps after N5 hardening review
 
-Do not start these until N4-N5 are reviewed:
+Do not start these until N5 hardening is reviewed:
 
 - N6: Implement OS secure storage through the platform layer.
 - N7: Add read-only kintone client scaffolding and real connection/app-list tests.
@@ -180,16 +134,16 @@ Do not start these until N4-N5 are reviewed:
 
 ## Codex report format
 
-When done with the next batch, report:
+When done with N5 hardening, report:
 
 1. Files created/changed.
-2. Core package APIs added.
-3. Renderer model drift fixes made.
-4. Workspace storage files and locations.
-5. Platform bridge APIs added.
-6. Route guard and sensitive-flow behavior changed.
-7. Onboarding validation behavior changed.
-8. Commands run and results.
-9. Desktop dev/build commands.
-10. What remains before OS credentials, local snapshot writes, and kintone reads.
-11. Any Windows-specific risks or questions.
+2. Metadata validation changes.
+3. Onboarding persisted site/auth changes.
+4. App-list hydration and selected-app persistence changes.
+5. Project-local auth edit behavior.
+6. Open-folder allow-list behavior.
+7. ID collision strategy.
+8. No-secret serialization changes.
+9. Tests added/updated and command results.
+10. Verification command results.
+11. What remains before N6 OS secure credentials and N7 read-only kintone access.
