@@ -6,32 +6,33 @@ This document points Codex to the current implementation specs for Kintone Site 
 
 The UI skeleton, Windows desktop shell scaffold, and typed platform bridge stubs are complete on `develop`.
 
-The next implementation phase is `N4-N5` from `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md`: create the shared pure TypeScript core/domain package and local workspace metadata storage primitives. Do not jump directly to real kintone collection, scan execution, snapshot writing, credential storage, or CLI behavior.
+The next implementation phase is `N4-N5` from `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md`, supported by `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md`: create the shared pure TypeScript core/domain package, fix the P0 contract/flow drift that would make persistence unsafe, and add local workspace metadata storage primitives. Do not jump directly to real kintone collection, scan execution, snapshot writing, credential storage, or CLI behavior.
 
-A CLI command contract now exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the first implementation batch. Build the UI skeleton first; add CLI behavior only after the shared `packages/core` API is defined.
+A CLI command contract now exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the first implementation batch. Build the shared `packages/core` API and local storage primitives first; add CLI behavior only after the shared core interfaces exist and N4-N5 are reviewed.
 
 ## Source-of-truth order
 
-1. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — active Codex batch plan and current phase boundaries
-2. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
-3. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
-4. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
-5. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
-6. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
-7. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
-8. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
-9. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
-10. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
-11. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
-12. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
-13. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
+1. `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md` — active implementation checklist for the next Codex pass
+2. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — phase boundaries and N4-N10 roadmap
+3. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
+4. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
+5. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
+6. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
+7. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
+8. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
+9. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
+10. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
+11. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
+12. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
+13. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
+14. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
 
-If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`.
+If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`, but do not implement CLI behavior in N4-N5.
 
 ## Core product model
 
 ```text
-Pull from kintone → write one complete local snapshot
+Pull from kintone -> write one complete local snapshot
 ```
 
 Local Snapshot is the canonical output. Reports and Developer Files are generated from a snapshot.
@@ -78,10 +79,16 @@ Do not implement:
 
 Implement only:
 
+- P0 contract/flow corrections required before persistence:
+  - renderer data model drift vs `DATA_CONTRACT.md`
+  - sensitive confirmation state/route guard drift
+  - onboarding validation and mocked connection-test gating
+  - scan route guards
+  - tab-bar accessibility issue from nested interactive controls
 - N4 Core domain package
 - N5 Local workspace storage primitives
 
-Stop after N4-N5 are complete and reviewed before implementing OS secure storage, real kintone reads, scan runner, local snapshot writes, reports/developer-file generation, or CLI behavior.
+Stop after N4-N5 are complete and reviewed before implementing OS secure storage, real kintone reads, scan runner, local snapshot writes, reports/developer-file generation, CLI behavior, or Windows packaging.
 
 ## CLI note for the next batch
 
