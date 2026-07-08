@@ -22,9 +22,11 @@ This note records the first UI skeleton batch implemented from the Claude Design
 ## Product model update
 
 - Desktop mock now separates reusable Sites from Projects.
-- `Site` means a connected kintone site: display name, domain, auth profile, and connection status.
-- `Project` means a local folder/workspace that selects one Site. Multiple Projects may reference the same Site/domain.
+- `Site` means a reusable kintone target: display name, domain, and saved-site status. It does not own an auth profile.
+- `Auth profile` means a reusable global credential identity.
+- `Project` means a local folder/workspace that selects one Site and one Auth profile. Multiple Projects may reference the same Site/domain.
 - The Home screen should show Projects, Sites, and Auth profiles as separate sections. Tabs and scan/snapshot/report/history routes are Project-scoped, while page copy still shows the linked Site for context.
+- The New project wizard uses five steps: Project, Auth profile, Site, Test, Apps. The Test step validates the selected Site + Auth profile pair for that Project.
 
 ## Visual verification notes
 

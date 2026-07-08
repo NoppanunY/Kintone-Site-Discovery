@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ConnectionTestPanel, StatusPill } from "../../components";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../../mockConnection";
-import { connectedSites, getConnectedSiteById, profiles } from "../../mockData";
+import { connectedSites, getAuthProfileById, getConnectedSiteById, profiles } from "../../mockData";
 import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../../types";
 
 export type OnboardingEntry = "new-project" | "add-site" | "add-auth";
@@ -24,14 +24,12 @@ interface StepDefinition {
 const flowSteps: Record<OnboardingEntry, StepDefinition[]> = {
   "new-project": [
     { key: "project", label: "Project" },
+    { key: "auth", label: "Auth profile" },
     { key: "site", label: "Site" },
+    { key: "test", label: "Test" },
     { key: "apps", label: "Apps" },
   ],
-  "add-site": [
-    { key: "site", label: "Site" },
-    { key: "auth", label: "Auth profile" },
-    { key: "test", label: "Test" },
-  ],
+  "add-site": [{ key: "site", label: "Site" }],
   "add-auth": [{ key: "auth", label: "Auth profile" }],
 };
 
@@ -48,7 +46,7 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
   const [stepIndex, setStepIndex] = useState(0);
   const [authMode, setAuthMode] = useState<AuthMode>(entry === "add-auth" ? "new" : "existing");
   const [selectedSiteId, setSelectedSiteId] = useState(getInitialSiteId(initialSiteId));
-  const [selectedProfile, setSelectedProfile] = useState(getConnectedSiteById(getInitialSiteId(initialSiteId)).profile);
+  const [selectedAuthProfileId, setSelectedAuthProfileId] = useState("client-a-admin");
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex === steps.length - 1;
@@ -57,22 +55,24 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
   const showMockAction: MockActionHandler = (message, options) => {
     onMockAction?.(message, options);
   };
+  const selectedSite = getConnectedSiteById(selectedSiteId);
+  const selectedProfile = getAuthProfileById(selectedAuthProfileId);
   const connectionTarget: ConnectionTestTarget = {
-    siteName: entry === "add-site" ? "Client A QA" : getConnectedSiteById(selectedSiteId).name,
-    domain: entry === "add-site" ? "client-a-qa.cybozu.com" : getConnectedSiteById(selectedSiteId).domain,
-    authProfile: selectedProfile,
+    siteName: selectedSite.name,
+    domain: selectedSite.domain,
+    authProfile: selectedProfile.name,
   };
 
-  function connectionOutcomeForProfile(profileName: string) {
-    return profiles.find((profile) => profile.name === profileName)?.tone === "warn" ? "failed" : "passed";
+  function connectionOutcomeForProfile(authProfileId: string) {
+    return getAuthProfileById(authProfileId).tone === "warn" ? "failed" : "passed";
   }
 
-  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForProfile(selectedProfile)) {
+  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForProfile(selectedAuthProfileId)) {
     setConnectionResult(createTestingConnectionResult(connectionTarget));
     window.setTimeout(() => {
       setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
       if (outcome === "passed") {
-        showMockAction(`${selectedProfile} connection test passed. No kintone request was sent.`, { tone: "ok" });
+        showMockAction(`${selectedProfile.name} connection test passed for ${selectedSite.name}. No kintone request was sent.`, { tone: "ok" });
       }
     }, 450);
   }
@@ -84,26 +84,23 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
         entry,
         authMode,
         selectedSiteId,
-        selectedProfile,
+        selectedAuthProfileId,
         onSelectAuthMode: setAuthMode,
-        onSelectSite: (siteId) => {
-          setSelectedSiteId(siteId);
-          setSelectedProfile(getConnectedSiteById(siteId).profile);
-        },
-        onSelectProfile: setSelectedProfile,
+        onSelectSite: setSelectedSiteId,
+        onSelectAuthProfile: setSelectedAuthProfileId,
         onMockAction: showMockAction,
         connectionResult,
         onRunConnectionTest: runConnectionTest,
         onClearConnectionTest: () => setConnectionResult(null),
       }),
-    [authMode, connectionResult, entry, selectedProfile, selectedSiteId, step.key],
+    [authMode, connectionResult, entry, selectedAuthProfileId, selectedSiteId, step.key],
   );
 
   useEffect(() => {
     setStepIndex(0);
     setAuthMode(entry === "add-auth" ? "new" : "existing");
     setSelectedSiteId(getInitialSiteId(initialSiteId));
-    setSelectedProfile(getConnectedSiteById(getInitialSiteId(initialSiteId)).profile);
+    setSelectedAuthProfileId("client-a-admin");
     setConnectionResult(null);
   }, [entry, initialSiteId]);
 
@@ -179,10 +176,10 @@ function renderStep({
   entry,
   authMode,
   selectedSiteId,
-  selectedProfile,
+  selectedAuthProfileId,
   onSelectAuthMode,
   onSelectSite,
-  onSelectProfile,
+  onSelectAuthProfile,
   onMockAction,
   connectionResult,
   onRunConnectionTest,
@@ -192,10 +189,10 @@ function renderStep({
   entry: OnboardingEntry;
   authMode: AuthMode;
   selectedSiteId: string;
-  selectedProfile: string;
+  selectedAuthProfileId: string;
   onSelectAuthMode: (mode: AuthMode) => void;
   onSelectSite: (siteId: string) => void;
-  onSelectProfile: (profile: string) => void;
+  onSelectAuthProfile: (profileId: string) => void;
   onMockAction: MockActionHandler;
   connectionResult: ConnectionTestResult | null;
   onRunConnectionTest: (outcome?: "passed" | "failed") => void;
@@ -222,6 +219,7 @@ function renderStep({
   }
 
   if (step === "auth") {
+    const selectedProfile = getAuthProfileById(selectedAuthProfileId);
     return (
       <>
         <WizardIntro title={authStepTitle(entry)} body={authStepBody(entry)} />
@@ -247,12 +245,12 @@ function renderStep({
               <>
                 <SelectField
                   label="Auth profile"
-                  value={selectedProfile}
+                  value={selectedAuthProfileId}
                   options={authProfileOptions()}
-                  onChange={onSelectProfile}
-                  meta="Global auth profiles can be linked to any connected site."
+                  onChange={onSelectAuthProfile}
+                  meta="Global auth profiles can be selected by any project."
                 />
-                <SelectedProfileBanner selectedProfile={selectedProfile} />
+                <SelectedProfileBanner selectedProfile={selectedProfile.name} />
               </>
             ) : (
               <AuthProfileFields />
@@ -266,11 +264,12 @@ function renderStep({
   if (step === "site") {
     if (entry === "new-project") {
       const selectedSite = getConnectedSiteById(selectedSiteId);
+      const selectedProfile = getAuthProfileById(selectedAuthProfileId);
       return (
         <>
           <WizardIntro
             title="Choose a connected site"
-            body="The project will use one existing site connection. The same connected site can be selected by more than one project."
+            body="The project will use one existing site target with the auth profile selected in the previous step."
           />
           <div className="form-grid">
             <SelectField
@@ -281,7 +280,7 @@ function renderStep({
               meta="Add a connected site first if it is not listed here."
             />
             <MockField label="Domain" value={selectedSite.domain} />
-            <MockField label="Auth profile" value={selectedSite.profile} meta="The auth profile belongs to the connected site." />
+            <MockField label="Selected auth profile" value={selectedProfile.name} meta="Auth is selected by this project, not stored on the site." />
             <MockField label="Project snapshot folder" value="~/KintoneDiscovery/client-crm-copy/snapshot" />
           </div>
         </>
@@ -304,12 +303,15 @@ function renderStep({
   }
 
   if (step === "test") {
+    const selectedSite = getConnectedSiteById(selectedSiteId);
+    const selectedProfile = getAuthProfileById(selectedAuthProfileId);
     return (
       <>
-        <WizardIntro title="Test the read-only connection" body="This checks the setup flow in preview mode. No kintone request is sent yet." />
+        <WizardIntro title="Test the read-only connection" body="This checks the selected site and auth profile pair in preview mode. No kintone request is sent yet." />
         <div className="list">
-          <CheckRow label="Connected site prepared" detail="Client A QA is ready to be saved to the global site list." />
-          <CheckRow label="Global auth profile linked" detail={`${selectedProfile} is selected for this connected site.`} />
+          <CheckRow label="Project selected" detail="Client CRM Discovery Copy is the local workspace." />
+          <CheckRow label="Site selected" detail={`${selectedSite.name} · ${selectedSite.domain}`} />
+          <CheckRow label="Auth profile selected" detail={`${selectedProfile.name} is selected for this project.`} />
           <CheckRow label="Read permission check" detail="Preview check passed without contacting kintone." />
         </div>
         <div className="rowc">
@@ -373,11 +375,7 @@ function authStepBody(entry: OnboardingEntry) {
     return "Create a reusable global sign-in profile. This preview does not store real credentials yet.";
   }
 
-  if (entry === "add-site") {
-    return "Choose the auth profile for this connected site. Projects will inherit this choice when they use the site.";
-  }
-
-  return "Choose a global auth profile, or create a new preview profile.";
+  return "Choose a global auth profile for this project, or create a new preview profile.";
 }
 
 function AuthProfileFields() {
@@ -386,7 +384,7 @@ function AuthProfileFields() {
       <MockField label="Profile name" value="Client A Admin" />
       <MockField label="Username" value="ca-admin@client-a" />
       <MockField label="Password" value="••••••••" meta="Preview only · credential storage will use the OS keychain" />
-      <MockField label="Availability" value="Global" meta="Can be linked to any connected site." />
+      <MockField label="Availability" value="Global" meta="Can be selected by any project." />
     </div>
   );
 }
@@ -395,7 +393,7 @@ function SelectedProfileBanner({ selectedProfile }: { selectedProfile: string })
   return (
     <div className="banner screen-note">
       <div>
-        <b>{selectedProfile}</b> will be linked to this connected site in preview mode. Credential lookup is not connected yet.
+        <b>{selectedProfile}</b> will be selected for this project in preview mode. Credential lookup is not connected yet.
       </div>
     </div>
   );
@@ -452,7 +450,7 @@ function SelectField({
 
 function authProfileOptions() {
   return profiles.map((profile) => ({
-    value: profile.name,
+    value: profile.id,
     label: `${profile.name} · ${profile.user} · ${profile.status}`,
   }));
 }
@@ -460,7 +458,7 @@ function authProfileOptions() {
 function connectedSiteOptions() {
   return connectedSites.map((site) => ({
     value: site.id,
-    label: `${site.name} · ${site.domain} · ${site.profile}`,
+    label: `${site.name} · ${site.domain}`,
   }));
 }
 

@@ -41,8 +41,9 @@ Desktop UI and CLI must eventually wrap the same `packages/core` API surface. Do
 
 For the desktop MVP mock, keep `Connected Site` and `Project` as separate objects:
 
-- `Connected Site` is a reusable kintone connection: display name, domain, auth profile, and connection status.
-- `Project` is a local folder/workspace that selects exactly one Connected Site.
+- `Connected Site` is a reusable kintone target: display name, domain, and saved-site status. It does not own an auth profile.
+- `Auth Profile` is a reusable global credential identity.
+- `Project` is a local folder/workspace that selects exactly one Connected Site and one Auth Profile.
 - Multiple Projects may reference the same Connected Site/domain when the user wants separate folders, snapshots, or review purposes.
 
 Older specs still use the term Site Workspace. For current desktop UI work, interpret the active screen context as a Project plus its linked Connected Site. User-facing UI should show Projects, Sites, and Auth profiles as separate lists until the core workspace/storage model is wired.

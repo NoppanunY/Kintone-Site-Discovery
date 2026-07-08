@@ -15,16 +15,25 @@ export interface ConnectedSiteModel {
   id: Id;
   name: string;
   domain: string;
-  profile: string;
   status: string;
   tone: StatusTone;
   meta: string;
+}
+
+export interface AuthProfileModel {
+  id: Id;
+  name: string;
+  user: string;
+  status: string;
+  tone: StatusTone;
+  usage: string;
 }
 
 export interface ProjectModel {
   id: Id;
   name: string;
   siteId: Id;
+  authProfileId: Id;
   path: string;
   opened: string;
   meta: string;
@@ -42,6 +51,10 @@ export interface ProjectContextModel extends ConnectedSiteModel {
   opened: string;
   siteId: Id;
   siteMeta: string;
+  authProfileId: Id;
+  profile: string;
+  profileUser: string;
+  credentialStatus: string;
   hasSnapshot: boolean;
   selectedApps: number;
   appsAvailable: number;

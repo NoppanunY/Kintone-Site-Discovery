@@ -9,9 +9,9 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 ## SCR-01 · First-run onboarding wizard
 - **Route:** `/onboarding`
 - **Purpose:** Get a first-time user from install to a ready-to-scan site in one guided path.
-- **Primary goal:** Create/open a project, sign in, add a site, test the connection, fetch apps.
-- **Sections:** Stepper (5 steps); step body (Project / Sign-in / Site / Test / Apps); footer nav (Back · Continue).
-- **Required data:** project name+folder; existing global auth profile or new auth username+password (→ keychain); site name+domain+folder; connection test result; app list count.
+- **Primary goal:** Create/open a project, choose a global auth profile, choose a site target, test that pairing, fetch apps.
+- **Sections:** Stepper (5 steps); step body (Project / Auth profile / Site / Test / Apps); footer nav (Back · Continue).
+- **Required data:** project name+folder; existing global auth profile or new auth username+password (→ keychain); site name+domain; connection test result for the selected site+auth pair; app list count.
 - **Primary actions:** Continue → (advance/validate); Finish → Go to site Overview.
 - **Secondary actions:** Back; Browse folder; Cancel setup.
 - **Empty:** N/A (wizard is the empty state of the app).
@@ -22,32 +22,32 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 - **Acceptance criteria:**
   - Password uses SecretField; never echoed, never written to project files.
   - Step 4 must pass before Step 5; failure blocks Continue.
-  - Finish creates the SiteWorkspace and fetched app list, then routes to `/site/:id/overview` with Run scan primary. No snapshot is created until the first scan writes a snapshot folder.
-  - Re-runnable later to add another site.
+  - Finish creates a Project that stores `siteId` + `authProfileId`, then routes to the Project overview with Run scan primary. No snapshot is created until the first scan writes a snapshot folder.
+  - Re-runnable later to create another Project or add another reusable Site.
 
 ## SCR-02 · Project Home
 - **Route:** `/` (Home tab)
-- **Purpose:** Manage projects, global reusable auth profiles, and site workspaces.
-- **Primary goal:** Open a project or a site; keep credentials and sites organized.
-- **Sections:** Projects list; Auth profiles list; Site workspaces list.
-- **Required data:** recent projects (name, path, opened-at); global profiles (name, username, credential status, linked-site/project count); sites (name, domain, profile, status, last-snapshot).
-- **Primary actions:** New project; Open (project/site); Add profile; Add site.
+- **Purpose:** Manage projects, global reusable auth profiles, and reusable site targets.
+- **Primary goal:** Open a project; keep credentials and sites organized separately.
+- **Sections:** Projects list; Sites list; Auth profiles list.
+- **Required data:** recent projects (name, path, opened-at, linked site, selected auth profile); global profiles (name, username, credential status, linked-project count); sites (name, domain, saved status, usage count).
+- **Primary actions:** New project; Open project; Add profile; Add site; Use site in new project.
 - **Secondary actions:** Test profile; Edit; Forget credential; Remove from list; Open folder.
 - **Empty:** No projects → large "Create your first project" CTA; empty profiles/sites → inline add prompt.
 - **Loading:** Skeleton rows while reading local project index.
 - **Error:** Project folder missing/moved → row shows "Folder not found" with Locate / Remove.
-- **Disabled:** Open disabled for a site whose profile has a missing credential (tooltip: "Add a password to connect").
+- **Disabled:** Open disabled for a project whose selected auth profile has a missing credential (tooltip: "Add a password to connect").
 - **Confirmations:** Remove project/site (default = remove from app, keep files); "Move files to Trash" is a separate explicit confirm showing the path; Forget credential confirms.
 - **Acceptance criteria:**
   - Passwords render as fixed `••••••`; no reveal anywhere.
   - Delete/remove never deletes local files unless the explicit trash confirm is used.
-  - Profile shows linked site/project usage; site shows its linked profile name.
+  - Profile shows linked project usage; site rows do not show auth because auth is selected by Projects.
 
 ## SCR-03 · Site Overview
 - **Route:** `/site/:siteId/overview`
 - **Purpose:** Status cockpit for one site; launch point for a scan and for snapshot views.
 - **Primary goal:** See connection + snapshot status and Run scan.
-- **Sections:** Header (name/domain/profile + status + actions); KPI row (apps available / in snapshot / plugins / redactions); Snapshot card; snapshot-model info banner.
+- **Sections:** Header (project name, site name/domain, selected auth profile + status + actions); KPI row (apps available / in snapshot / plugins / redactions); Snapshot card; snapshot-model info banner.
 - **Required data:** connection status; counts; last snapshot (status, captured-at, size, folder path).
 - **Primary actions:** Run scan.
 - **Secondary actions:** Test connection; Open Local Snapshot; View reports; Developer files; Open folder.

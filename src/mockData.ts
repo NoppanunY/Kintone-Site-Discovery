@@ -1,5 +1,6 @@
 import type {
   ConnectedSiteModel,
+  AuthProfileModel,
   DeveloperFileItem,
   FileOrderItem,
   KpiModel,
@@ -20,29 +21,31 @@ export const connectedSites: ConnectedSiteModel[] = [
     id: siteId,
     name: "Client A Production",
     domain: "client-a.cybozu.com",
-    profile: "Client A Admin",
-    status: "Connected",
+    status: "Saved",
     tone: "ok",
-    meta: "last tested 2h ago",
+    meta: "used by 2 projects",
   },
   {
     id: "dev-sandbox",
     name: "Dev Sandbox",
     domain: "dev.cybozu.com",
-    profile: "Production Admin",
-    status: "Idle",
+    status: "Saved",
     tone: "idle",
-    meta: "not tested yet",
+    meta: "not used by a project yet",
   },
   {
     id: "vendor-audit-main",
     name: "Vendor Audit Main",
     domain: "vendor.cybozu.com",
-    profile: "Production Admin",
-    status: "Connected",
+    status: "Saved",
     tone: "ok",
-    meta: "last tested yesterday",
+    meta: "used by 1 project",
   },
+];
+
+export const profiles: AuthProfileModel[] = [
+  { id: "production-admin", name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok", usage: "Used by 1 project" },
+  { id: "client-a-admin", name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn", usage: "Used by 2 projects" },
 ];
 
 export const projectRows: ProjectModel[] = [
@@ -50,6 +53,7 @@ export const projectRows: ProjectModel[] = [
     id: projectId,
     name: "Client CRM Discovery",
     siteId,
+    authProfileId: "client-a-admin",
     path: "~/KintoneDiscovery/client-crm",
     opened: "opened 2h ago",
     meta: "last snapshot 2h ago",
@@ -63,6 +67,7 @@ export const projectRows: ProjectModel[] = [
     id: "client-crm-review-copy",
     name: "Client CRM Review Copy",
     siteId,
+    authProfileId: "client-a-admin",
     path: "~/KintoneDiscovery/client-crm-review-copy",
     opened: "opened 1h ago",
     meta: "never scanned",
@@ -76,6 +81,7 @@ export const projectRows: ProjectModel[] = [
     id: "vendor-audit-2026",
     name: "Vendor Audit 2026",
     siteId: "vendor-audit-main",
+    authProfileId: "production-admin",
     path: "~/Work/vendor-audit",
     opened: "opened yesterday",
     meta: "last snapshot yesterday",
@@ -91,6 +97,10 @@ export function getConnectedSiteById(id: string | null | undefined): ConnectedSi
   return connectedSites.find((site) => site.id === id) ?? connectedSites[0];
 }
 
+export function getAuthProfileById(id: string | null | undefined): AuthProfileModel {
+  return profiles.find((profile) => profile.id === id) ?? profiles[0];
+}
+
 export function getProjectById(id: string | null | undefined): ProjectModel {
   return projectRows.find((project) => project.id === id) ?? projectRows[0];
 }
@@ -102,6 +112,7 @@ export function projectIdForRouteSegment(id: string | null | undefined): string 
 export function projectContext(id: string | null | undefined): ProjectContextModel {
   const project = getProjectById(projectIdForRouteSegment(id));
   const site = getConnectedSiteById(project.siteId);
+  const profile = getAuthProfileById(project.authProfileId);
 
   return {
     ...site,
@@ -112,6 +123,10 @@ export function projectContext(id: string | null | undefined): ProjectContextMod
     opened: project.opened,
     siteId: site.id,
     siteMeta: site.meta,
+    authProfileId: profile.id,
+    profile: profile.name,
+    profileUser: profile.user,
+    credentialStatus: profile.status,
     meta: project.meta,
     hasSnapshot: project.hasSnapshot,
     selectedApps: project.selectedApps,
@@ -141,7 +156,6 @@ export const workspaces = connectedSites.map((site) => ({
   id: site.id,
   name: site.name,
   domain: site.domain,
-  profile: site.profile,
   meta: site.meta,
   status: site.status,
   tone: site.tone,
@@ -178,11 +192,6 @@ export function historyRunsForSite(site: SiteWorkspaceModel) {
 }
 
 export const overviewKpis: KpiModel[] = overviewKpisForSite(projectContext(projectId));
-
-export const profiles = [
-  { name: "Production Admin", user: "admin@example.com", status: "Credential saved", tone: "ok" as const, sites: "Used by 2 sites · 1 project" },
-  { name: "Client A Admin", user: "ca-admin@client-a", status: "Needs update", tone: "warn" as const, sites: "Used by 1 site · 2 projects" },
-];
 
 export const apps = [
   { name: "Sales Management", id: "101", space: "Main Portal", facts: "has plugins/customization", status: "In snapshot", tone: "ok" as const, selected: true },
