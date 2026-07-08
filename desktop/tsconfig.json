@@ -14,5 +14,5 @@
     "declaration": true,
     "sourceMap": true
   },
-  "include": ["./**/*.cts", "../src/platform/bridgeTypes.ts"]
+  "include": ["./**/*.cts", "../src/platform/bridgeTypes.ts", "../packages/core/src/**/*.ts"]
 }

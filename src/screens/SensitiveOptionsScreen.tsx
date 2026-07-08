@@ -1,29 +1,32 @@
 import { useState } from "react";
 import { PrimaryActionButton, SecondaryActionButton, SensitiveOptionRow } from "../components";
-import { additionalOptions, recommendedOptions, requiredOptions } from "../mockData";
-import type { SiteWorkspaceModel } from "../types";
-import { PageHeader } from "./shared";
+import { recommendedOptions, requiredOptions } from "../mockData";
+import type { SensitiveOption, SiteWorkspaceModel } from "../types";
+import { PageHeader, ScanAppSelectionNotice } from "./shared";
 
 interface SensitiveOptionsScreenProps {
   site: SiteWorkspaceModel;
   compact?: boolean;
+  canStartScan: boolean;
+  additionalOptions: SensitiveOption[];
+  onAdditionalOptionsChange: (options: SensitiveOption[]) => void;
   onBack: () => void;
+  onChooseApps: () => void;
   onConfirm: () => void;
 }
 
-export function SensitiveOptionsScreen({ site, compact = false, onBack, onConfirm }: SensitiveOptionsScreenProps) {
+export function SensitiveOptionsScreen({ site, compact = false, canStartScan, additionalOptions, onAdditionalOptionsChange, onBack, onChooseApps, onConfirm }: SensitiveOptionsScreenProps) {
   const [recommended, setRecommended] = useState(recommendedOptions);
-  const [additional, setAdditional] = useState(additionalOptions);
-  const visibleAdditional = compact ? additional.slice(0, 2) : additional;
+  const visibleAdditional = compact ? additionalOptions.filter((option) => option.value) : additionalOptions;
   const enabledRecommendedCount = recommended.filter((option) => option.value).length;
-  const enabledAdditionalCount = additional.filter((option) => option.value).length;
+  const enabledAdditionalCount = additionalOptions.filter((option) => option.value).length;
 
   function toggleRecommended(key: string) {
     setRecommended((options) => options.map((option) => (option.key === key ? { ...option, value: !option.value } : option)));
   }
 
   function toggleAdditional(key: string) {
-    setAdditional((options) => options.map((option) => (option.key === key ? { ...option, value: !option.value } : option)));
+    onAdditionalOptionsChange(additionalOptions.map((option) => (option.key === key ? { ...option, value: !option.value } : option)));
   }
 
   return (
@@ -31,9 +34,10 @@ export function SensitiveOptionsScreen({ site, compact = false, onBack, onConfir
       <PageHeader
         breadcrumb={`${site.name} · Scan · Advanced`}
         title="Configure sensitive options"
-        subtitle={`Full Discovery · ${site.selectedApps} apps`}
+        subtitle={canStartScan ? `Full Discovery · ${site.selectedApps} apps` : "Full Discovery · no apps selected yet"}
         actions={<SecondaryActionButton label="▴ Hide" size="sm" variant="ghost" onClick={onBack} />}
       />
+      {!canStartScan && !compact ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
       {compact ? null : (
         <>
           <div className="card">
@@ -68,6 +72,14 @@ export function SensitiveOptionsScreen({ site, compact = false, onBack, onConfir
             <span className="h3">Off by default</span>
           </div>
         </div>
+        {visibleAdditional.length === 0 && compact ? (
+          <div className="option-row">
+            <div className="grow">
+              <div className="h3">No sensitive options are on</div>
+              <div className="small muted2">This confirmation route is only used when sensitive capture is armed.</div>
+            </div>
+          </div>
+        ) : null}
         {visibleAdditional.map((option) => (
           <SensitiveOptionRow key={option.key} option={option} onChange={toggleAdditional} />
         ))}
@@ -78,7 +90,7 @@ export function SensitiveOptionsScreen({ site, compact = false, onBack, onConfir
           <span className="small muted2">
             {enabledRecommendedCount} recommended on · {enabledAdditionalCount} sensitive on
           </span>
-          <PrimaryActionButton label="Confirm & start →" onClick={onConfirm} />
+          <PrimaryActionButton label="Confirm & start →" disabled={!canStartScan} onClick={onConfirm} />
         </div>
       </div>
     </div>

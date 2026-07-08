@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@kintone-site-discovery/core':
+        specifier: workspace:*
+        version: link:packages/core
       react:
         specifier: ^19.2.3
         version: 19.2.7
@@ -36,6 +39,8 @@ importers:
       vite:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@26.1.0)
+
+  packages/core: {}
 
 packages:
 

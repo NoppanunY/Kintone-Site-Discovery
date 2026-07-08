@@ -1,25 +1,28 @@
 import { PrimaryActionButton, SecondaryActionButton, StatusPill, WarningBanner } from "../components";
 import type { MockActionHandler, SiteWorkspaceModel } from "../types";
-import { KpiGrid, PageHeader } from "./shared";
+import { KpiGrid, PageHeader, ScanAppSelectionNotice } from "./shared";
 
 type ResultMode = "completed" | "warnings" | "failed";
 
 interface ScanResultScreenProps {
   mode: ResultMode;
   site: SiteWorkspaceModel;
+  canStartScan: boolean;
   onReports: () => void;
   onSnapshot: () => void;
   onDeveloperFiles: () => void;
+  onChooseApps: () => void;
   onRetry: () => void;
   onFixConnection: () => void;
   onPartialSummary: () => void;
   onMockAction: MockActionHandler;
 }
 
-export function ScanResultScreen({ mode, site, onReports, onSnapshot, onDeveloperFiles, onRetry, onFixConnection, onPartialSummary, onMockAction }: ScanResultScreenProps) {
+export function ScanResultScreen({ mode, site, canStartScan, onReports, onSnapshot, onDeveloperFiles, onChooseApps, onRetry, onFixConnection, onPartialSummary, onMockAction }: ScanResultScreenProps) {
   if (mode === "failed") {
     return (
       <div className="page">
+        {!canStartScan ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
         <WarningBanner tone="danger">
           <b>Failed.</b> A required collector could not complete, so this scan is not complete. No site data was changed; partial data is kept for inspection.
         </WarningBanner>
@@ -37,7 +40,7 @@ export function ScanResultScreen({ mode, site, onReports, onSnapshot, onDevelope
           <div className="small muted2">Partial capture: 2 of 4 apps have usable structure in the snapshot.</div>
         </div>
         <div className="btn-row">
-          <PrimaryActionButton label="Retry scan" onClick={onRetry} />
+          <PrimaryActionButton label="Retry scan" disabled={!canStartScan} onClick={onRetry} />
           <SecondaryActionButton label="Fix connection" onClick={onFixConnection} />
           <SecondaryActionButton label="Review partial scan summary" variant="ghost" onClick={onPartialSummary} />
         </div>
@@ -85,6 +88,7 @@ export function ScanResultScreen({ mode, site, onReports, onSnapshot, onDevelope
 
   return (
     <div className="page">
+      {!canStartScan ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
       <WarningBanner tone="warn">
         <b>Completed with warnings.</b> All required data was captured. Some optional captures were skipped — safe to ignore or retry.
       </WarningBanner>
@@ -109,18 +113,18 @@ export function ScanResultScreen({ mode, site, onReports, onSnapshot, onDevelope
         <div className="li">
           <StatusPill status="warn" label="Skipped" dot />
           <div className="grow body">1 plugin config — runtime unavailable</div>
-          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Preview retry queued for plugin config. No runner was started.")} />
+          <SecondaryActionButton label="Retry item" size="sm" disabled={!canStartScan} onClick={() => onMockAction("Preview retry queued for plugin config. No runner was started.")} />
         </div>
         <div className="li">
           <StatusPill status="warn" label="Skipped" dot />
           <div className="grow body">1 app — screenshots unavailable</div>
-          <SecondaryActionButton label="Retry item" size="sm" onClick={() => onMockAction("Preview retry queued for app screenshots. No runner was started.")} />
+          <SecondaryActionButton label="Retry item" size="sm" disabled={!canStartScan} onClick={() => onMockAction("Preview retry queued for app screenshots. No runner was started.")} />
         </div>
       </div>
       <div className="btn-row">
         <PrimaryActionButton label="▦ View reports" onClick={onReports} />
         <SecondaryActionButton label="⛃ Open Local Snapshot" onClick={onSnapshot} />
-        <SecondaryActionButton label="Re-run skipped" onClick={onRetry} />
+        <SecondaryActionButton label="Re-run skipped" disabled={!canStartScan} onClick={onRetry} />
       </div>
     </div>
   );

@@ -1,16 +1,32 @@
-import { app, BrowserWindow, Menu, ipcMain, net, protocol } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, shell, type OpenDialogOptions } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
   BridgeResult,
+  CreateProjectRequest,
+  CreateProjectResult,
   CredentialStoreStatus,
   FolderSelectionResult,
   OpenFolderRequest,
+  OpenProjectResult,
   PlatformRuntimeInfo,
   ProjectTabSnapshot,
+  RemoveAuthProfileRequest,
+  RemoveAuthProfileResult,
+  RemoveConnectedSiteRequest,
+  RemoveConnectedSiteResult,
+  RemoveProjectFromAppRequest,
+  RemoveProjectFromAppResult,
+  SaveAuthProfileResult,
+  SaveConnectedSiteResult,
+  UpdateProjectMetadataRequest,
+  UpdateProjectMetadataResult,
+  WorkspaceHomeSnapshot,
   WindowStateSnapshot,
 } from "../src/platform/bridgeTypes";
+import type { AuthProfile, ConnectedSite } from "../packages/core/src/types.js";
+import { createWorkspaceStorage } from "./workspaceStorage.cjs";
 
 const APP_PROTOCOL = "ksd";
 const APP_HOST = "renderer";
@@ -31,6 +47,7 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow: BrowserWindow | null = null;
 let platformBridgeHandlersRegistered = false;
 let rendererProtocolRegistered = false;
+let workspaceStorage: ReturnType<typeof createWorkspaceStorage> | null = null;
 
 async function createMainWindow() {
   registerPlatformBridgeHandlers();
@@ -125,6 +142,8 @@ function registerPlatformBridgeHandlers() {
     return;
   }
 
+  const storage = getWorkspaceStorage();
+
   ipcMain.handle("platform:getRuntimeInfo", (): PlatformRuntimeInfo => {
     return {
       appName: app.getName(),
@@ -134,52 +153,107 @@ function registerPlatformBridgeHandlers() {
       platform: process.platform,
       arch: process.arch,
       isPackaged: app.isPackaged,
-      bridgeStatus: "stubbed",
+      bridgeStatus: "ready",
     };
   });
 
-  ipcMain.handle("platform:chooseLocalFolder", (): FolderSelectionResult => {
-    return {
-      ok: false,
-      cancelled: true,
-      reason: "Folder selection is intentionally stubbed until local workspace storage is implemented.",
+  ipcMain.handle("platform:chooseLocalFolder", async (): Promise<FolderSelectionResult> => {
+    const options: OpenDialogOptions = {
+      title: "Choose a local project folder",
+      properties: ["openDirectory", "createDirectory"],
     };
+    const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { ok: false, cancelled: true };
+    }
+
+    return { ok: true, cancelled: false, path: result.filePaths[0] };
   });
 
-  ipcMain.handle("platform:openLocalFolder", (_event, _request: OpenFolderRequest): BridgeResult => {
-    return {
-      ok: false,
-      code: "NOT_IMPLEMENTED",
-      message: "Opening local folders is intentionally stubbed in this desktop shell batch.",
-    };
+  ipcMain.handle("platform:openLocalFolder", async (_event, request: OpenFolderRequest): Promise<BridgeResult> => {
+    if (!request.path || !path.isAbsolute(request.path)) {
+      return { ok: false, code: "INVALID_INPUT", message: "A valid absolute folder path is required." };
+    }
+
+    const error = await shell.openPath(request.path);
+    if (error) {
+      return { ok: false, code: "IO_ERROR", message: error };
+    }
+
+    return { ok: true, code: "OK", message: "Folder opened." };
   });
 
-  ipcMain.handle("platform:getWindowState", (): WindowStateSnapshot => {
-    return {
-      openProjectTabs: [],
-      activeTabId: "home",
-      restored: false,
-    };
+  ipcMain.handle("platform:getWorkspaceHome", (): Promise<WorkspaceHomeSnapshot> => {
+    return storage.readWorkspaceHome();
   });
 
-  ipcMain.handle("platform:saveWindowState", (_event, _state: WindowStateSnapshot): BridgeResult => {
-    return {
-      ok: true,
-      code: "STUBBED",
-      message: "Window state persistence is not wired yet.",
-    };
+  ipcMain.handle("platform:createProject", (_event, request: CreateProjectRequest): Promise<CreateProjectResult> => {
+    return storage.createProject(request);
   });
 
-  ipcMain.handle("platform:getOpenProjectTabs", (): ProjectTabSnapshot[] => {
-    return [];
+  ipcMain.handle("platform:openProjectFromFolder", async (): Promise<OpenProjectResult> => {
+    const options: OpenDialogOptions = {
+      title: "Open Kintone Site Discovery project",
+      properties: ["openDirectory"],
+    };
+    const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { ok: false, message: "Open project was cancelled." };
+    }
+
+    return storage.openProject(result.filePaths[0]);
   });
 
-  ipcMain.handle("platform:saveOpenProjectTabs", (_event, _tabs: ProjectTabSnapshot[]): BridgeResult => {
-    return {
-      ok: true,
-      code: "STUBBED",
-      message: "Project tab persistence is not wired yet.",
-    };
+  ipcMain.handle("platform:saveConnectedSite", (_event, site: ConnectedSite): Promise<SaveConnectedSiteResult> => {
+    return storage.saveConnectedSite(site);
+  });
+
+  ipcMain.handle("platform:saveAuthProfile", (_event, profile: AuthProfile): Promise<SaveAuthProfileResult> => {
+    return storage.saveAuthProfile(profile);
+  });
+
+  ipcMain.handle("platform:updateProjectMetadata", (_event, request: UpdateProjectMetadataRequest): Promise<UpdateProjectMetadataResult> => {
+    return storage.updateProjectMetadata(request);
+  });
+
+  ipcMain.handle("platform:removeProjectFromApp", (_event, request: RemoveProjectFromAppRequest): Promise<RemoveProjectFromAppResult> => {
+    return storage.removeProjectFromApp(request.projectId);
+  });
+
+  ipcMain.handle("platform:updateConnectedSite", (_event, site: ConnectedSite): Promise<SaveConnectedSiteResult> => {
+    return storage.updateConnectedSite(site);
+  });
+
+  ipcMain.handle("platform:removeConnectedSite", (_event, request: RemoveConnectedSiteRequest): Promise<RemoveConnectedSiteResult> => {
+    return storage.removeConnectedSite(request.siteId);
+  });
+
+  ipcMain.handle("platform:updateAuthProfile", (_event, profile: AuthProfile): Promise<SaveAuthProfileResult> => {
+    return storage.updateAuthProfile(profile);
+  });
+
+  ipcMain.handle("platform:removeAuthProfile", (_event, request: RemoveAuthProfileRequest): Promise<RemoveAuthProfileResult> => {
+    return storage.removeAuthProfile(request.authProfileId);
+  });
+
+  ipcMain.handle("platform:getWindowState", (): Promise<WindowStateSnapshot> => {
+    return storage.readWindowState();
+  });
+
+  ipcMain.handle("platform:saveWindowState", async (_event, state: WindowStateSnapshot): Promise<BridgeResult> => {
+    await storage.writeWindowState(state);
+    return { ok: true, code: "OK", message: "Window state saved." };
+  });
+
+  ipcMain.handle("platform:getOpenProjectTabs", (): Promise<ProjectTabSnapshot[]> => {
+    return storage.readOpenProjectTabs();
+  });
+
+  ipcMain.handle("platform:saveOpenProjectTabs", async (_event, tabs: ProjectTabSnapshot[]): Promise<BridgeResult> => {
+    await storage.writeOpenProjectTabs(tabs);
+    return { ok: true, code: "OK", message: "Project tabs saved." };
   });
 
   ipcMain.handle("platform:getCredentialStoreStatus", (): CredentialStoreStatus => {
@@ -191,6 +265,11 @@ function registerPlatformBridgeHandlers() {
   });
 
   platformBridgeHandlersRegistered = true;
+}
+
+function getWorkspaceStorage() {
+  workspaceStorage ??= createWorkspaceStorage({ appDataRoot: app.getPath("userData") });
+  return workspaceStorage;
 }
 
 app.setAppUserModelId("com.kintone-site-discovery.desktop");

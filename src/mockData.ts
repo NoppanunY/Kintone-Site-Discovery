@@ -12,6 +12,7 @@ import type {
   SiteWorkspaceModel,
   TabModel,
 } from "./types";
+import type { AuthProfile, ConnectedSite, Project } from "@kintone-site-discovery/core";
 
 export const projectId = "client-crm-discovery";
 export const siteId = "client-a-production";
@@ -53,7 +54,7 @@ export const projectRows: ProjectModel[] = [
     id: projectId,
     name: "Client CRM Discovery",
     siteId,
-    authProfileId: "client-a-admin",
+    authSelection: { kind: "global_profile", authProfileId: "client-a-admin" },
     path: "~/KintoneDiscovery/client-crm",
     opened: "opened 2h ago",
     meta: "last snapshot 2h ago",
@@ -67,7 +68,7 @@ export const projectRows: ProjectModel[] = [
     id: "client-crm-review-copy",
     name: "Client CRM Review Copy",
     siteId,
-    authProfileId: "client-a-admin",
+    authSelection: { kind: "global_profile", authProfileId: "client-a-admin" },
     path: "~/KintoneDiscovery/client-crm-review-copy",
     opened: "opened 1h ago",
     meta: "never scanned",
@@ -81,7 +82,7 @@ export const projectRows: ProjectModel[] = [
     id: "vendor-audit-2026",
     name: "Vendor Audit 2026",
     siteId: "vendor-audit-main",
-    authProfileId: "production-admin",
+    authSelection: { kind: "global_profile", authProfileId: "production-admin" },
     path: "~/Work/vendor-audit",
     opened: "opened yesterday",
     meta: "last snapshot yesterday",
@@ -101,6 +102,10 @@ export function getAuthProfileById(id: string | null | undefined): AuthProfileMo
   return profiles.find((profile) => profile.id === id) ?? profiles[0];
 }
 
+export function authProfileIdForSelection(authSelection: ProjectModel["authSelection"]): string | undefined {
+  return authSelection.kind === "global_profile" ? authSelection.authProfileId : undefined;
+}
+
 export function getProjectById(id: string | null | undefined): ProjectModel {
   return projectRows.find((project) => project.id === id) ?? projectRows[0];
 }
@@ -112,7 +117,11 @@ export function projectIdForRouteSegment(id: string | null | undefined): string 
 export function projectContext(id: string | null | undefined): ProjectContextModel {
   const project = getProjectById(projectIdForRouteSegment(id));
   const site = getConnectedSiteById(project.siteId);
-  const profile = getAuthProfileById(project.authProfileId);
+  const authProfileId = authProfileIdForSelection(project.authSelection);
+  const profile = getAuthProfileById(authProfileId);
+  const profileName = project.authSelection.kind === "project_local" ? project.authSelection.displayName : profile.name;
+  const profileUser = project.authSelection.kind === "project_local" ? project.authSelection.username : profile.user;
+  const credentialStatus = project.authSelection.kind === "project_local" ? project.authSelection.credentialStatus : profile.status;
 
   return {
     ...site,
@@ -123,10 +132,11 @@ export function projectContext(id: string | null | undefined): ProjectContextMod
     opened: project.opened,
     siteId: site.id,
     siteMeta: site.meta,
-    authProfileId: profile.id,
-    profile: profile.name,
-    profileUser: profile.user,
-    credentialStatus: profile.status,
+    authSelection: project.authSelection,
+    authProfileId,
+    profile: profileName,
+    profileUser,
+    credentialStatus,
     meta: project.meta,
     hasSnapshot: project.hasSnapshot,
     selectedApps: project.selectedApps,
@@ -215,7 +225,7 @@ export const presets: ScanPreset[] = [
     selected: true,
   },
   {
-    id: "full",
+    id: "full_discovery",
     title: "Full Discovery",
     description: "Standard + opt-in captures. Opens Configure sensitive options — nothing sensitive turns on until you configure and confirm.",
     opensConfig: true,
@@ -247,6 +257,55 @@ export const additionalOptions: SensitiveOption[] = [
   { key: "comments", label: "Record comments · attachment metadata", tier: "additional", value: false, sensitive: true },
   { key: "full-record", label: "Full record capture · browser screenshots", tier: "additional", value: false, sensitive: true },
 ];
+
+export function connectedSiteModelFromDomain(site: ConnectedSite): ConnectedSiteModel {
+  return {
+    id: site.id,
+    name: site.displayName,
+    domain: site.domain,
+    status: site.savedStatus === "saved" ? "Saved" : "Unused",
+    tone: site.savedStatus === "saved" ? "ok" : "idle",
+    meta: `${site.linkedProjectIds.length} linked project${site.linkedProjectIds.length === 1 ? "" : "s"}`,
+  };
+}
+
+export function authProfileModelFromDomain(profile: AuthProfile): AuthProfileModel {
+  return {
+    id: profile.id,
+    name: profile.displayName,
+    user: profile.username,
+    status:
+      profile.credentialStatus === "saved"
+        ? "Credential saved"
+        : profile.credentialStatus === "needs_update"
+          ? "Needs update"
+          : profile.credentialStatus === "invalid"
+            ? "Invalid"
+            : "No credential",
+    tone: profile.credentialStatus === "saved" ? "ok" : profile.credentialStatus === "needs_update" ? "warn" : "idle",
+    usage: `Used by ${profile.linkedProjectIds.length} project${profile.linkedProjectIds.length === 1 ? "" : "s"}`,
+  };
+}
+
+export function projectModelFromDomain(project: Project, site: ConnectedSite | undefined, profile: AuthProfile | undefined): ProjectModel {
+  const hasGlobalProfile = project.authSelection.kind === "global_profile";
+  return {
+    id: project.id,
+    name: project.name,
+    siteId: project.siteId,
+    authSelection: project.authSelection,
+    path: project.folderPath,
+    opened: "opened from local metadata",
+    meta: "no real snapshot written yet",
+    hasSnapshot: false,
+    selectedApps: 0,
+    appsAvailable: 0,
+    pluginsCaptured: 0,
+    redactions: 0,
+    ...(site ? { siteId: site.id } : {}),
+    ...(hasGlobalProfile && profile ? { authSelection: { kind: "global_profile" as const, authProfileId: profile.id } } : {}),
+  };
+}
 
 export const reports: ReportItem[] = [
   { title: "Site summary", description: "Readable overview of apps, spaces, users, plugins and scan warnings.", freshness: "up_to_date" },

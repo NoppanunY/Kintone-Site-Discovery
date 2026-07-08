@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { PresetId, ProjectAuthSelection, ResultStatus as DomainResultStatus } from "@kintone-site-discovery/core";
 
 export type Id = string;
 
@@ -33,7 +34,7 @@ export interface ProjectModel {
   id: Id;
   name: string;
   siteId: Id;
-  authProfileId: Id;
+  authSelection: ProjectAuthSelection;
   path: string;
   opened: string;
   meta: string;
@@ -51,7 +52,8 @@ export interface ProjectContextModel extends ConnectedSiteModel {
   opened: string;
   siteId: Id;
   siteMeta: string;
-  authProfileId: Id;
+  authSelection: ProjectAuthSelection;
+  authProfileId?: Id;
   profile: string;
   profileUser: string;
   credentialStatus: string;
@@ -90,7 +92,8 @@ export type NavKey =
 
 export type StatusTone = "ok" | "warn" | "err" | "info" | "idle" | "run";
 
-export type ResultStatus = "Completed" | "Completed with warnings" | "Failed";
+export type ResultStatus = DomainResultStatus;
+export type ResultStatusLabel = "Completed" | "Completed with warnings" | "Failed";
 
 export interface ActionButton {
   label: string;
@@ -150,7 +153,7 @@ export interface FileOrderItem {
 }
 
 export interface ScanPreset {
-  id: "quick" | "standard" | "full";
+  id: PresetId;
   title: string;
   description: string;
   badge?: string;

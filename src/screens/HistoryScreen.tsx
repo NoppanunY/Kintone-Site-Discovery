@@ -28,7 +28,7 @@ export function HistoryScreen({ site, onMockAction }: { site: SiteWorkspaceModel
 
   return (
     <div className="page">
-      <PageHeader breadcrumb={`${site.name} · History`} title="Scan history" subtitle="Past scan runs for this site. The latest successful run is the current local snapshot." />
+      <PageHeader breadcrumb={`${site.name} · History`} title="Scan history" subtitle="Mock history rows for this N5 build. No real scan run or snapshot write has happened yet." />
       <div className="list">
         {runs.map((run) => {
           const selectedForRun = selectedArtifact?.run.snapshotId === run.snapshotId ? selectedArtifact : null;

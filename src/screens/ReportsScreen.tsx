@@ -9,20 +9,20 @@ const reports = [
   ["Dependency report", "Detected links between apps, plugins and files"],
 ];
 
-export function ReportsScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
+export function ReportsScreen({ site, onMockAction, onRevealFolder }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler; onRevealFolder: () => void }) {
   return (
     <div className="page">
       <PageHeader
         breadcrumb={`${site.name} · Reports`}
         title="Reports"
-        subtitle="Readable summaries generated from the current local snapshot."
-        actions={site.hasSnapshot ? <SecondaryActionButton label="Reveal reports folder" onClick={() => onMockAction("Folder opening is not connected yet. No folder was opened.")} /> : undefined}
+        subtitle="Mock report list for this N5 build. Real report generation is not implemented yet."
+        actions={site.hasSnapshot ? <SecondaryActionButton label="Reveal reports folder" onClick={onRevealFolder} /> : undefined}
       />
       {!site.hasSnapshot ? (
         <div className="card card-pad">
           <div className="h3">No reports yet</div>
           <div className="body muted" style={{ marginTop: 6 }}>
-            Run a scan to create the first local snapshot and generate reports for {site.name}.
+            No real reports have been generated yet. Run screens are preview-only in this build.
           </div>
         </div>
       ) : (

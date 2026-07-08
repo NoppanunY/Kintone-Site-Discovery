@@ -1,5 +1,6 @@
 import type { KpiModel } from "../types";
 import type { ReactNode } from "react";
+import { SecondaryActionButton, WarningBanner } from "../components";
 
 export function PageHeader({
   breadcrumb,
@@ -39,5 +40,18 @@ export function KpiGrid({ items, columns = 4 }: { items: KpiModel[]; columns?: n
         </div>
       ))}
     </div>
+  );
+}
+
+export function ScanAppSelectionNotice({ onChooseApps }: { onChooseApps: () => void }) {
+  return (
+    <WarningBanner tone="warn">
+      <div className="between">
+        <span>
+          <b>No apps selected yet.</b> Choose at least one app before starting or re-running a scan.
+        </span>
+        <SecondaryActionButton label="Choose apps" size="sm" onClick={onChooseApps} />
+      </div>
+    </WarningBanner>
   );
 }

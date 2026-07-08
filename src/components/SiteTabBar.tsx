@@ -12,39 +12,31 @@ export function SiteTabBar({ tabs, activeId, onSelect, onClose, onAdd }: SiteTab
   return (
     <div className="sitetabs" role="tablist" aria-label="Open project tabs">
       {tabs.map((tab) => (
-        <button
-          type="button"
+        <div
           key={tab.id}
           className={`stab ${tab.id === activeId ? "active" : ""}`}
-          role="tab"
-          aria-selected={tab.id === activeId}
-          onClick={() => onSelect(tab.id)}
+          role="presentation"
         >
-          {tab.kind === "home" ? "🏠 " : tab.running ? "● " : ""}
-          {tab.title}
+          <button type="button" className="stab__select" role="tab" aria-selected={tab.id === activeId} onClick={() => onSelect(tab.id)}>
+            {tab.kind === "home" ? "🏠 " : tab.running ? "● " : ""}
+            {tab.title}
+          </button>
           {tab.kind === "project" ? (
-            <span
-              className="x"
-              role="button"
+            <button
+              type="button"
+              className="stab__close"
               aria-label={`Close ${tab.title}`}
-              tabIndex={0}
               onClick={(event) => {
                 event.stopPropagation();
                 onClose(tab.id);
               }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onClose(tab.id);
-                }
-              }}
             >
               ✕
-            </span>
+            </button>
           ) : null}
-        </button>
+        </div>
       ))}
-      <button type="button" className="stab add" role="tab" aria-selected="false" onClick={onAdd}>
+      <button type="button" className="stab stab--add" role="tab" aria-selected="false" onClick={onAdd}>
         ＋
       </button>
     </div>

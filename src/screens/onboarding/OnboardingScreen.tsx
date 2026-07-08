@@ -1,17 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
-import { ConnectionTestPanel, StatusPill } from "../../components";
+import { ConnectionTestPanel, SecretField, StatusPill } from "../../components";
+import { mockAppSummaries } from "../../appPickerData";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../../mockConnection";
 import { connectedSites, getAuthProfileById, getConnectedSiteById, profiles } from "../../mockData";
+import { getPlatformBridge } from "../../platform";
 import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler } from "../../types";
+import { appIdsForDiscoveryScope, defaultProjectFolderPath, projectLocalAuthDisplayName, spaceNameForPicker, uniquePickerSpaces, type AppDiscoveryScopeMode, type ProjectAuthSelection } from "@kintone-site-discovery/core";
 
 export type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 
 interface OnboardingScreenProps {
   entry?: OnboardingEntry;
   onCancel: () => void;
-  onFinish: () => void;
+  onFinish: (draft: OnboardingFinishDraft) => void | Promise<void>;
   onMockAction?: MockActionHandler;
   initialSiteId?: string | null;
+  defaultProjectsRoot?: string;
+}
+
+export interface OnboardingFinishDraft {
+  entry: OnboardingEntry;
+  project?: {
+    name: string;
+    folderPath: string;
+    selectedSiteId: string;
+    authSelection: ProjectAuthSelection;
+    selectedAuthProfileId?: string;
+    selectedAppIds: string[];
+  };
+  connectedSite?: {
+    displayName: string;
+    domain: string;
+  };
+  authProfile?: {
+    displayName: string;
+    username: string;
+  };
 }
 
 type StepKey = "project" | "auth" | "site" | "test" | "apps";
@@ -40,15 +64,33 @@ const flowTitles: Record<OnboardingEntry, string> = {
 };
 
 type AuthMode = "existing" | "new";
+type AppScopeMode = AppDiscoveryScopeMode;
 
-const PROJECT_ONLY_AUTH_LABEL = "Client A Admin for this project";
+const DEFAULT_PROJECT_NAME = "Client CRM Discovery Copy";
+const DEFAULT_SITE_DISPLAY_NAME = "Client A QA";
+const DEFAULT_SITE_DOMAIN = "client-a-qa.cybozu.com";
+const DEFAULT_AUTH_PROFILE_NAME = "Client A Admin";
+const DEFAULT_AUTH_USERNAME = "ca-admin@client-a";
+const DEFAULT_EXISTING_AUTH_PROFILE_ID = profiles.find((profile) => profile.tone === "ok")?.id ?? profiles[0]?.id ?? "production-admin";
 
-export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, onMockAction, initialSiteId }: OnboardingScreenProps) {
+export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, onMockAction, initialSiteId, defaultProjectsRoot = "C:\\tmp\\Kintone Site Discovery\\Projects" }: OnboardingScreenProps) {
   const steps = flowSteps[entry];
   const [stepIndex, setStepIndex] = useState(0);
   const [authMode, setAuthMode] = useState<AuthMode>(entry === "add-auth" ? "new" : "existing");
+  const [projectName, setProjectName] = useState(DEFAULT_PROJECT_NAME);
+  const [projectFolderPath, setProjectFolderPath] = useState(defaultProjectFolderPath(defaultProjectsRoot, DEFAULT_PROJECT_NAME));
+  const [projectFolderEdited, setProjectFolderEdited] = useState(false);
+  const [siteDisplayName, setSiteDisplayName] = useState(DEFAULT_SITE_DISPLAY_NAME);
+  const [siteDomain, setSiteDomain] = useState(DEFAULT_SITE_DOMAIN);
+  const [authProfileDisplayName, setAuthProfileDisplayName] = useState(DEFAULT_AUTH_PROFILE_NAME);
+  const [authUsername, setAuthUsername] = useState(DEFAULT_AUTH_USERNAME);
+  const [projectLocalUsername, setProjectLocalUsername] = useState(DEFAULT_AUTH_USERNAME);
   const [selectedSiteId, setSelectedSiteId] = useState(getInitialSiteId(initialSiteId));
-  const [selectedAuthProfileId, setSelectedAuthProfileId] = useState("client-a-admin");
+  const [selectedAuthProfileId, setSelectedAuthProfileId] = useState(DEFAULT_EXISTING_AUTH_PROFILE_ID);
+  const [hasEnteredSecret, setHasEnteredSecret] = useState(false);
+  const [appScopeMode, setAppScopeMode] = useState<AppScopeMode>("all");
+  const [selectedSpaceNames, setSelectedSpaceNames] = useState<string[]>([]);
+  const [selectedAppIds, setSelectedAppIds] = useState(() => appIdsForDiscoveryScope(mockAppSummaries, "all"));
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex === steps.length - 1;
@@ -59,12 +101,31 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
   };
   const selectedSite = getConnectedSiteById(selectedSiteId);
   const selectedProfile = getAuthProfileById(selectedAuthProfileId);
-  const selectedAuthLabel = entry === "new-project" && authMode === "new" ? PROJECT_ONLY_AUTH_LABEL : selectedProfile.name;
+  const projectLocalLabel = projectLocalAuthDisplayName(projectLocalUsername);
+  const selectedAuthLabel = entry === "new-project" && authMode === "new" ? projectLocalLabel : selectedProfile.name;
   const connectionTarget: ConnectionTestTarget = {
     siteName: selectedSite.name,
     domain: selectedSite.domain,
     authProfile: selectedAuthLabel,
   };
+  const currentStepValid = isStepValid({
+    step: step.key,
+    entry,
+    authMode,
+    hasEnteredSecret,
+    connectionResult,
+    selectedAppIds,
+    appScopeMode,
+    selectedSpaceNames,
+    projectFolderPath,
+    projectName,
+    siteDisplayName,
+    siteDomain,
+    authProfileDisplayName,
+    authUsername,
+    projectLocalUsername,
+  });
+  const connectionTargetKey = `${step.key}|${selectedSiteId}|${selectedAuthProfileId}|${authMode}|${projectLocalUsername}`;
 
   function connectionOutcomeForProfile(authProfileId: string) {
     return getAuthProfileById(authProfileId).tone === "warn" ? "failed" : "passed";
@@ -74,14 +135,25 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
     return entry === "new-project" && authMode === "new" ? "passed" : connectionOutcomeForProfile(selectedAuthProfileId);
   }
 
-  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForCurrentAuth()) {
+  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForCurrentAuth(), silent = false) {
     setConnectionResult(createTestingConnectionResult(connectionTarget));
     window.setTimeout(() => {
       setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
-      if (outcome === "passed") {
+      if (outcome === "passed" && !silent) {
         showMockAction(`${selectedAuthLabel} connection test passed for ${selectedSite.name}. No kintone request was sent.`, { tone: "ok" });
       }
     }, 450);
+  }
+
+  function handleSelectAppScopeMode(mode: AppScopeMode) {
+    setAppScopeMode(mode);
+    setSelectedAppIds(appIdsForDiscoveryScope(mockAppSummaries, mode, selectedSpaceNames));
+  }
+
+  function handleToggleSelectedSpace(spaceName: string) {
+    const nextSpaceNames = selectedSpaceNames.includes(spaceName) ? selectedSpaceNames.filter((item) => item !== spaceName) : [...selectedSpaceNames, spaceName];
+    setSelectedSpaceNames(nextSpaceNames);
+    setSelectedAppIds(appIdsForDiscoveryScope(mockAppSummaries, appScopeMode, nextSpaceNames));
   }
 
   const content = useMemo(
@@ -93,32 +165,162 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
         selectedSiteId,
         selectedAuthProfileId,
         selectedAuthLabel,
-        onSelectAuthMode: setAuthMode,
-        onSelectSite: setSelectedSiteId,
-        onSelectAuthProfile: setSelectedAuthProfileId,
+        projectName,
+        onProjectNameChange: setProjectName,
+        onSelectAuthMode: (mode) => {
+          setAuthMode(mode);
+          setConnectionResult(null);
+        },
+        onSelectSite: (siteId) => {
+          setSelectedSiteId(siteId);
+          setConnectionResult(null);
+        },
+        onSelectAuthProfile: (profileId) => {
+          setSelectedAuthProfileId(profileId);
+          setConnectionResult(null);
+        },
         onMockAction: showMockAction,
         connectionResult,
         onRunConnectionTest: runConnectionTest,
         onClearConnectionTest: () => setConnectionResult(null),
+        projectFolderPath,
+        onProjectFolderPathChange: (path) => {
+          setProjectFolderEdited(true);
+          setProjectFolderPath(path);
+        },
+        onPickProjectFolder: async () => {
+          const result = await getPlatformBridge().chooseLocalFolder();
+          if (result.ok && result.path) {
+            setProjectFolderEdited(true);
+            setProjectFolderPath(result.path);
+            showMockAction(`Project folder selected: ${result.path}`, { tone: "ok" });
+          }
+        },
+        siteDisplayName,
+        siteDomain,
+        onSiteDisplayNameChange: setSiteDisplayName,
+        onSiteDomainChange: setSiteDomain,
+        authProfileDisplayName,
+        authUsername,
+        onAuthProfileDisplayNameChange: setAuthProfileDisplayName,
+        onAuthUsernameChange: setAuthUsername,
+        projectLocalUsername,
+        projectLocalLabel,
+        onProjectLocalUsernameChange: setProjectLocalUsername,
+        hasEnteredSecret,
+        onSetSecret: () => setHasEnteredSecret(true),
+        selectedAppIds,
+        appScopeMode,
+        selectedSpaceNames,
+        onSelectAppScopeMode: handleSelectAppScopeMode,
+        onToggleSelectedSpace: handleToggleSelectedSpace,
       }),
-    [authMode, connectionResult, entry, selectedAuthLabel, selectedAuthProfileId, selectedSiteId, step.key],
+    [
+      authMode,
+      authProfileDisplayName,
+      authUsername,
+      connectionResult,
+      entry,
+      hasEnteredSecret,
+      projectFolderPath,
+      projectLocalLabel,
+      projectLocalUsername,
+      projectName,
+      selectedAppIds,
+      appScopeMode,
+      selectedSpaceNames,
+      selectedAuthLabel,
+      selectedAuthProfileId,
+      selectedSiteId,
+      siteDisplayName,
+      siteDomain,
+      step.key,
+    ],
   );
 
   useEffect(() => {
     setStepIndex(0);
     setAuthMode(entry === "add-auth" ? "new" : "existing");
+    setProjectName(DEFAULT_PROJECT_NAME);
+    setProjectFolderPath(defaultProjectFolderPath(defaultProjectsRoot, DEFAULT_PROJECT_NAME));
+    setProjectFolderEdited(false);
+    setSiteDisplayName(DEFAULT_SITE_DISPLAY_NAME);
+    setSiteDomain(DEFAULT_SITE_DOMAIN);
+    setAuthProfileDisplayName(DEFAULT_AUTH_PROFILE_NAME);
+    setAuthUsername(DEFAULT_AUTH_USERNAME);
+    setProjectLocalUsername(DEFAULT_AUTH_USERNAME);
     setSelectedSiteId(getInitialSiteId(initialSiteId));
-    setSelectedAuthProfileId("client-a-admin");
+    setSelectedAuthProfileId(DEFAULT_EXISTING_AUTH_PROFILE_ID);
+    setHasEnteredSecret(false);
+    setAppScopeMode("all");
+    setSelectedSpaceNames([]);
+    setSelectedAppIds(appIdsForDiscoveryScope(mockAppSummaries, "all"));
     setConnectionResult(null);
-  }, [entry, initialSiteId]);
+  }, [defaultProjectsRoot, entry, initialSiteId]);
+
+  useEffect(() => {
+    if (!projectFolderEdited) {
+      setProjectFolderPath(defaultProjectFolderPath(defaultProjectsRoot, projectName));
+    }
+  }, [defaultProjectsRoot, projectFolderEdited, projectName]);
+
+  useEffect(() => {
+    if (step.key !== "test") {
+      return;
+    }
+
+    runConnectionTest(connectionOutcomeForCurrentAuth(), true);
+    // The key intentionally captures only the values that should trigger a fresh preview.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionTargetKey]);
 
   const goBack = () => {
     setStepIndex((current) => Math.max(0, current - 1));
   };
 
   const goNext = () => {
+    if (!currentStepValid) {
+      return;
+    }
+
     if (isLastStep) {
-      onFinish();
+      void onFinish({
+        entry,
+        project:
+          entry === "new-project"
+            ? {
+                name: projectName.trim(),
+                folderPath: projectFolderPath,
+                selectedSiteId,
+                authSelection:
+                  authMode === "existing"
+                    ? { kind: "global_profile", authProfileId: selectedAuthProfileId }
+                    : {
+                        kind: "project_local",
+                        displayName: projectLocalLabel,
+                        username: projectLocalUsername.trim(),
+                        authType: "password",
+                        credentialStatus: hasEnteredSecret ? "saved" : "no_credential",
+                      },
+                selectedAuthProfileId: authMode === "existing" ? selectedAuthProfileId : undefined,
+                selectedAppIds,
+              }
+            : undefined,
+        connectedSite:
+          entry === "add-site"
+            ? {
+                displayName: siteDisplayName.trim(),
+                domain: siteDomain.trim(),
+              }
+            : undefined,
+        authProfile:
+          entry === "add-auth"
+            ? {
+                displayName: authProfileDisplayName.trim(),
+                username: authUsername.trim(),
+              }
+            : undefined,
+      });
       return;
     }
 
@@ -167,7 +369,7 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
                 <button type="button" className="btn btn--ghost" onClick={onCancel}>
                   {cancelLabel}
                 </button>
-                <button type="button" className="btn btn--primary" onClick={goNext}>
+                <button type="button" className="btn btn--primary" onClick={goNext} disabled={!currentStepValid}>
                   {isLastStep ? finishLabel : "Continue →"}
                 </button>
               </div>
@@ -186,6 +388,8 @@ function renderStep({
   selectedSiteId,
   selectedAuthProfileId,
   selectedAuthLabel,
+  projectName,
+  onProjectNameChange,
   onSelectAuthMode,
   onSelectSite,
   onSelectAuthProfile,
@@ -193,6 +397,27 @@ function renderStep({
   connectionResult,
   onRunConnectionTest,
   onClearConnectionTest,
+  projectFolderPath,
+  onProjectFolderPathChange,
+  onPickProjectFolder,
+  siteDisplayName,
+  siteDomain,
+  onSiteDisplayNameChange,
+  onSiteDomainChange,
+  authProfileDisplayName,
+  authUsername,
+  onAuthProfileDisplayNameChange,
+  onAuthUsernameChange,
+  projectLocalUsername,
+  projectLocalLabel,
+  onProjectLocalUsernameChange,
+  hasEnteredSecret,
+  onSetSecret,
+  selectedAppIds,
+  appScopeMode,
+  selectedSpaceNames,
+  onSelectAppScopeMode,
+  onToggleSelectedSpace,
 }: {
   step: StepKey;
   entry: OnboardingEntry;
@@ -200,6 +425,8 @@ function renderStep({
   selectedSiteId: string;
   selectedAuthProfileId: string;
   selectedAuthLabel: string;
+  projectName: string;
+  onProjectNameChange: (value: string) => void;
   onSelectAuthMode: (mode: AuthMode) => void;
   onSelectSite: (siteId: string) => void;
   onSelectAuthProfile: (profileId: string) => void;
@@ -207,6 +434,27 @@ function renderStep({
   connectionResult: ConnectionTestResult | null;
   onRunConnectionTest: (outcome?: "passed" | "failed") => void;
   onClearConnectionTest: () => void;
+  projectFolderPath: string;
+  onProjectFolderPathChange: (path: string) => void;
+  onPickProjectFolder: () => void;
+  siteDisplayName: string;
+  siteDomain: string;
+  onSiteDisplayNameChange: (value: string) => void;
+  onSiteDomainChange: (value: string) => void;
+  authProfileDisplayName: string;
+  authUsername: string;
+  onAuthProfileDisplayNameChange: (value: string) => void;
+  onAuthUsernameChange: (value: string) => void;
+  projectLocalUsername: string;
+  projectLocalLabel: string;
+  onProjectLocalUsernameChange: (value: string) => void;
+  hasEnteredSecret: boolean;
+  onSetSecret: () => void;
+  selectedAppIds: string[];
+  appScopeMode: AppScopeMode;
+  selectedSpaceNames: string[];
+  onSelectAppScopeMode: (mode: AppScopeMode) => void;
+  onToggleSelectedSpace: (spaceName: string) => void;
 }) {
   if (step === "project") {
     return (
@@ -216,12 +464,14 @@ function renderStep({
           body="A project is a local folder that selects one connected site. You can reuse the same connected site in another project."
         />
         <div className="form-grid">
-          <MockField label="Project name" value="Client CRM Discovery Copy" />
-          <MockField
+          <TextField label="Project name" value={projectName} onChange={onProjectNameChange} />
+          <TextField
             label="Local folder"
-            value="~/KintoneDiscovery/client-crm-copy"
-            action="Browse..."
-            onAction={() => onMockAction("Folder picker is not connected yet. No folder was selected.")}
+            value={projectFolderPath}
+            onChange={onProjectFolderPathChange}
+            actionLabel="Browse..."
+            onAction={onPickProjectFolder}
+            full
           />
         </div>
       </>
@@ -234,7 +484,15 @@ function renderStep({
       <>
         <WizardIntro title={authStepTitle(entry)} body={authStepBody(entry)} />
         {entry === "add-auth" ? (
-          <AuthProfileFields scope="global" />
+          <AuthProfileFields
+            scope="global"
+            profileName={authProfileDisplayName}
+            username={authUsername}
+            onProfileNameChange={onAuthProfileDisplayNameChange}
+            onUsernameChange={onAuthUsernameChange}
+            hasEnteredSecret={hasEnteredSecret}
+            onSetSecret={onSetSecret}
+          />
         ) : (
           <>
             <div className="choice-list">
@@ -263,7 +521,14 @@ function renderStep({
                 <SelectedProfileBanner selectedProfile={selectedProfile.name} />
               </>
             ) : (
-              <AuthProfileFields scope="project" />
+              <AuthProfileFields
+                scope="project"
+                username={projectLocalUsername}
+                generatedLabel={projectLocalLabel}
+                onUsernameChange={onProjectLocalUsernameChange}
+                hasEnteredSecret={hasEnteredSecret}
+                onSetSecret={onSetSecret}
+              />
             )}
           </>
         )}
@@ -288,9 +553,9 @@ function renderStep({
               onChange={onSelectSite}
               meta="Add a connected site first if it is not listed here."
             />
-            <MockField label="Domain" value={selectedSite.domain} />
-            <MockField label="Selected auth" value={selectedAuthLabel} meta="Auth is selected by this project, not stored on the site." />
-            <MockField label="Project snapshot folder" value="~/KintoneDiscovery/client-crm-copy/snapshot" />
+            <ReadOnlyField label="Domain" value={selectedSite.domain} />
+            <ReadOnlyField label="Selected auth" value={selectedAuthLabel} meta="Auth is selected by this project, not stored on the site." />
+            <PathReadOnlyField label="Project snapshot folder" value={`${projectFolderPath}\\snapshots`} />
           </div>
         </>
       );
@@ -303,9 +568,9 @@ function renderStep({
           body="A connected site is a reusable kintone connection. It is not a project until a project selects it."
         />
         <div className="form-grid">
-          <MockField label="Site display name" value="Client A QA" />
-          <MockField label="kintone domain" value="client-a-qa.cybozu.com" meta="Domain only, no protocol" />
-          <MockField label="Connection record" value="Global site list" meta="Projects can choose this site after it is saved." />
+          <TextField label="Site display name" value={siteDisplayName} onChange={onSiteDisplayNameChange} />
+          <TextField label="kintone domain" value={siteDomain} onChange={onSiteDomainChange} meta="Domain only, no protocol" />
+          <ReadOnlyField label="Connection record" value="Global site list" meta="Projects can choose this site after it is saved." />
         </div>
       </>
     );
@@ -316,19 +581,17 @@ function renderStep({
     return (
       <>
         <WizardIntro title="Test the read-only connection" body="This checks the selected site and project auth pair in preview mode. No kintone request is sent yet." />
-        <div className="list">
-          <CheckRow label="Project selected" detail="Client CRM Discovery Copy is the local workspace." />
-          <CheckRow label="Site selected" detail={`${selectedSite.name} · ${selectedSite.domain}`} />
-          <CheckRow label="Auth selected" detail={`${selectedAuthLabel} is selected for this project.`} />
-          <CheckRow label="Read permission check" detail="Preview check passed without contacting kintone." />
-        </div>
-        <div className="rowc">
-          <button type="button" className="btn btn--sm" onClick={() => onRunConnectionTest()}>
-            Test connection
-          </button>
+        <ConnectionPreviewRows result={connectionResult} siteName={selectedSite.name} siteDomain={selectedSite.domain} authLabel={selectedAuthLabel} />
+        <div className="setup-complete-line">
           {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
-          {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
+          {connectionResult?.status === "passed" ? <span className="inline-test-status">Auto preview passed just now</span> : null}
+          {connectionResult?.status === "failed" ? (
+            <button type="button" className="btn btn--sm" onClick={() => onRunConnectionTest()}>
+              Retry
+            </button>
+          ) : null}
         </div>
+        {connectionResult?.status !== "passed" ? <span className="hint">Continue unlocks after this preview passes. This does not contact kintone yet.</span> : null}
         {connectionResult?.status === "failed" ? (
           <ConnectionTestPanel
             result={connectionResult}
@@ -343,19 +606,103 @@ function renderStep({
   return (
     <>
       <WizardIntro
-        title="Choose apps to include"
-        body="Sample app data is loaded so the desktop flow can be reviewed before real collection is connected."
+        title="Choose discovery scope"
+        body="Pick a quick scope for this project. You can refine individual apps later from the Apps menu; no kintone request is sent in this preview."
       />
-      <div className="list">
-        <AppRow name="Sales Management" detail="App 101 · has plugins/customization" />
-        <AppRow name="Support Tickets" detail="App 122 · has customization" />
-        <AppRow name="Contracts" detail="App 130 · has plugins" />
-      </div>
-      <div className="setup-complete-line">
-        <StatusPill status="ok" label="Ready" dot />
-        <span className="small muted2">Project is ready in preview mode.</span>
-      </div>
+      <DiscoveryScopePicker
+        mode={appScopeMode}
+        selectedSpaceNames={selectedSpaceNames}
+        selectedAppIds={selectedAppIds}
+        onSelectMode={onSelectAppScopeMode}
+        onToggleSpace={onToggleSelectedSpace}
+      />
     </>
+  );
+}
+
+function DiscoveryScopePicker({
+  mode,
+  selectedSpaceNames,
+  selectedAppIds,
+  onSelectMode,
+  onToggleSpace,
+}: {
+  mode: AppScopeMode;
+  selectedSpaceNames: string[];
+  selectedAppIds: string[];
+  onSelectMode: (mode: AppScopeMode) => void;
+  onToggleSpace: (spaceName: string) => void;
+}) {
+  const spaces = uniquePickerSpaces(mockAppSummaries);
+  const selectedSpaces = new Set(selectedSpaceNames);
+  const selectedSpaceCount = selectedSpaceNames.length;
+  const summary =
+    mode === "later"
+      ? "No apps selected yet"
+      : mode === "by_space"
+        ? `${selectedAppIds.length} apps selected from ${selectedSpaceCount} Space${selectedSpaceCount === 1 ? "" : "s"}`
+        : `${selectedAppIds.length} apps selected`;
+
+  return (
+    <div className="discovery-scope">
+      <div className="scope-card-grid">
+        <ScopeCard
+          title="All apps"
+          badge="Recommended"
+          body={`Include all ${mockAppSummaries.length} apps from the sample list now.`}
+          selected={mode === "all"}
+          onClick={() => onSelectMode("all")}
+        />
+        <ScopeCard
+          title="By Space"
+          body="Include every app in the Spaces you choose."
+          selected={mode === "by_space"}
+          onClick={() => onSelectMode("by_space")}
+        />
+        <ScopeCard
+          title="Choose later"
+          body="Create the project now and choose apps from the Apps menu before scanning."
+          selected={mode === "later"}
+          onClick={() => onSelectMode("later")}
+        />
+      </div>
+      {mode === "by_space" ? (
+        <div className="scope-space-panel">
+          <div className="between">
+            <span className="label">Spaces</span>
+            <span className="small muted2">{selectedSpaceCount} selected</span>
+          </div>
+          <div className="scope-space-grid">
+            {spaces.map((spaceName) => {
+              const appCount = mockAppSummaries.filter((app) => spaceNameForPicker(app) === spaceName).length;
+              const selected = selectedSpaces.has(spaceName);
+              return (
+                <button type="button" key={spaceName} className={`scope-space-card ${selected ? "selected" : ""}`} aria-pressed={selected} onClick={() => onToggleSpace(spaceName)}>
+                  <span>{spaceName}</span>
+                  <b>{appCount} apps</b>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className="scope-summary-line">
+        <StatusPill status={selectedAppIds.length > 0 ? "ok" : "idle"} label={mode === "later" ? "Choose later" : "Ready"} dot />
+        <span className="small muted2">{summary}. Detailed app selection stays in the Apps menu.</span>
+      </div>
+    </div>
+  );
+}
+
+function ScopeCard({ title, badge, body, selected, onClick }: { title: string; badge?: string; body: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className={`scope-card ${selected ? "selected" : ""}`} aria-pressed={selected} onClick={onClick}>
+      <span className="scope-card__top">
+        <span className="h3">{title}</span>
+        {badge ? <span className="scope-card__badge">{badge}</span> : null}
+      </span>
+      <span className="small muted2">{body}</span>
+    </button>
   );
 }
 
@@ -386,20 +733,38 @@ function authStepBody(entry: OnboardingEntry) {
   return "Choose a global auth profile, or enter auth used only by this project in the preview.";
 }
 
-function AuthProfileFields({ scope }: { scope: "global" | "project" }) {
+function AuthProfileFields({
+  scope,
+  profileName,
+  username,
+  generatedLabel,
+  onProfileNameChange,
+  onUsernameChange,
+  hasEnteredSecret,
+  onSetSecret,
+}: {
+  scope: "global" | "project";
+  profileName?: string;
+  username: string;
+  generatedLabel?: string;
+  onProfileNameChange?: (value: string) => void;
+  onUsernameChange: (value: string) => void;
+  hasEnteredSecret: boolean;
+  onSetSecret: () => void;
+}) {
   const isProjectOnly = scope === "project";
 
   return (
     <>
       <div className="form-grid">
-        <MockField label={isProjectOnly ? "Auth label" : "Profile name"} value={isProjectOnly ? PROJECT_ONLY_AUTH_LABEL : "Client A Admin"} />
-        <MockField label="Username" value="ca-admin@client-a" />
-        <MockField label="Password" value="••••••••" meta="Preview only · credential storage will use the OS keychain" />
+        {isProjectOnly ? null : <TextField label="Profile name" value={profileName ?? ""} onChange={(value) => onProfileNameChange?.(value)} />}
+        <TextField label="Username" value={username} onChange={onUsernameChange} />
+        <SecretField label="Password" hasStoredSecret={hasEnteredSecret} onSet={onSetSecret} />
       </div>
       {isProjectOnly ? (
         <div className="setup-complete-line">
           <StatusPill status="idle" label="Project-only" dot />
-          <span className="small muted2">Used only by this project in this preview. It will not appear in Auth profiles.</span>
+          <span className="small muted2">Used only by this project in this preview. Metadata display name: {generatedLabel}</span>
         </div>
       ) : (
         <div className="setup-complete-line">
@@ -492,15 +857,98 @@ function getInitialSiteId(initialSiteId: string | null | undefined): string {
   return connectedSites[0].id;
 }
 
-function MockField({ label, value, action, meta, onAction }: { label: string; value: string; action?: string; meta?: string; onAction?: () => void }) {
+function isStepValid({
+  step,
+  entry,
+  authMode,
+  hasEnteredSecret,
+  connectionResult,
+  selectedAppIds,
+  appScopeMode,
+  selectedSpaceNames,
+  projectFolderPath,
+  projectName,
+  siteDisplayName,
+  siteDomain,
+  authProfileDisplayName,
+  authUsername,
+  projectLocalUsername,
+}: {
+  step: StepKey;
+  entry: OnboardingEntry;
+  authMode: AuthMode;
+  hasEnteredSecret: boolean;
+  connectionResult: ConnectionTestResult | null;
+  selectedAppIds: string[];
+  appScopeMode: AppScopeMode;
+  selectedSpaceNames: string[];
+  projectFolderPath: string;
+  projectName: string;
+  siteDisplayName: string;
+  siteDomain: string;
+  authProfileDisplayName: string;
+  authUsername: string;
+  projectLocalUsername: string;
+}) {
+  if (step === "project") {
+    return projectName.trim().length > 0 && projectFolderPath.trim().length > 0;
+  }
+
+  if (step === "auth") {
+    if (entry === "add-auth") {
+      return authProfileDisplayName.trim().length > 0 && authUsername.trim().length > 0 && hasEnteredSecret;
+    }
+    return authMode === "existing" || (projectLocalUsername.trim().length > 0 && hasEnteredSecret);
+  }
+
+  if (step === "site") {
+    return entry === "new-project" || (siteDisplayName.trim().length > 0 && siteDomain.trim().length > 0);
+  }
+
+  if (step === "test") {
+    return connectionResult?.status === "passed";
+  }
+
+  if (step === "apps") {
+    if (appScopeMode === "later") {
+      return true;
+    }
+    if (appScopeMode === "by_space") {
+      return selectedSpaceNames.length > 0 && selectedAppIds.length > 0;
+    }
+    return selectedAppIds.length > 0;
+  }
+
+  return true;
+}
+
+function TextField({
+  label,
+  value,
+  meta,
+  actionLabel,
+  full,
+  onChange,
+  onAction,
+}: {
+  label: string;
+  value: string;
+  meta?: string;
+  actionLabel?: string;
+  full?: boolean;
+  onChange: (value: string) => void;
+  onAction?: () => void;
+}) {
   return (
-    <div className={`form-group ${action || meta ? "form-group--full" : ""}`}>
-      <span className="label">{label}</span>
-      <div className="input filled">
-        <span>{value}</span>
-        {action ? (
-          <button type="button" className="btn btn--sm" onClick={onAction}>
-            {action}
+    <div className={`form-group ${full || actionLabel || meta ? "form-group--full" : ""}`}>
+      <label className="label" htmlFor={`field-${label.replace(/\s+/g, "-").toLowerCase()}`}>
+        {label}
+      </label>
+      <div className={actionLabel ? "field-row" : undefined}>
+        <input id={`field-${label.replace(/\s+/g, "-").toLowerCase()}`} className="input" value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+        {actionLabel ? (
+          <button type="button" className="link-button" onClick={onAction}>
+            {actionLabel}
           </button>
         ) : null}
       </div>
@@ -509,27 +957,58 @@ function MockField({ label, value, action, meta, onAction }: { label: string; va
   );
 }
 
-function CheckRow({ label, detail }: { label: string; detail: string }) {
+function ReadOnlyField({ label, value, meta }: { label: string; value: string; meta?: string }) {
+  return (
+    <div className={`form-group ${meta ? "form-group--full" : ""}`}>
+      <span className="label">{label}</span>
+      <div className="input input--readonly filled">
+        <span>{value}</span>
+      </div>
+      {meta ? <span className="hint">{meta}</span> : null}
+    </div>
+  );
+}
+
+function PathReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="form-group form-group--full">
+      <span className="label">{label}</span>
+      <input className="input input--path" readOnly value={value} title={value} />
+    </div>
+  );
+}
+
+function ConnectionPreviewRows({
+  result,
+  siteName,
+  siteDomain,
+  authLabel,
+}: {
+  result: ConnectionTestResult | null;
+  siteName: string;
+  siteDomain: string;
+  authLabel: string;
+}) {
+  const status = result?.status ?? "idle";
+  return (
+    <div className="list">
+      <PreviewRow label="Site target" detail={`${siteName} · ${siteDomain}`} state={status} />
+      <PreviewRow label="Auth metadata" detail={`${authLabel} is selected for this project.`} state={status} />
+      <PreviewRow label="Read permission" detail="Preview permission check only. No kintone request is sent." state={status} />
+    </div>
+  );
+}
+
+function PreviewRow({ label, detail, state }: { label: string; detail: string; state: ConnectionTestResult["status"] | "idle" }) {
+  const tone = state === "passed" ? "ok" : state === "failed" ? "err" : state === "testing" ? "run" : "idle";
+  const statusLabel = state === "passed" ? "Passed" : state === "failed" ? "Failed" : state === "testing" ? "Checking" : "Waiting";
   return (
     <div className="li">
       <div className="grow">
         <div className="h3">{label}</div>
         <div className="small muted2">{detail}</div>
       </div>
-      <StatusPill status="ok" label="Passed" dot />
-    </div>
-  );
-}
-
-function AppRow({ name, detail }: { name: string; detail: string }) {
-  return (
-    <div className="li">
-      <span className="checkbox checked">✓</span>
-      <div className="grow">
-        <div className="h3">{name}</div>
-        <div className="small muted2">{detail}</div>
-      </div>
-      <StatusPill status="info" label="Selected" />
+      <StatusPill status={tone} label={statusLabel} dot />
     </div>
   );
 }

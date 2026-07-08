@@ -12,6 +12,7 @@ interface ConfirmationModalProps {
   cancelLabel: string;
   tertiaryLabel?: string;
   tone: "warn" | "danger";
+  confirmDisabled?: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
   onTertiary?: () => void;
@@ -27,6 +28,7 @@ export function ConfirmationModal({
   cancelLabel,
   tertiaryLabel,
   tone,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
   onTertiary,
@@ -95,7 +97,7 @@ export function ConfirmationModal({
         <SecondaryActionButton label={cancelLabel} variant="ghost" onClick={onCancel} />
         <div className="rowc">
           {tertiaryLabel ? <SecondaryActionButton label={tertiaryLabel} onClick={onTertiary} /> : null}
-          <PrimaryActionButton label={confirmLabel} disabled={requireAck && !acknowledged} onClick={onConfirm} />
+          <PrimaryActionButton label={confirmLabel} disabled={confirmDisabled || (requireAck && !acknowledged)} onClick={onConfirm} />
         </div>
       </div>
     </div>

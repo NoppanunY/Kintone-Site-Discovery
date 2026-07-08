@@ -46,7 +46,11 @@ export function ScanRunningScreen({
         breadcrumb={`${site.name} · Scan`}
         title={isRerun ? "Re-running scan..." : "Scanning..."}
         titleMeta={<StatusPill status="run" label="Running" dot />}
-        subtitle={isRerun ? `Standard Scan · ${site.selectedApps} apps · sensitive options off` : `Building local snapshot · App 3 of ${site.selectedApps} · Support Tickets`}
+        subtitle={
+          isRerun
+            ? `Preview Standard Scan · ${site.selectedApps} apps · no kintone request or snapshot write`
+            : `Preview run · App 3 of ${site.selectedApps} · no kintone request or snapshot write`
+        }
         actions={
           <>
             {isRerun ? <SecondaryActionButton label="Change settings" size="sm" variant="ghost" onClick={onChangeSettings} /> : null}

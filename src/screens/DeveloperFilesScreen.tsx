@@ -2,17 +2,17 @@ import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../compo
 import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
-export function DeveloperFilesScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
+export function DeveloperFilesScreen({ site, onMockAction, onRevealFolder }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler; onRevealFolder: () => void }) {
   return (
     <div className="page">
       <PageHeader
         breadcrumb={`${site.name} · Developer Files`}
         title="Developer Files"
         titleMeta={<StatusPill status="idle" label="Advanced" />}
-        subtitle="Machine-readable files generated from the current local snapshot, for developer handoff."
+        subtitle="Mock developer-file list for this N5 build. Real file generation is not implemented yet."
         actions={site.hasSnapshot ?
           <>
-            <SecondaryActionButton label="Reveal files folder" onClick={() => onMockAction("Folder opening is not connected yet. No folder was opened.")} />
+            <SecondaryActionButton label="Reveal files folder" onClick={onRevealFolder} />
             <PrimaryActionButton
               label="Create review package"
               onClick={() => onMockAction("Review package would include manifest.json, reports, developer files, redaction log, and README. No zip file was written.")}
@@ -24,7 +24,7 @@ export function DeveloperFilesScreen({ site, onMockAction }: { site: SiteWorkspa
         <div className="card card-pad">
           <div className="h3">No developer files yet</div>
           <div className="body muted" style={{ marginTop: 6 }}>
-            Run a scan to create the first local snapshot and generate developer files for {site.name}.
+            No real developer files have been generated yet. Run screens are preview-only in this build.
           </div>
         </div>
       ) : (

@@ -67,7 +67,7 @@ export function SettingsScreen({ site, onMockAction }: { site: SiteWorkspaceMode
               <select className="select" value={settings.preset} onChange={(event) => updateSetting("preset", event.target.value)}>
                 <option value="quick">Quick Scan</option>
                 <option value="standard">Standard Scan</option>
-                <option value="full">Full Discovery</option>
+                <option value="full_discovery">Full Discovery</option>
               </select>
             </div>
             <div className="card">

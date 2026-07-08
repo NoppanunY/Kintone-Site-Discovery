@@ -1,5 +1,7 @@
 import type { PlatformBridge } from "./bridgeTypes";
 
+const fallbackDefaultProjectsRoot = "C:\\tmp\\Kintone Site Discovery\\Projects";
+
 declare global {
   interface Window {
     kintoneDiscoveryPlatform?: PlatformBridge;
@@ -33,6 +35,126 @@ const browserFallbackBridge: PlatformBridge = {
       ok: false,
       code: "UNAVAILABLE",
       message: "Opening local folders requires the desktop runtime bridge.",
+    };
+  },
+
+  async getWorkspaceHome() {
+    return {
+      schemaVersion: 1,
+      appDataRoot: "browser-fallback",
+      defaultProjectsRoot: fallbackDefaultProjectsRoot,
+      projects: [],
+      connectedSites: [],
+      authProfiles: [],
+      errors: [
+        {
+          scope: "app",
+          code: "missing",
+          message: "Workspace metadata is unavailable in browser fallback mode.",
+          recoverable: true,
+        },
+      ],
+    };
+  },
+
+  async createProject() {
+    return {
+      ok: false,
+      message: "Creating project folders requires the desktop runtime bridge.",
+      errors: [
+        {
+          scope: "project",
+          code: "io_error",
+          message: "Desktop workspace storage is unavailable in browser fallback mode.",
+          recoverable: true,
+        },
+      ],
+    };
+  },
+
+  async openProjectFromFolder() {
+    return {
+      ok: false,
+      message: "Opening project folders requires the desktop runtime bridge.",
+      errors: [
+        {
+          scope: "project",
+          code: "io_error",
+          message: "Desktop workspace storage is unavailable in browser fallback mode.",
+          recoverable: true,
+        },
+      ],
+    };
+  },
+
+  async saveConnectedSite(site) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Connected site metadata is not persisted in browser fallback mode.",
+      connectedSite: site,
+    };
+  },
+
+  async saveAuthProfile(profile) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Auth profile metadata is not persisted in browser fallback mode.",
+      authProfile: profile,
+    };
+  },
+
+  async updateProjectMetadata() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Project metadata is not persisted in browser fallback mode.",
+    };
+  },
+
+  async removeProjectFromApp(request) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Project metadata is not persisted in browser fallback mode.",
+      projectId: request.projectId,
+    };
+  },
+
+  async updateConnectedSite(site) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Connected site metadata is not persisted in browser fallback mode.",
+      connectedSite: site,
+    };
+  },
+
+  async removeConnectedSite(request) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Connected site metadata is not persisted in browser fallback mode.",
+      siteId: request.siteId,
+    };
+  },
+
+  async updateAuthProfile(profile) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Auth profile metadata is not persisted in browser fallback mode.",
+      authProfile: profile,
+    };
+  },
+
+  async removeAuthProfile(request) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Auth profile metadata is not persisted in browser fallback mode.",
+      authProfileId: request.authProfileId,
     };
   },
 

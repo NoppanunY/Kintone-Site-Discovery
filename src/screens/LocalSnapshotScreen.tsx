@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import type { MockActionHandler, SiteWorkspaceModel } from "../types";
-import { KpiGrid, PageHeader } from "./shared";
+import { KpiGrid, PageHeader, ScanAppSelectionNotice } from "./shared";
 
 type SnapshotRerunState = "idle" | "running" | "succeeded" | "failed" | "canceled";
 
@@ -14,14 +14,20 @@ const collectorRows = [
 
 export function LocalSnapshotScreen({
   site,
+  canStartScan,
   onChangeSettings,
   onOpenFullScan,
+  onChooseApps,
   onMockAction,
+  onOpenFolder,
 }: {
   site: SiteWorkspaceModel;
+  canStartScan: boolean;
   onChangeSettings: () => void;
   onOpenFullScan: () => void;
+  onChooseApps: () => void;
   onMockAction: MockActionHandler;
+  onOpenFolder: () => void;
 }) {
   const [rerunState, setRerunState] = useState<SnapshotRerunState>("idle");
   const [showDetails, setShowDetails] = useState(false);
@@ -31,6 +37,11 @@ export function LocalSnapshotScreen({
   const titleMeta = rerunState === "idle" ? undefined : <SnapshotTitleMeta state={rerunState} />;
 
   const startRerun = () => {
+    if (!canStartScan) {
+      onMockAction("Choose at least one app before starting or re-running a scan.", { tone: "warn" });
+      return;
+    }
+
     setRerunState("running");
     setShowDetails(false);
   };
@@ -67,7 +78,11 @@ export function LocalSnapshotScreen({
         breadcrumb={`${site.name} · Local Snapshot`}
         title="Local Snapshot"
         titleMeta={titleMeta}
-        subtitle={isRunning ? `Running scan · Standard Scan · ${site.selectedApps} apps · sensitive options off` : "The current local snapshot for this site. Reports and developer files are generated from it."}
+        subtitle={
+          isRunning
+            ? `Preview scan · Standard Scan · ${site.selectedApps} apps · no kintone request or snapshot write`
+            : "Mock snapshot view for this N5 build. Real snapshot writes and generated reports are not implemented yet."
+        }
         actions={
           isRunning ? (
             <>
@@ -76,12 +91,13 @@ export function LocalSnapshotScreen({
             </>
           ) : (
             <>
-              {hasSnapshot ? <SecondaryActionButton label="Open snapshot folder" onClick={() => onMockAction("Folder opening is not connected yet. No folder was opened.")} /> : null}
-              <PrimaryActionButton label={hasSnapshot ? "Re-run scan" : "Run scan"} onClick={startRerun} />
+              {hasSnapshot ? <SecondaryActionButton label="Open snapshot folder" onClick={onOpenFolder} /> : null}
+              <PrimaryActionButton label={hasSnapshot ? "Re-run scan" : "Run scan"} disabled={!canStartScan} onClick={startRerun} />
             </>
           )
         }
       />
+      {!canStartScan ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
       <SnapshotRerunNotice
         state={rerunState}
         showDetails={showDetails}
@@ -89,6 +105,7 @@ export function LocalSnapshotScreen({
         onRetry={startRerun}
         onChangeSettings={onChangeSettings}
         onOpenFullScan={onOpenFullScan}
+        canStartScan={canStartScan}
         onDismiss={() => setRerunState("idle")}
         onFinishMock={finishMockRun}
         onFailMock={() => setRerunState("failed")}
@@ -110,7 +127,7 @@ export function LocalSnapshotScreen({
           <div className="card card-pad between">
             <div className="rowc">
               <StatusPill status="ok" label="Integrity OK" dot />
-              <span className="small muted">{snapshotUpdated ? "Manifest verified · captured just now" : "Manifest verified · captured Jul 2, 2026 · 10:35"}</span>
+              <span className="small muted">{snapshotUpdated ? "Preview manifest only · no snapshot folder was written" : "Mock manifest · captured Jul 2, 2026 · 10:35"}</span>
             </div>
             <span className="mono small muted2">snapshot/manifest.json</span>
           </div>
@@ -154,6 +171,7 @@ function SnapshotRerunNotice({
   onRetry,
   onChangeSettings,
   onOpenFullScan,
+  canStartScan,
   onDismiss,
   onFinishMock,
   onFailMock,
@@ -164,6 +182,7 @@ function SnapshotRerunNotice({
   onRetry: () => void;
   onChangeSettings: () => void;
   onOpenFullScan: () => void;
+  canStartScan: boolean;
   onDismiss: () => void;
   onFinishMock: () => void;
   onFailMock: () => void;
@@ -181,7 +200,7 @@ function SnapshotRerunNotice({
             <span className="small muted">62% · plugin saved config</span>
           </div>
           <div className="rowc">
-            <SecondaryActionButton label="Full scanning" size="sm" onClick={onOpenFullScan} />
+            <SecondaryActionButton label="Full scanning" size="sm" disabled={!canStartScan} onClick={onOpenFullScan} />
             <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
           </div>
         </div>
@@ -212,7 +231,7 @@ function SnapshotRerunNotice({
       <div className="snapshot-status-line snapshot-status-line--ok">
         <div className="rowc">
           <StatusPill status="ok" label="Updated" dot />
-          <span className="small muted">Latest snapshot updated just now.</span>
+          <span className="small muted">Preview completed. No snapshot folder was written.</span>
         </div>
         <SecondaryActionButton label="Dismiss" size="sm" variant="ghost" onClick={onDismiss} />
       </div>
@@ -227,7 +246,7 @@ function SnapshotRerunNotice({
         <span className="small muted">{failed ? "Re-run failed. Current snapshot was not replaced." : "Re-run canceled. Current snapshot was not replaced."}</span>
       </div>
       <div className="rowc">
-        <SecondaryActionButton label="Retry" size="sm" onClick={onRetry} />
+        <SecondaryActionButton label="Retry" size="sm" disabled={!canStartScan} onClick={onRetry} />
         {failed ? <SecondaryActionButton label="Change settings" size="sm" variant="ghost" onClick={onChangeSettings} /> : null}
         <SecondaryActionButton label="Dismiss" size="sm" variant="ghost" onClick={onDismiss} />
       </div>

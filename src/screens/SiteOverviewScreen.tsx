@@ -3,16 +3,19 @@ import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, Status
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
 import { overviewKpisForSite } from "../mockData";
 import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler, SiteWorkspaceModel } from "../types";
-import { KpiGrid, PageHeader } from "./shared";
+import { KpiGrid, PageHeader, ScanAppSelectionNotice } from "./shared";
 
 interface SiteOverviewScreenProps {
   site: SiteWorkspaceModel;
+  canStartScan: boolean;
   onScanSettings: () => void;
   onOpenFullScan: () => void;
+  onChooseApps: () => void;
   onSnapshot: () => void;
   onReports: () => void;
   onDeveloperFiles: () => void;
   onMockAction: MockActionHandler;
+  onOpenProjectFolder: () => void;
 }
 
 type OverviewScanState = "idle" | "running" | "succeeded" | "failed" | "canceled";
@@ -24,7 +27,7 @@ const collectorRows = [
   { status: "Queued", tone: "idle" as const, label: "Snapshot generation" },
 ];
 
-export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSnapshot, onReports, onDeveloperFiles, onMockAction }: SiteOverviewScreenProps) {
+export function SiteOverviewScreen({ site, canStartScan, onScanSettings, onOpenFullScan, onChooseApps, onSnapshot, onReports, onDeveloperFiles, onMockAction, onOpenProjectFolder }: SiteOverviewScreenProps) {
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
   const [scanState, setScanState] = useState<OverviewScanState>("idle");
   const [showScanDetails, setShowScanDetails] = useState(false);
@@ -45,6 +48,11 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
   }
 
   function startOverviewScan() {
+    if (!canStartScan) {
+      onMockAction("Choose at least one app before starting a scan.", { tone: "warn" });
+      return;
+    }
+
     setScanState("running");
     setShowScanDetails(false);
   }
@@ -55,7 +63,7 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
         breadcrumb={`${site.projectName} · ${site.name}`}
         title="Overview"
         titleMeta={scanState === "running" ? <StatusPill status="run" label="Scanning" dot /> : null}
-        subtitle={scanState === "running" ? `Running scan · Standard Scan · ${site.selectedApps} apps · sensitive options off` : `${site.domain} · ${site.profile}`}
+        subtitle={scanState === "running" ? `Preview scan · Standard Scan · ${site.selectedApps} apps · no kintone request or snapshot write` : `${site.domain} · ${site.profile}`}
         actions={
           scanState === "running" ? (
             <>
@@ -68,11 +76,12 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
               {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
               {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
               <SecondaryActionButton label="Test connection" onClick={() => runConnectionTest("passed")} />
-              <PrimaryActionButton label="◎ Run scan" onClick={startOverviewScan} />
+              <PrimaryActionButton label="◎ Run scan" disabled={!canStartScan} onClick={startOverviewScan} />
             </>
           )
         }
       />
+      {!canStartScan ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
       {connectionResult?.status === "failed" ? (
         <ConnectionTestPanel
           result={connectionResult}
@@ -87,6 +96,7 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
         onRetry={startOverviewScan}
         onChangeSettings={onScanSettings}
         onOpenFullScan={onOpenFullScan}
+        canStartScan={canStartScan}
         onDismiss={() => setScanState("idle")}
         onFinishMock={() => setScanState("succeeded")}
         onFailMock={() => setScanState("failed")}
@@ -124,7 +134,7 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
               <SecondaryActionButton label="⛃ Open Local Snapshot" onClick={onSnapshot} />
               <SecondaryActionButton label="▦ View reports" onClick={onReports} />
               <SecondaryActionButton label="〈〉 Open developer files" onClick={onDeveloperFiles} />
-              <SecondaryActionButton label="Open project folder" variant="ghost" onClick={() => onMockAction("Project folder opening is not connected yet. No Windows Explorer window was opened.")} />
+              <SecondaryActionButton label="Open project folder" variant="ghost" onClick={onOpenProjectFolder} />
             </div>
           </>
         ) : (
@@ -136,8 +146,8 @@ export function SiteOverviewScreen({ site, onScanSettings, onOpenFullScan, onSna
               </div>
             </div>
             <div className="btn-row">
-              <PrimaryActionButton label="Run scan" onClick={startOverviewScan} />
-              <SecondaryActionButton label="Open project folder" variant="ghost" onClick={() => onMockAction("Project folder opening is not connected yet. No Windows Explorer window was opened.")} />
+              <PrimaryActionButton label="Run scan" disabled={!canStartScan} onClick={startOverviewScan} />
+              <SecondaryActionButton label="Open project folder" variant="ghost" onClick={onOpenProjectFolder} />
             </div>
           </>
         )}
@@ -153,6 +163,7 @@ function OverviewScanStatus({
   onRetry,
   onChangeSettings,
   onOpenFullScan,
+  canStartScan,
   onDismiss,
   onFinishMock,
   onFailMock,
@@ -163,6 +174,7 @@ function OverviewScanStatus({
   onRetry: () => void;
   onChangeSettings: () => void;
   onOpenFullScan: () => void;
+  canStartScan: boolean;
   onDismiss: () => void;
   onFinishMock: () => void;
   onFailMock: () => void;
@@ -180,14 +192,14 @@ function OverviewScanStatus({
             <span className="small muted">62% · plugin saved config</span>
           </div>
           <div className="rowc">
-            <SecondaryActionButton label="Full scanning" size="sm" onClick={onOpenFullScan} />
+            <SecondaryActionButton label="Full scanning" size="sm" disabled={!canStartScan} onClick={onOpenFullScan} />
             <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
           </div>
         </div>
         <div className="progress" aria-label="Scan progress">
           <i style={{ width: "62%" }} />
         </div>
-        <div className="small muted2">The current snapshot remains active until this run completes.</div>
+        <div className="small muted2">Preview only. No kintone request is sent and no snapshot folder is written.</div>
         {showDetails ? (
           <div className="snapshot-rerun__details">
             {collectorRows.map((row) => (
@@ -217,7 +229,7 @@ function OverviewScanStatus({
         </span>
       </div>
       <div className="rowc">
-        {succeeded ? null : <SecondaryActionButton label="Retry" size="sm" onClick={onRetry} />}
+        {succeeded ? null : <SecondaryActionButton label="Retry" size="sm" disabled={!canStartScan} onClick={onRetry} />}
         {failed ? <SecondaryActionButton label="Change settings" size="sm" onClick={onChangeSettings} /> : null}
         <SecondaryActionButton label="Dismiss" size="sm" variant="ghost" onClick={onDismiss} />
       </div>

@@ -26,6 +26,11 @@ export function projectIdFromPath(pathname: string) {
   return projectContext(match?.[1]).projectId;
 }
 
+export function projectRouteIdFromPath(pathname: string) {
+  const match = pathname.match(/^\/(?:project|site)\/([^/]+)/);
+  return match?.[1] ?? null;
+}
+
 export function navFromPath(pathname: string): NavKey {
   if (pathname.includes("/apps")) return "apps";
   if (pathname.includes("/scan")) return "scan";
@@ -39,7 +44,7 @@ export function navFromPath(pathname: string): NavKey {
 }
 
 export function activeTabFromPath(pathname: string) {
-  return isProjectRoute(pathname) ? projectIdFromPath(pathname) : "home";
+  return isProjectRoute(pathname) ? (projectRouteIdFromPath(pathname) ?? projectIdFromPath(pathname)) : "home";
 }
 
 export const siteRouteByNavForSite = projectRouteByNavForProject;

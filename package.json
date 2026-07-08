@@ -9,6 +9,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "test": "pnpm --filter @kintone-site-discovery/core build && pnpm desktop:compile && node --test packages/core/test/*.test.mjs desktop/test/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "desktop:compile": "tsc -p desktop/tsconfig.json",
     "desktop:dev": "pnpm desktop:compile && node desktop/scripts/dev.mjs",
@@ -16,6 +17,7 @@
     "desktop:start": "pnpm desktop:build && node desktop/scripts/start.mjs"
   },
   "dependencies": {
+    "@kintone-site-discovery/core": "workspace:*",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },

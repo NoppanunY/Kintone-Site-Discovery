@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SecondaryActionButton, WarningBanner } from "../components";
 import type { SiteWorkspaceModel } from "../types";
 
-export function AdvancedInternalDataScreen({ site }: { site: SiteWorkspaceModel }) {
+export function AdvancedInternalDataScreen({ site, onOpenInternalFolder }: { site: SiteWorkspaceModel; onOpenInternalFolder: () => void }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [openRequested, setOpenRequested] = useState(false);
 
@@ -50,9 +50,16 @@ export function AdvancedInternalDataScreen({ site }: { site: SiteWorkspaceModel 
         <span className="body">I understand this folder is machine-managed and should not be edited manually.</span>
       </div>
       <div className="rowc">
-        <SecondaryActionButton label="Open .kintone folder" disabled={!acknowledged} onClick={() => setOpenRequested(true)} />
+        <SecondaryActionButton
+          label="Open .kintone folder"
+          disabled={!acknowledged}
+          onClick={() => {
+            setOpenRequested(true);
+            onOpenInternalFolder();
+          }}
+        />
         <span className="small muted2">
-          {openRequested ? "Desktop folder opening is not connected yet" : acknowledged ? "Ready to open after desktop folder wiring" : "Enabled after you acknowledge above"}
+          {openRequested ? "Open request sent through the desktop bridge" : acknowledged ? "Ready to open through the desktop bridge" : "Enabled after you acknowledge above"}
         </span>
       </div>
     </div>
