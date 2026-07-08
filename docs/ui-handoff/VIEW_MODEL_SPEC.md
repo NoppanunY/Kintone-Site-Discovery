@@ -5,9 +5,15 @@ The exact view model each screen consumes. Types reference `DATA_CONTRACT.md`. A
 Shared:
 ```ts
 type Async<T> = { status: 'idle'|'loading'|'ready'|'error'; data?: T; error?: ErrorStateModel };
-interface ShellVM { projectName: string; tabs: {id:Id;title:string;kind:'home'|'site';running?:boolean}[]; activeTabId: Id; }
+interface ShellVM { projectName: string; tabs: {id:Id;title:string;kind:'home'|'project';running?:boolean}[]; activeTabId: Id; }
+interface ProjectContextVM {
+  project: Project;
+  connectedSite: ConnectedSite;
+  authProfile?: AuthProfile;        // present when Project uses a global profile
+  selectedAuthLabel: string;        // safe display label; never a secret
+}
 ```
-Every site-tab screen also receives `site: SiteWorkspace` and `nav: { active: NavKey; onNavigate(key:NavKey):void }`.
+Every project-tab screen receives `context: ProjectContextVM` and `nav: { active: NavKey; onNavigate(key:NavKey):void }`. The UI may show linked site details in page copy, but scan/snapshot/report/history state is Project-scoped.
 
 ---
 
@@ -16,8 +22,8 @@ Every site-tab screen also receives `site: SiteWorkspace` and `nav: { active: Na
 interface OnboardingVM {
   step: 1|2|3|4|5;
   project: { mode:'create'|'open'; name:string; folderPath:string; valid:boolean };
-  signIn: { mode:'existing'|'new'; authProfileId?:Id; username:string; hasSecretEntered:boolean; profileDraftId?:Id }; // secret write-only
-  siteDraft: { displayName:string; domain:string; domainValid:boolean; folderPath:string };
+  signIn: { mode:'existing'|'project_only_new'; authProfileId?:Id; username:string; hasSecretEntered:boolean; projectAuthDraftId?:Id }; // secret write-only
+  siteDraft: { mode:'existing'|'new'; connectedSiteId?:Id; displayName:string; domain:string; domainValid:boolean };
   test: Async<{ domainReachable:boolean; credentialsAccepted:boolean; readPermission:boolean }>;
   appFetch: Async<{ appCount:number }>;
   canContinue: boolean;              // gates the Continue button per step
@@ -34,20 +40,27 @@ Notes: Step 4 must resolve all three checks true before `canContinue`. Secret ne
 ```ts
 interface ProjectHomeVM {
   shell: ShellVM;
-  recentProjects: { id:Id; name:string; folderPath:string; lastOpenedAt:ISODateString; folderMissing?:boolean }[];
+  projects: {
+    project: Project;
+    linkedSite: ConnectedSite;
+    authProfile?: AuthProfile;
+    selectedAuthLabel: string;
+    lastSnapshot?: SnapshotSummary;
+    folderMissing?: boolean;
+  }[];
   authProfiles: AuthProfile[];       // global profiles rendered via credentialStatus; never secrets
-  sites: (SiteWorkspace & { lastSnapshot?: SnapshotSummary })[];
+  connectedSites: (ConnectedSite & { linkedProjectCount:number })[];
   onNewProject():void; onOpenProject(id:Id):void; onRemoveProject(id:Id):void;
   onAddProfile():void; onEditProfile(id:Id):void; onTestProfile(id:Id):void; onForgetCredential(id:Id):void;
-  onAddSite():void; onOpenSite(id:Id):void; onEditSite(id:Id):void;
+  onAddConnectedSite():void; onUseSiteInNewProject(siteId:Id):void; onEditConnectedSite(id:Id):void; onTestSite(id:Id):void;
 }
 ```
-Guards: `onOpenSite` disabled when the site's profile `credentialStatus !== 'saved'`.
+Guards: `onOpenProject` disabled when the Project's selected auth is missing or invalid. Connected Site rows do not show auth because auth is selected by Projects.
 
 ## SCR-03 · Site Overview  `/site/:siteId/overview`
 ```ts
 interface OverviewVM {
-  site: SiteWorkspace;
+  context: ProjectContextVM;
   connection: ConnectionStatus;
   counts: { appsAvailable:number; appsInSnapshot:number; plugins:number; redactions:number };
   currentSnapshot?: SnapshotSummary; // undefined ⇒ empty state

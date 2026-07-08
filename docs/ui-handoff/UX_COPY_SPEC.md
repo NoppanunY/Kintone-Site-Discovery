@@ -31,7 +31,7 @@ All important user-facing copy. Plain, non-developer language. Technical terms o
 > Forbidden verbs (imply write-back/deploy): Deploy, Publish, Import, Push, Sync to kintone, Apply, Restore, Roll back. Use `Create review package` / `Create share package`, never `Export package`.
 
 ## Section / screen titles
-- `Projects` · `Auth profiles` · `Site workspaces`
+- `Projects` · `Sites` · `Auth profiles`
 - `Overview` · `Apps` · `Choose a scan preset` · `Configure sensitive options`
 - `Scanning…` · `Scan completed` · `Completed with warnings` · `Scan failed`
 - `Local Snapshot` · `Reports` · `Developer Files` · `Scan history`

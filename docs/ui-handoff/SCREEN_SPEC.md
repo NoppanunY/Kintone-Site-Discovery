@@ -4,6 +4,8 @@ Every screen in the MVP 1 hi-fi UI. Screen ids match the hi-fi file (`Kintone Si
 
 Global product model (applies to all): the app **pulls from kintone → writes one complete local snapshot**. Reports and Developer Files are **views generated from the snapshot**. Read-only — no deploy/import/write-back. Secrets never render or persist to project files.
 
+Current workspace model (applies to all): `ConnectedSite` is reusable site/domain metadata; `Project` is the local folder and selects exactly one ConnectedSite plus project auth. Screens that still say "Site" in their title operate in the active Project tab context and show the linked site for clarity.
+
 ---
 
 ## SCR-01 · First-run onboarding wizard
@@ -22,7 +24,7 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 - **Acceptance criteria:**
   - Password uses SecretField; never echoed, never written to project files.
   - Step 4 must pass before Step 5; failure blocks Continue.
-  - Finish creates a Project that stores `siteId` plus either a selected global `authProfileId` or the project-only auth draft from the wizard, then routes to the Project overview with Run scan primary. No snapshot is created until the first scan writes a snapshot folder.
+  - Finish creates a Project that stores `siteId` plus `authSelection` (global profile or project-only auth), then routes to the Project overview with Run scan primary. No snapshot is created until the first scan writes a snapshot folder.
   - A project-only auth draft entered inside New Project does not appear in Home > Auth profiles. Standalone Add profile remains the path for creating a reusable global auth profile.
   - Re-runnable later to create another Project or add another reusable Site.
 

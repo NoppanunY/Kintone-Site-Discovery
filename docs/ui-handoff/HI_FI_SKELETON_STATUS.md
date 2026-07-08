@@ -19,6 +19,14 @@ This note records the first UI skeleton batch implemented from the Claude Design
 - No CLI behavior.
 - No write-back, deploy, import, Git client, AI, rollback, or safe deploy flow.
 
+## Desktop foundation status
+
+- N0 Baseline verification is complete.
+- N1 Windows desktop runtime ADR is complete: Electron is accepted in `docs/adr/0001-windows-desktop-runtime.md`.
+- N2 Desktop shell scaffold is complete: the renderer runs inside the Windows desktop shell.
+- N3 Typed platform bridge stubs are complete: runtime info, folder/open-folder stubs, window/tab state stubs, and credential-store status stubs are typed.
+- The latest readiness pass completed with `pnpm typecheck`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` passing outside the sandbox. The sandboxed `desktop:build` still hits the known Vite/esbuild access block.
+
 ## Product model update
 
 - Desktop mock now separates reusable Sites from Projects.
@@ -45,11 +53,9 @@ This note records the first UI skeleton batch implemented from the Claude Design
 
 Continue with `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md`.
 
-The next batch is Windows desktop foundation only:
+The next batch is local foundation only:
 
-- N0 Baseline verification
-- N1 Windows desktop runtime ADR
-- N2 Desktop shell scaffold
-- N3 Typed platform bridge stubs
+- N4 Core domain package
+- N5 Local workspace storage primitives
 
-Do not implement real kintone access, snapshot storage, scan runner, CLI behavior, deploy/import/write-back, Git client, AI, rollback, or safe deploy in the next batch.
+Do not implement real kintone access, scan runner, OS secure credential storage, CLI behavior, deploy/import/write-back, Git client, AI, rollback, or safe deploy in the next batch. N5 may add local metadata persistence and project-folder primitives, but not scan snapshot capture.

@@ -6,7 +6,7 @@ Conventions:
 - `ISODateString = string` (ISO 8601, UTC, e.g. `"2026-07-02T10:35:12Z"`).
 - `Id = string` (opaque, stable, app-generated unless noted).
 - All IDs are local; kintone-side identifiers are namespaced (`kintoneAppId`).
-- **No interface ever contains a password/secret.** Credentials live in the OS keychain; models carry only a `credentialStatus`.
+- **No interface ever contains a password/secret.** Credentials live in the OS keychain; models may carry only metadata, `credentialStatus`, and opaque keychain references.
 
 ```ts
 // ────────────────────────────────────────────────────────────
@@ -30,6 +30,19 @@ type CollectorKind = 'required' | 'optional';
 type OrderSource = 'api' | 'inferred' | 'manual_fallback';
 type Confidence = 'high' | 'medium' | 'low';
 type AuthType = 'password'; // MVP 1: username/password only
+type ProjectAuthSelection =
+  | { kind: 'global_profile'; authProfileId: Id }
+  | {
+      kind: 'project_local';
+      displayName: string;
+      username: string;
+      authType: AuthType;
+      credentialStatus: CredentialStatus;
+      keychainRef?: string;          // future OS keychain handle; never the secret
+    };
+type SnapshotAuthSelection =
+  | { kind: 'global_profile'; authProfileId: Id; displayName?: string }
+  | { kind: 'project_local'; displayName: string; username: string; authType: AuthType };
 
 // UI-only view states may use additional snake_case values (for example
 // 'never_fetched', 'empty_result', 'ready_with_warnings', 'integrity_error').
@@ -51,7 +64,7 @@ interface Project {
   createdAt: ISODateString;
   lastOpenedAt: ISODateString;
   siteId: Id;                  // → ConnectedSite.id
-  authProfileId: Id;           // → global AuthProfile.id selected for this project in the persisted model
+  authSelection: ProjectAuthSelection;
   schemaVersion: number;       // storage schema version (see SNAPSHOT_STORAGE_SPEC)
 }
 
@@ -139,7 +152,7 @@ interface ScanRun {
   id: Id;                      // "scan_20260702_1035"
   projectId: Id;
   siteId: Id;
-  authProfileId: Id;
+  authSelection: SnapshotAuthSelection;
   presetId: PresetId;
   selectedAppIds: Id[];
   enabledCategoryKeys: string[];
@@ -191,7 +204,7 @@ interface SnapshotManifest {
   projectId: Id;
   siteId: Id;
   siteDomain: string;
-  authProfileId: Id;
+  authSelection: SnapshotAuthSelection;
   schemaVersion: number;
   capturedAt: ISODateString;
   status: ResultStatus;        // 'failed' snapshots are partial (kept for inspection)
@@ -292,7 +305,7 @@ interface ErrorStateModel {
 2. Exactly one `SnapshotSummary.isCurrent === true` per project — mirrors the current-snapshot pointer (see `SNAPSHOT_STORAGE_SPEC.md`).
 3. `FileOrderItem[]` is authored into `SnapshotManifest.fileOrder`; Developer Files renders it verbatim, ordered by `orderIndex`, never alphabetized.
 4. `AuthProfile` records are global app-level profiles. The standalone Add Auth Profile flow creates these reusable records.
-5. In the New Project UI preview, `Use new auth for this project` may create a project-local auth draft for that wizard only. It must not be appended to `AuthProfile[]`, and the storage design must resolve it before real scan/credential persistence is wired.
-6. `ConnectedSite` records do not own auth profiles. A connection test or scan always uses a Project's selected site plus project auth selection (`authProfileId` for global profiles, or a project-local auth draft in the UI preview).
-7. No model exposes secrets. `AuthProfile` carries `credentialStatus` + `keychainRef` only.
+5. `Use new auth for this project` creates a Project-local auth selection. It must not be appended to `AuthProfile[]`. Like global profiles, it stores only metadata plus a future keychain reference, never a secret.
+6. `ConnectedSite` records do not own auth profiles. A connection test or scan always uses a Project's selected site plus `Project.authSelection`.
+7. No model exposes secrets. Auth-related models carry display metadata, `credentialStatus`, and opaque `keychainRef` values only.
 8. `ReportItem` / `DeveloperFileItem` paths are always relative to their snapshot — they are views generated from it, not independent artifacts.

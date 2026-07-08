@@ -31,7 +31,7 @@ References: `DATA_CONTRACT.md`, `VIEW_MODEL_SPEC.md`, `COMPONENT_SPEC.md`, `SCRE
 - **Files:** `src/app/AppShell.tsx`, `src/app/TabHost.tsx`, `src/app/menuConfig.ts`.
 - **Components:** AppShell, TopMenuBar, SiteTabBar, SiteSidebar.
 - **Data/VM:** `ShellVM`.
-- **Acceptance:** title bar + secondary menu bar + tab bar + body render; Home tab + site tabs + New tab; snapshot-first sidebar groups (Site / Snapshot[source] / Configure) with Advanced muted; tab + active-view persistence across restart; menu items mirror in-context actions.
+- **Acceptance:** title bar + secondary menu bar + tab bar + body render; Home tab + Project tabs + New tab; snapshot-first sidebar groups (Site / Snapshot[source] / Configure) with Advanced muted; tab + active-view persistence across restart; menu items mirror in-context actions.
 - **Do NOT yet:** real site content (use placeholders); drag-reorder tabs (optional later).
 
 ## T3 · Routing
@@ -45,15 +45,15 @@ References: `DATA_CONTRACT.md`, `VIEW_MODEL_SPEC.md`, `COMPONENT_SPEC.md`, `SCRE
 - **Files:** `src/screens/onboarding/*`.
 - **Components:** SecretField, FolderPickerRow, PrimaryActionButton, ConfirmationModal, WarningBanner, ErrorState.
 - **Data/VM:** `OnboardingVM`.
-- **Acceptance:** 5 steps; Step 4 blocks until all 3 checks pass; Finish creates AuthProfile + SiteWorkspace + fetched app list and routes to Overview; no snapshot exists until the first successful or partial scan writes one; password only to keychain; re-runnable to add a site.
+- **Acceptance:** 5 steps; Step 4 blocks until all 3 checks pass; Finish creates a Project that selects one ConnectedSite and one project auth selection, then routes to Overview; choosing "Use new auth for this project" does not create a global AuthProfile; Add Connected Site creates only a reusable ConnectedSite; no snapshot exists until the first successful or partial scan writes one; password only to keychain once N6 is implemented.
 - **Do NOT yet:** multiple sites in one wizard pass; SSO/API-token auth (password only).
 
 ## T5 · Project Home
 - **Files:** `src/screens/home/*`, `src/services/projectStore.ts`, `src/services/keychain.ts`, `src/services/authProfiles.ts`.
 - **Components:** list rows, StatusPill, SecretField, ConfirmationModal, EmptyState.
-- **Data/VM:** `ProjectHomeVM` (Project, AuthProfile, SiteWorkspace, SnapshotSummary).
-- **Acceptance:** create/open project writes `project.json` per `SNAPSHOT_STORAGE_SPEC`; profiles show credentialStatus, never secrets; delete = remove-from-app (files kept) with separate trash confirm; Open-site disabled when credential missing.
-- **Do NOT yet:** import/export project; move files to trash beyond the guarded confirm.
+- **Data/VM:** `ProjectHomeVM` (Project, ConnectedSite, AuthProfile, SnapshotSummary).
+- **Acceptance:** create/open project writes `project.json` per `SNAPSHOT_STORAGE_SPEC`; connected sites remain reusable app-level records and do not own auth; profiles show credentialStatus, never secrets; delete/remove = remove-from-app (files kept) with separate trash confirm; Open project disabled when the selected auth is missing/invalid.
+- **Do NOT yet:** import/export project; real OS credential storage; move files to trash beyond the guarded confirm.
 
 ## T6 · Site Overview
 - **Files:** `src/screens/overview/*`, `src/services/connection.ts`.

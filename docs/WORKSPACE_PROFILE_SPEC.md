@@ -4,6 +4,18 @@ This document defines the workspace, profile/account, site tab, page, and menu r
 
 MVP 1 remains a read-only kintone data extraction and local export tool. This document does not prescribe visual layout, wireframes, spacing, panel placement, or exact screen design. It only defines what pages and menus must exist and what each page/menu is responsible for.
 
+## Current desktop model override
+
+The current desktop implementation has narrowed the workspace model for the next local-storage phase:
+
+- `Connected Site` is an app-level reusable kintone target: display name and domain only.
+- `Project` is the local folder/workspace and selects exactly one Connected Site.
+- Auth is selected by the Project, not by the Connected Site.
+- Multiple Projects may reference the same Connected Site/domain.
+- A Project tab is the active desktop tab context.
+
+Older sections in this document use `Site Workspace` for the configured site/folder/auth bundle. For current desktop UI and N4-N5 storage work, interpret that bundle as **Project + linked Connected Site + project auth selection**. Do not implement multiple sites inside one Project in the next phase.
+
 ## 1. Product intent
 
 The app should work as a reusable multi-site desktop workspace rather than a one-time scan wizard.
@@ -590,7 +602,7 @@ Credential storage rules:
 
 - Store password only in OS keychain or secure credential provider.
 - Global profile metadata stores only `credentialRef`.
-- Project and site files store only `authProfileId` references to global profiles.
+- Project files store only `authSelection` metadata and future secure credential references. They must never store the password/token/cookie itself.
 - Logs must never include username/password headers or cookies.
 - Browser sessions must not be serialized to project files unless a future encrypted session store is designed.
 

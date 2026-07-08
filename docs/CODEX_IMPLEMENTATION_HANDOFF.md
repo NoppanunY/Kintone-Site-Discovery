@@ -4,26 +4,27 @@ This document points Codex to the current implementation specs for Kintone Site 
 
 ## Current status
 
-The product is ready for UI skeleton implementation using the specs in `docs/ui-handoff/`.
+The UI skeleton, Windows desktop shell scaffold, and typed platform bridge stubs are complete on `develop`.
 
-Implement incrementally. Do not attempt the full app in one pass. Start with tokens, components, shell, routes, and mock view models before wiring real kintone collection logic.
+The next implementation phase is `N4-N5` from `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md`: create the shared pure TypeScript core/domain package and local workspace metadata storage primitives. Do not jump directly to real kintone collection, scan execution, snapshot writing, credential storage, or CLI behavior.
 
 A CLI command contract now exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the first implementation batch. Build the UI skeleton first; add CLI behavior only after the shared `packages/core` API is defined.
 
 ## Source-of-truth order
 
-1. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
-2. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
-3. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
-4. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
-5. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
-6. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
-7. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
-8. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
-9. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
-10. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
-11. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
-12. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
+1. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — active Codex batch plan and current phase boundaries
+2. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
+3. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
+4. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
+5. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
+6. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
+7. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
+8. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
+9. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
+10. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
+11. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
+12. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
+13. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
 
 If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`.
 
@@ -43,11 +44,11 @@ For the desktop MVP mock, keep `Connected Site` and `Project` as separate object
 
 - `Connected Site` is a reusable kintone target: display name, domain, and saved-site status. It does not own an auth profile.
 - `Auth Profile` is a reusable global credential identity.
-- `Project` is a local folder/workspace that selects exactly one Connected Site and either one global Auth Profile or a project-only auth draft entered during New Project.
+- `Project` is a local folder/workspace that selects exactly one Connected Site and an `authSelection` (global Auth Profile or project-local auth metadata).
 - Multiple Projects may reference the same Connected Site/domain when the user wants separate folders, snapshots, or review purposes.
 - `Use new auth for this project` in the New Project wizard is project-only preview data. It must not be appended to the global Auth Profiles list. The standalone Add Auth Profile flow is the reusable global-profile path.
 
-Older specs still use the term Site Workspace. For current desktop UI work, interpret the active screen context as a Project plus its linked Connected Site. User-facing UI should show Projects, Sites, and Auth profiles as separate lists until the core workspace/storage model is wired.
+Older specs still use the term Site Workspace. For current desktop UI and storage work, interpret the active screen context as a Project plus its linked Connected Site. User-facing UI should show Projects, Sites, and Auth profiles as separate lists. Storage for the next phase is one site per project folder, with Connected Sites stored as reusable app-level records.
 
 ## MVP boundaries
 
@@ -61,21 +62,30 @@ Do not implement:
 - in-app rendered markdown report viewer
 - CLI commands named deploy/import/push/sync/publish/apply/restore/rollback/ai/chat
 
-## First implementation batch
+## Completed batches
 
-Codex should start with:
+- T0 Design tokens
+- T1 Component library
+- T2 App shell
+- T3 Routing
+- T4 Onboarding UI with mock data
+- N0 Baseline verification
+- N1 Windows desktop runtime ADR
+- N2 Desktop shell scaffold
+- N3 Typed platform bridge stubs
 
-1. `T0 · Design tokens`
-2. `T1 · Component library`
-3. `T2 · App shell`
-4. `T3 · Routing`
-5. `T4 · Onboarding UI with mock data`
+## Active next batch
 
-Stop after those are complete and review before implementing collector/storage logic.
+Implement only:
 
-## CLI note for the first batch
+- N4 Core domain package
+- N5 Local workspace storage primitives
 
-For T0–T4, do **not** implement CLI behavior yet.
+Stop after N4-N5 are complete and reviewed before implementing OS secure storage, real kintone reads, scan runner, local snapshot writes, reports/developer-file generation, or CLI behavior.
+
+## CLI note for the next batch
+
+For N4-N5, do **not** implement CLI behavior yet.
 
 It is acceptable to create an empty CLI scaffold if useful for workspace setup:
 
