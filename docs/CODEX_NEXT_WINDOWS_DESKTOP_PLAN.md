@@ -2,6 +2,8 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
+For the next Codex implementation pass, read `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md` first. That file is the active checklist for N4-N5 and includes the P0 contract/flow corrections that must happen before local metadata persistence is allowed to become the app's source of truth.
+
 The product is a **Windows desktop app**. The React/Vite UI is the renderer, not the final product boundary. The app must run locally on Windows, keep local project data on the user's machine, and read from kintone without writing anything back.
 
 ## Current state
@@ -62,7 +64,18 @@ Definitions for the next phase:
 
 ## Active next implementation batch
 
-Implement only N4 and N5 next. Stop before N6-N10.
+Implement only the P0 corrections listed below plus N4 and N5 next. Stop before N6-N10.
+
+P0 corrections are part of the N4-N5 batch because they prevent unsafe persistence of the wrong model shape:
+
+- Align renderer data models with `docs/ui-handoff/DATA_CONTRACT.md` before writing project metadata to disk.
+- Replace UI-label status unions with canonical snake_case status values plus label maps.
+- Replace scan preset id `full` with canonical `full_discovery`.
+- Replace project `authProfileId`-only assumptions with `Project.authSelection`.
+- Make sensitive confirmation state-derived and route-guarded.
+- Add onboarding step validation and block Apps until the mocked connection test has passed.
+- Add scan route guards for selected apps and sensitive confirmation.
+- Fix nested interactive controls in the tab bar before treating it as production shell behavior.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
@@ -70,6 +83,7 @@ Implement only N4 and N5 next. Stop before N6-N10.
 | N1 | Done | Windows desktop runtime ADR | Electron selected and documented. |
 | N2 | Done | Desktop shell scaffold | Existing renderer launches inside the desktop shell. |
 | N3 | Done | Typed platform bridge stubs | Safe typed bridge stubs exist for future desktop operations. |
+| P0 | Next | Contract and flow corrections | Fix model/route/wizard/sensitive-flow issues before persistence. |
 | N4 | Next | Core domain package | Add shared pure TypeScript domain models, validators, constants, and safe helpers. |
 | N5 | Next | Local workspace storage | Add project/connected-site/auth-profile metadata persistence and project-folder primitives. |
 | N6 | Later | OS secure storage | Add real secure credential handling through the platform layer. |
@@ -84,7 +98,7 @@ Goal: create the shared pure TypeScript foundation that both desktop UI and futu
 
 Recommended scope:
 
-- Add `packages/core` (and workspace config if required).
+- Add `packages/core` and update workspace config so `packages/*` is included.
 - Move or mirror canonical domain types from `docs/ui-handoff/DATA_CONTRACT.md`.
 - Define constants for capture presets and category tiers.
 - Add pure validators and normalizers for:
@@ -96,6 +110,7 @@ Recommended scope:
   - Project / ConnectedSite / AuthProfile / authSelection metadata.
 - Add result/error shapes that match the UI state matrix.
 - Add deterministic JSON serialization helpers where useful.
+- Add no-secret serialization checks/helpers.
 
 Rules:
 
@@ -109,8 +124,10 @@ Acceptance:
 
 - `packages/core` exports stable typed interfaces and pure helpers.
 - Renderer can import types/helpers without pulling in Node-only code.
+- Renderer uses canonical enum values for persistable state.
+- UI labels are derived through mapping/copy helpers rather than stored as data values.
 - TypeScript passes.
-- Unit tests or focused type/runtime checks cover validators and preset/category defaults if a test runner is added in this batch.
+- Unit tests or focused type/runtime checks cover validators, sensitive-option derivation, no-secret serialization, and preset/category defaults if a test runner is added in this batch.
 
 ## N5 - Local workspace storage
 
@@ -129,6 +146,7 @@ Recommended scope:
   - write/read selected ConnectedSite metadata cache,
   - initialize `app-list.json`, `current.json`, `history.json`, `snapshots/`, `.app/`, and `.kintone/` placeholders as needed.
 - Extend the typed platform bridge narrowly for workspace operations. Renderer code must not gain unrestricted filesystem access.
+- Wire folder picker/open-folder through the platform bridge.
 - Use atomic JSON writes (temp file + rename).
 - Use Windows-safe path handling and clear user-facing errors.
 
@@ -147,6 +165,7 @@ Acceptance:
 - Home can be backed by persisted Projects / ConnectedSites / AuthProfiles, while still using mock app/snapshot data for scan screens.
 - Open project tabs and active tab state can persist across restart.
 - Corrupt/missing project metadata shows recoverable errors; it does not crash the renderer.
+- Secret-like values are never written to app-level or project-level metadata files.
 - `pnpm typecheck`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` pass.
 
 ## Later steps after N4-N5 review
@@ -165,9 +184,12 @@ When done with the next batch, report:
 
 1. Files created/changed.
 2. Core package APIs added.
-3. Workspace storage files and locations.
-4. Platform bridge APIs added.
-5. Commands run and results.
-6. Desktop dev/build commands.
-7. What remains before OS credentials, local snapshot writes, and kintone reads.
-8. Any Windows-specific risks or questions.
+3. Renderer model drift fixes made.
+4. Workspace storage files and locations.
+5. Platform bridge APIs added.
+6. Route guard and sensitive-flow behavior changed.
+7. Onboarding validation behavior changed.
+8. Commands run and results.
+9. Desktop dev/build commands.
+10. What remains before OS credentials, local snapshot writes, and kintone reads.
+11. Any Windows-specific risks or questions.
