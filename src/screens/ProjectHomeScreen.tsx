@@ -88,12 +88,7 @@ export function ProjectHomeScreen({
         breadcrumb="Home"
         title="Projects"
         subtitle="Projects are local folders. Each project selects one connected site, and the same site can be reused by multiple projects."
-        actions={
-          <>
-            <SecondaryActionButton label="＋ Add connected site" onClick={onAddSite} />
-            <PrimaryActionButton label="＋ New project" onClick={onNewProject} />
-          </>
-        }
+        actions={<PrimaryActionButton label="＋ New project" onClick={onNewProject} />}
       />
 
       <div className="list">
