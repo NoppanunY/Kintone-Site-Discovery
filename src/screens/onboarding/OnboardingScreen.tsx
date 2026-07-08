@@ -41,6 +41,8 @@ const flowTitles: Record<OnboardingEntry, string> = {
 
 type AuthMode = "existing" | "new";
 
+const PROJECT_ONLY_AUTH_LABEL = "Client A Admin for this project";
+
 export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, onMockAction, initialSiteId }: OnboardingScreenProps) {
   const steps = flowSteps[entry];
   const [stepIndex, setStepIndex] = useState(0);
@@ -57,22 +59,27 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
   };
   const selectedSite = getConnectedSiteById(selectedSiteId);
   const selectedProfile = getAuthProfileById(selectedAuthProfileId);
+  const selectedAuthLabel = entry === "new-project" && authMode === "new" ? PROJECT_ONLY_AUTH_LABEL : selectedProfile.name;
   const connectionTarget: ConnectionTestTarget = {
     siteName: selectedSite.name,
     domain: selectedSite.domain,
-    authProfile: selectedProfile.name,
+    authProfile: selectedAuthLabel,
   };
 
   function connectionOutcomeForProfile(authProfileId: string) {
     return getAuthProfileById(authProfileId).tone === "warn" ? "failed" : "passed";
   }
 
-  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForProfile(selectedAuthProfileId)) {
+  function connectionOutcomeForCurrentAuth() {
+    return entry === "new-project" && authMode === "new" ? "passed" : connectionOutcomeForProfile(selectedAuthProfileId);
+  }
+
+  function runConnectionTest(outcome: "passed" | "failed" = connectionOutcomeForCurrentAuth()) {
     setConnectionResult(createTestingConnectionResult(connectionTarget));
     window.setTimeout(() => {
       setConnectionResult(outcome === "failed" ? createFailedConnectionResult(connectionTarget) : createPassedConnectionResult(connectionTarget));
       if (outcome === "passed") {
-        showMockAction(`${selectedProfile.name} connection test passed for ${selectedSite.name}. No kintone request was sent.`, { tone: "ok" });
+        showMockAction(`${selectedAuthLabel} connection test passed for ${selectedSite.name}. No kintone request was sent.`, { tone: "ok" });
       }
     }, 450);
   }
@@ -85,6 +92,7 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
         authMode,
         selectedSiteId,
         selectedAuthProfileId,
+        selectedAuthLabel,
         onSelectAuthMode: setAuthMode,
         onSelectSite: setSelectedSiteId,
         onSelectAuthProfile: setSelectedAuthProfileId,
@@ -93,7 +101,7 @@ export function OnboardingScreen({ entry = "new-project", onCancel, onFinish, on
         onRunConnectionTest: runConnectionTest,
         onClearConnectionTest: () => setConnectionResult(null),
       }),
-    [authMode, connectionResult, entry, selectedAuthProfileId, selectedSiteId, step.key],
+    [authMode, connectionResult, entry, selectedAuthLabel, selectedAuthProfileId, selectedSiteId, step.key],
   );
 
   useEffect(() => {
@@ -177,6 +185,7 @@ function renderStep({
   authMode,
   selectedSiteId,
   selectedAuthProfileId,
+  selectedAuthLabel,
   onSelectAuthMode,
   onSelectSite,
   onSelectAuthProfile,
@@ -190,6 +199,7 @@ function renderStep({
   authMode: AuthMode;
   selectedSiteId: string;
   selectedAuthProfileId: string;
+  selectedAuthLabel: string;
   onSelectAuthMode: (mode: AuthMode) => void;
   onSelectSite: (siteId: string) => void;
   onSelectAuthProfile: (profileId: string) => void;
@@ -224,7 +234,7 @@ function renderStep({
       <>
         <WizardIntro title={authStepTitle(entry)} body={authStepBody(entry)} />
         {entry === "add-auth" ? (
-          <AuthProfileFields />
+          <AuthProfileFields scope="global" />
         ) : (
           <>
             <div className="choice-list">
@@ -235,8 +245,8 @@ function renderStep({
                 onClick={() => onSelectAuthMode("existing")}
               />
               <ChoiceRow
-                title="Add new auth profile"
-                body="Credential fields are preview-only in this build; no secret is stored yet."
+                title="Use new auth for this project"
+                body="This project-only auth will not appear in Home > Auth profiles."
                 selected={authMode === "new"}
                 onClick={() => onSelectAuthMode("new")}
               />
@@ -253,7 +263,7 @@ function renderStep({
                 <SelectedProfileBanner selectedProfile={selectedProfile.name} />
               </>
             ) : (
-              <AuthProfileFields />
+              <AuthProfileFields scope="project" />
             )}
           </>
         )}
@@ -264,12 +274,11 @@ function renderStep({
   if (step === "site") {
     if (entry === "new-project") {
       const selectedSite = getConnectedSiteById(selectedSiteId);
-      const selectedProfile = getAuthProfileById(selectedAuthProfileId);
       return (
         <>
           <WizardIntro
             title="Choose a connected site"
-            body="The project will use one existing site target with the auth profile selected in the previous step."
+            body="The project will use one existing site target with the auth selected in the previous step."
           />
           <div className="form-grid">
             <SelectField
@@ -280,7 +289,7 @@ function renderStep({
               meta="Add a connected site first if it is not listed here."
             />
             <MockField label="Domain" value={selectedSite.domain} />
-            <MockField label="Selected auth profile" value={selectedProfile.name} meta="Auth is selected by this project, not stored on the site." />
+            <MockField label="Selected auth" value={selectedAuthLabel} meta="Auth is selected by this project, not stored on the site." />
             <MockField label="Project snapshot folder" value="~/KintoneDiscovery/client-crm-copy/snapshot" />
           </div>
         </>
@@ -304,14 +313,13 @@ function renderStep({
 
   if (step === "test") {
     const selectedSite = getConnectedSiteById(selectedSiteId);
-    const selectedProfile = getAuthProfileById(selectedAuthProfileId);
     return (
       <>
-        <WizardIntro title="Test the read-only connection" body="This checks the selected site and auth profile pair in preview mode. No kintone request is sent yet." />
+        <WizardIntro title="Test the read-only connection" body="This checks the selected site and project auth pair in preview mode. No kintone request is sent yet." />
         <div className="list">
           <CheckRow label="Project selected" detail="Client CRM Discovery Copy is the local workspace." />
           <CheckRow label="Site selected" detail={`${selectedSite.name} · ${selectedSite.domain}`} />
-          <CheckRow label="Auth profile selected" detail={`${selectedProfile.name} is selected for this project.`} />
+          <CheckRow label="Auth selected" detail={`${selectedAuthLabel} is selected for this project.`} />
           <CheckRow label="Read permission check" detail="Preview check passed without contacting kintone." />
         </div>
         <div className="rowc">
@@ -375,17 +383,31 @@ function authStepBody(entry: OnboardingEntry) {
     return "Create a reusable global sign-in profile. This preview does not store real credentials yet.";
   }
 
-  return "Choose a global auth profile for this project, or create a new preview profile.";
+  return "Choose a global auth profile, or enter auth used only by this project in the preview.";
 }
 
-function AuthProfileFields() {
+function AuthProfileFields({ scope }: { scope: "global" | "project" }) {
+  const isProjectOnly = scope === "project";
+
   return (
-    <div className="form-grid">
-      <MockField label="Profile name" value="Client A Admin" />
-      <MockField label="Username" value="ca-admin@client-a" />
-      <MockField label="Password" value="••••••••" meta="Preview only · credential storage will use the OS keychain" />
-      <MockField label="Availability" value="Global" meta="Can be selected by any project." />
-    </div>
+    <>
+      <div className="form-grid">
+        <MockField label={isProjectOnly ? "Auth label" : "Profile name"} value={isProjectOnly ? PROJECT_ONLY_AUTH_LABEL : "Client A Admin"} />
+        <MockField label="Username" value="ca-admin@client-a" />
+        <MockField label="Password" value="••••••••" meta="Preview only · credential storage will use the OS keychain" />
+      </div>
+      {isProjectOnly ? (
+        <div className="setup-complete-line">
+          <StatusPill status="idle" label="Project-only" dot />
+          <span className="small muted2">Used only by this project in this preview. It will not appear in Auth profiles.</span>
+        </div>
+      ) : (
+        <div className="setup-complete-line">
+          <StatusPill status="idle" label="Global profile" dot />
+          <span className="small muted2">Saved from this flow, it will appear in Auth profiles on Home.</span>
+        </div>
+      )}
+    </>
   );
 }
 

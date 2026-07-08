@@ -51,7 +51,7 @@ interface Project {
   createdAt: ISODateString;
   lastOpenedAt: ISODateString;
   siteId: Id;                  // → ConnectedSite.id
-  authProfileId: Id;           // → global AuthProfile.id selected for this project
+  authProfileId: Id;           // → global AuthProfile.id selected for this project in the persisted model
   schemaVersion: number;       // storage schema version (see SNAPSHOT_STORAGE_SPEC)
 }
 
@@ -291,7 +291,8 @@ interface ErrorStateModel {
 1. `ScanResult.status === 'completed'` **requires** `requiredOk === requiredTotal`. Any required failure ⇒ `'failed'`. Optional skips only ⇒ `'completed_with_warnings'`.
 2. Exactly one `SnapshotSummary.isCurrent === true` per project — mirrors the current-snapshot pointer (see `SNAPSHOT_STORAGE_SPEC.md`).
 3. `FileOrderItem[]` is authored into `SnapshotManifest.fileOrder`; Developer Files renders it verbatim, ordered by `orderIndex`, never alphabetized.
-4. `AuthProfile` records are global app-level profiles. Projects do not own or duplicate profiles; Projects select them by `authProfileId`.
-5. `ConnectedSite` records do not own auth profiles. A connection test or scan always uses a Project's selected `siteId` + `authProfileId` pair.
-6. No model exposes secrets. `AuthProfile` carries `credentialStatus` + `keychainRef` only.
-7. `ReportItem` / `DeveloperFileItem` paths are always relative to their snapshot — they are views generated from it, not independent artifacts.
+4. `AuthProfile` records are global app-level profiles. The standalone Add Auth Profile flow creates these reusable records.
+5. In the New Project UI preview, `Use new auth for this project` may create a project-local auth draft for that wizard only. It must not be appended to `AuthProfile[]`, and the storage design must resolve it before real scan/credential persistence is wired.
+6. `ConnectedSite` records do not own auth profiles. A connection test or scan always uses a Project's selected site plus project auth selection (`authProfileId` for global profiles, or a project-local auth draft in the UI preview).
+7. No model exposes secrets. `AuthProfile` carries `credentialStatus` + `keychainRef` only.
+8. `ReportItem` / `DeveloperFileItem` paths are always relative to their snapshot — they are views generated from it, not independent artifacts.

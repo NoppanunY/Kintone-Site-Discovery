@@ -9,9 +9,9 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 ## SCR-01 · First-run onboarding wizard
 - **Route:** `/onboarding`
 - **Purpose:** Get a first-time user from install to a ready-to-scan site in one guided path.
-- **Primary goal:** Create/open a project, choose a global auth profile, choose a site target, test that pairing, fetch apps.
+- **Primary goal:** Create/open a project, choose an existing global auth profile or enter project-only auth, choose a site target, test that pairing, fetch apps.
 - **Sections:** Stepper (5 steps); step body (Project / Auth profile / Site / Test / Apps); footer nav (Back · Continue).
-- **Required data:** project name+folder; existing global auth profile or new auth username+password (→ keychain); site name+domain; connection test result for the selected site+auth pair; app list count.
+- **Required data:** project name+folder; existing global auth profile or project-only auth draft username+password (→ keychain later); site name+domain; connection test result for the selected site+auth pair; app list count.
 - **Primary actions:** Continue → (advance/validate); Finish → Go to site Overview.
 - **Secondary actions:** Back; Browse folder; Cancel setup.
 - **Empty:** N/A (wizard is the empty state of the app).
@@ -22,7 +22,8 @@ Global product model (applies to all): the app **pulls from kintone → writes o
 - **Acceptance criteria:**
   - Password uses SecretField; never echoed, never written to project files.
   - Step 4 must pass before Step 5; failure blocks Continue.
-  - Finish creates a Project that stores `siteId` + `authProfileId`, then routes to the Project overview with Run scan primary. No snapshot is created until the first scan writes a snapshot folder.
+  - Finish creates a Project that stores `siteId` plus either a selected global `authProfileId` or the project-only auth draft from the wizard, then routes to the Project overview with Run scan primary. No snapshot is created until the first scan writes a snapshot folder.
+  - A project-only auth draft entered inside New Project does not appear in Home > Auth profiles. Standalone Add profile remains the path for creating a reusable global auth profile.
   - Re-runnable later to create another Project or add another reusable Site.
 
 ## SCR-02 · Project Home
