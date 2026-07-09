@@ -1,10 +1,12 @@
 import { PrimaryActionButton, SecondaryActionButton, AppTwoPanePicker } from "../components";
-import { mockAppSummaries } from "../appPickerData";
+import type { AppSummary } from "@kintone-site-discovery/core";
 import type { MockActionHandler, SiteWorkspaceModel } from "../types";
 import { PageHeader } from "./shared";
 
 interface AppsScreenProps {
   site: SiteWorkspaceModel;
+  apps: AppSummary[];
+  appListSource: "persisted" | "sample";
   selectedAppIds: string[];
   onSelectionChange: (selectedAppIds: string[]) => void;
   onContinue: () => void;
@@ -12,18 +14,22 @@ interface AppsScreenProps {
   guardMessage?: string | null;
 }
 
-export function AppsScreen({ site, selectedAppIds, onSelectionChange, onContinue, onMockAction, guardMessage }: AppsScreenProps) {
+export function AppsScreen({ site, apps, appListSource, selectedAppIds, onSelectionChange, onContinue, onMockAction, guardMessage }: AppsScreenProps) {
   const selectedCount = selectedAppIds.length;
+  const sourceCopy =
+    appListSource === "persisted"
+      ? "persisted app-list metadata"
+      : "development sample fallback · no kintone request sent";
 
   return (
     <div className="page">
       <PageHeader
         breadcrumb={`${site.name} · Apps`}
         title="Apps"
-        subtitle={`${mockAppSummaries.length} sample apps · ${selectedCount} selected · no kintone request sent`}
+        subtitle={`${apps.length} apps from ${sourceCopy} · ${selectedCount} selected`}
         actions={
           <>
-            <SecondaryActionButton label="⟳ Reload list" size="sm" onClick={() => onMockAction("Sample app list reloaded. No kintone request was sent.")} />
+            <SecondaryActionButton label="⟳ Reload list" size="sm" onClick={() => onMockAction("App list preview refreshed. No kintone request was sent.")} />
             <PrimaryActionButton label="Continue to scan →" disabled={selectedCount === 0} onClick={onContinue} />
           </>
         }
@@ -33,7 +39,12 @@ export function AppsScreen({ site, selectedAppIds, onSelectionChange, onContinue
           <div>{guardMessage}</div>
         </div>
       ) : null}
-      <AppTwoPanePicker apps={mockAppSummaries} selectedAppIds={selectedAppIds} onSelectionChange={onSelectionChange} />
+      {appListSource === "sample" ? (
+        <div className="banner screen-note" role="status">
+          <div>This project has no persisted app summaries yet. The picker is showing development sample apps for preview only.</div>
+        </div>
+      ) : null}
+      <AppTwoPanePicker apps={apps} selectedAppIds={selectedAppIds} onSelectionChange={onSelectionChange} />
     </div>
   );
 }

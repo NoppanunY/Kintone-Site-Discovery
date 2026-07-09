@@ -8,6 +8,7 @@ interface TopMenuBarProps {
 
 export function TopMenuBar({ menus }: TopMenuBarProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openSubmenu, setOpenSubmenu] = useState<{ menuIndex: number; itemIndex: number } | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const itemRefs = useRef<Array<Array<HTMLButtonElement | null>>>([]);
@@ -16,6 +17,7 @@ export function TopMenuBar({ menus }: TopMenuBarProps) {
     const onPointerDown = (event: PointerEvent) => {
       if (!barRef.current?.contains(event.target as Node)) {
         setOpenIndex(null);
+        setOpenSubmenu(null);
       }
     };
 
@@ -36,6 +38,7 @@ export function TopMenuBar({ menus }: TopMenuBarProps) {
 
   const openMenu = (index: number, shouldFocusItem = false) => {
     setOpenIndex(index);
+    setOpenSubmenu(null);
     if (shouldFocusItem) {
       focusFirstMenuItem(index);
     }
@@ -89,35 +92,45 @@ export function TopMenuBar({ menus }: TopMenuBarProps) {
 
     if (event.key === "Escape") {
       setOpenIndex(null);
+      setOpenSubmenu(null);
       return;
     }
 
     if (event.key === "Tab") {
       setOpenIndex(null);
+      setOpenSubmenu(null);
     }
   };
 
   const onMenuItemKeyDown = (event: KeyboardEvent<HTMLButtonElement>, menuIndex: number, itemIndex: number) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
+      setOpenSubmenu(null);
       focusSiblingItem(menuIndex, itemIndex, 1);
       return;
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
+      setOpenSubmenu(null);
       focusSiblingItem(menuIndex, itemIndex, -1);
       return;
     }
 
     if (event.key === "ArrowRight") {
       event.preventDefault();
+      const item = menus[menuIndex]?.items[itemIndex];
+      if (item?.items?.length) {
+        setOpenSubmenu({ menuIndex, itemIndex });
+        return;
+      }
       moveMenuFocus(menuIndex, 1, true);
       return;
     }
 
     if (event.key === "ArrowLeft") {
       event.preventDefault();
+      setOpenSubmenu(null);
       moveMenuFocus(menuIndex, -1, true);
       return;
     }
@@ -125,12 +138,14 @@ export function TopMenuBar({ menus }: TopMenuBarProps) {
     if (event.key === "Escape") {
       event.preventDefault();
       setOpenIndex(null);
+      setOpenSubmenu(null);
       focusMenuButton(menuIndex);
       return;
     }
 
     if (event.key === "Tab") {
       setOpenIndex(null);
+      setOpenSubmenu(null);
     }
   };
 
@@ -144,6 +159,7 @@ export function TopMenuBar({ menus }: TopMenuBarProps) {
           onMouseEnter={() => {
             if (openIndex !== null) {
               setOpenIndex(menuIndex);
+              setOpenSubmenu(null);
             }
           }}
         >
@@ -156,38 +172,99 @@ export function TopMenuBar({ menus }: TopMenuBarProps) {
             ref={(element) => {
               menuButtonRefs.current[menuIndex] = element;
             }}
-            onClick={() => setOpenIndex(openIndex === menuIndex ? null : menuIndex)}
+            onClick={() => {
+              setOpenSubmenu(null);
+              setOpenIndex(openIndex === menuIndex ? null : menuIndex);
+            }}
             onKeyDown={(event) => onMenuButtonKeyDown(event, menuIndex)}
           >
             {menu.label}
           </button>
           {openIndex === menuIndex ? (
             <div className="menu-popover" role="menu" aria-label={menu.label}>
-              {menu.items.map((item, itemIndex) => (
-                <button
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
-                  disabled={item.disabled}
-                  key={item.label}
-                  ref={(element) => {
-                    itemRefs.current[menuIndex] ??= [];
-                    itemRefs.current[menuIndex][itemIndex] = element;
-                  }}
-                  onClick={() => {
-                    if (item.disabled) {
-                      return;
-                    }
+              {menu.items.map((item, itemIndex) => {
+                const hasSubmenu = Boolean(item.items?.length);
+                const isSubmenuOpen = openSubmenu?.menuIndex === menuIndex && openSubmenu.itemIndex === itemIndex;
+                return (
+                  <div
+                    className="menu-item-shell"
+                    key={`${item.label}-${itemIndex}`}
+                    role="none"
+                    onMouseEnter={() => {
+                      if (hasSubmenu && !item.disabled) {
+                        setOpenSubmenu({ menuIndex, itemIndex });
+                      } else {
+                        setOpenSubmenu(null);
+                      }
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={`menu-item ${hasSubmenu ? "menu-item--submenu" : ""} ${item.description ? "menu-item--rich" : ""}`}
+                      role="menuitem"
+                      aria-haspopup={hasSubmenu ? "menu" : undefined}
+                      aria-expanded={hasSubmenu ? isSubmenuOpen : undefined}
+                      disabled={item.disabled}
+                      ref={(element) => {
+                        itemRefs.current[menuIndex] ??= [];
+                        itemRefs.current[menuIndex][itemIndex] = element;
+                      }}
+                      onFocus={() => {
+                        if (hasSubmenu && !item.disabled) {
+                          setOpenSubmenu({ menuIndex, itemIndex });
+                        }
+                      }}
+                      onClick={() => {
+                        if (item.disabled) {
+                          return;
+                        }
+                        if (hasSubmenu) {
+                          setOpenSubmenu({ menuIndex, itemIndex });
+                          return;
+                        }
 
-                    setOpenIndex(null);
-                    item.onSelect?.();
-                  }}
-                  onKeyDown={(event) => onMenuItemKeyDown(event, menuIndex, itemIndex)}
-                >
-                  <span>{item.label}</span>
-                  {item.shortcut ? <span className="menu-item__shortcut">{item.shortcut}</span> : null}
-                </button>
-              ))}
+                        setOpenIndex(null);
+                        setOpenSubmenu(null);
+                        item.onSelect?.();
+                      }}
+                      onKeyDown={(event) => onMenuItemKeyDown(event, menuIndex, itemIndex)}
+                    >
+                      <span className="menu-item__content">
+                        <span className="menu-item__label">{item.label}</span>
+                        {item.description ? <span className="menu-item__description">{item.description}</span> : null}
+                      </span>
+                      {hasSubmenu ? <span className="menu-item__chevron">›</span> : item.shortcut ? <span className="menu-item__shortcut">{item.shortcut}</span> : null}
+                    </button>
+                    {hasSubmenu && isSubmenuOpen ? (
+                      <div className="menu-submenu" role="menu" aria-label={item.label}>
+                        {item.items?.map((subItem, subItemIndex) => (
+                          <button
+                            type="button"
+                            className={`menu-item ${subItem.description ? "menu-item--rich" : ""}`}
+                            role="menuitem"
+                            disabled={subItem.disabled}
+                            key={`${subItem.label}-${subItemIndex}`}
+                            onClick={() => {
+                              if (subItem.disabled) {
+                                return;
+                              }
+                              setOpenIndex(null);
+                              setOpenSubmenu(null);
+                              subItem.onSelect?.();
+                            }}
+                          >
+                            <span className="menu-item__content">
+                              <span className="menu-item__label">{subItem.label}</span>
+                              {subItem.description ? <span className="menu-item__description">{subItem.description}</span> : null}
+                            </span>
+                            {subItem.shortcut ? <span className="menu-item__shortcut">{subItem.shortcut}</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ) : null}
         </div>

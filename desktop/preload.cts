@@ -3,7 +3,7 @@ import type { PlatformBridge } from "../src/platform/bridgeTypes";
 
 const platformBridge: PlatformBridge = {
   getRuntimeInfo: () => ipcRenderer.invoke("platform:getRuntimeInfo"),
-  chooseLocalFolder: () => ipcRenderer.invoke("platform:chooseLocalFolder"),
+  chooseLocalFolder: (request) => ipcRenderer.invoke("platform:chooseLocalFolder", request),
   openLocalFolder: (request) => ipcRenderer.invoke("platform:openLocalFolder", request),
   getWorkspaceHome: () => ipcRenderer.invoke("platform:getWorkspaceHome"),
   createProject: (request) => ipcRenderer.invoke("platform:createProject", request),

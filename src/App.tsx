@@ -9,13 +9,11 @@ import {
   getAuthProfileById,
   getConnectedSiteById,
   projectContext,
-  projectId,
   projectModelFromDomain,
   projectRows as mockProjectRows,
   profiles,
-  tabsForProjectIds,
 } from "./mockData";
-import { activeTabFromPath, isProjectRoute, navFromPath, projectIdFromPath, projectRouteByNav, projectRouteByNavForProject, projectRouteIdFromPath } from "./router/routes";
+import { activeTabFromPath, isProjectRoute, navFromPath, projectIdFromPath, projectRouteByNavForProject, projectRouteIdFromPath } from "./router/routes";
 import { defaultSelectedAppIds, mockAppSummaries } from "./appPickerData";
 import { AdvancedInternalDataScreen } from "./screens/AdvancedInternalDataScreen";
 import { AppsScreen } from "./screens/AppsScreen";
@@ -23,7 +21,7 @@ import { DeveloperFilesScreen } from "./screens/DeveloperFilesScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
 import { LocalSnapshotScreen } from "./screens/LocalSnapshotScreen";
 import { NewTabScreen } from "./screens/NewTabScreen";
-import { OnboardingScreen, type OnboardingFinishDraft } from "./screens/onboarding/OnboardingScreen";
+import { OnboardingScreen, type OnboardingFinishDraft, type OnboardingFinishResult } from "./screens/onboarding/OnboardingScreen";
 import { ProjectHomeScreen } from "./screens/ProjectHomeScreen";
 import { ReportsScreen } from "./screens/ReportsScreen";
 import { ScanResultScreen } from "./screens/ScanResultScreen";
@@ -49,9 +47,52 @@ import type {
   TabModel,
   TopMenuModel,
 } from "./types";
-import type { WorkspaceHomeSnapshot } from "./platform";
+import type { WorkspaceHomeSnapshot, WorkspaceMetadataIssue } from "./platform";
 
 type OnboardingEntry = "new-project" | "add-site" | "add-auth";
+type WorkspaceMode = "loading" | "desktop_metadata" | "browser_fallback" | "empty";
+type AppListSource = "persisted" | "sample";
+const ONBOARDING_FINISH_VISIBLE_MS = 900;
+
+function onboardingFailureResult(message: string, step: NonNullable<OnboardingFinishResult["step"]>, field: string): OnboardingFinishResult {
+  return {
+    ok: false,
+    message,
+    step,
+    issues: [{ step, field, message }],
+  };
+}
+
+function onboardingSystemFailureResult(message: string, step: NonNullable<OnboardingFinishResult["step"]>): OnboardingFinishResult {
+  return {
+    ok: false,
+    message,
+    step,
+    issues: [],
+  };
+}
+
+function projectOnboardingFailureResult(message: string, errors?: WorkspaceMetadataIssue[]): OnboardingFinishResult {
+  const details = `${message} ${(errors ?? []).map((issue) => `${issue.path ?? ""} ${issue.message}`).join(" ")}`.toLowerCase();
+  const isUserFixableProjectInput =
+    details.includes("project.json") ||
+    details.includes("folder") ||
+    details.includes("path") ||
+    (errors ?? []).some((issue) => issue.code === "invalid_metadata" && issue.recoverable);
+
+  if (!isUserFixableProjectInput) {
+    return onboardingSystemFailureResult(message, "project");
+  }
+
+  const field = details.includes("site")
+    ? "selectedSiteId"
+    : details.includes("auth")
+      ? "selectedAuthProfileId"
+      : details.includes("name")
+        ? "projectName"
+        : "projectFolderPath";
+  return onboardingFailureResult(message, "project", field);
+}
 
 interface MockFeedbackState {
   id: number;
@@ -64,6 +105,10 @@ interface RemovedMetadataIds {
   projects: string[];
   sites: string[];
   authProfiles: string[];
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 function onboardingPath(entry: OnboardingEntry, preselectedSiteId?: string) {
@@ -79,8 +124,9 @@ export function App() {
   const platform = useMemo(() => getPlatformBridge(), []);
   const [locationKey, setLocationKey] = useState(0);
   const [mockFeedback, setMockFeedback] = useState<MockFeedbackState | null>(null);
-  const [openProjectTabIds, setOpenProjectTabIds] = useState<string[]>([projectId, "client-crm-review-copy"]);
+  const [openProjectTabIds, setOpenProjectTabIds] = useState<string[]>([]);
   const [workspaceHome, setWorkspaceHome] = useState<WorkspaceHomeSnapshot | null>(null);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("loading");
   const [removedMetadataIds, setRemovedMetadataIds] = useState<RemovedMetadataIds>({ projects: [], sites: [], authProfiles: [] });
   const [selectedAppIdsByProject, setSelectedAppIdsByProject] = useState<Record<string, string[]>>({});
   const [sensitiveOptionsByProject, setSensitiveOptionsByProject] = useState<Record<string, SensitiveOption[]>>({});
@@ -88,7 +134,7 @@ export function App() {
   const [windowStateRestored, setWindowStateRestored] = useState(false);
   const pathname = window.location.pathname;
   const search = window.location.search;
-  const workspaceView = useMemo(() => applyRemovedMetadataIds(buildWorkspaceView(workspaceHome), removedMetadataIds), [removedMetadataIds, workspaceHome]);
+  const workspaceView = useMemo(() => applyRemovedMetadataIds(buildWorkspaceView(workspaceHome, workspaceMode), removedMetadataIds), [removedMetadataIds, workspaceHome, workspaceMode]);
 
   useEffect(() => {
     const onPopState = () => setLocationKey((key) => key + 1);
@@ -100,12 +146,20 @@ export function App() {
     let cancelled = false;
 
     async function loadWorkspace() {
-      const [home, restoredWindowState] = await Promise.all([platform.getWorkspaceHome(), platform.getWindowState()]);
+      const [runtimeInfo, home, restoredWindowState] = await Promise.all([platform.getRuntimeInfo(), platform.getWorkspaceHome(), platform.getWindowState()]);
       if (cancelled) {
         return;
       }
 
+      const nextMode: WorkspaceMode =
+        runtimeInfo.runtime === "browser" || runtimeInfo.bridgeStatus === "fallback"
+          ? "browser_fallback"
+          : home.projects.length === 0 && home.connectedSites.length === 0 && home.authProfiles.length === 0
+            ? "empty"
+            : "desktop_metadata";
       setWorkspaceHome(home);
+      setWorkspaceMode(nextMode);
+      setSelectedAppIdsByProject(selectedAppIdsFromWorkspaceHome(home));
       if (restoredWindowState.restored && restoredWindowState.openProjectTabs.length > 0) {
         const restoredProjectIds = restoredWindowState.openProjectTabs.map((tab) => tab.projectId ?? tab.id).filter((id): id is string => Boolean(id));
         setOpenProjectTabIds(restoredProjectIds);
@@ -145,7 +199,8 @@ export function App() {
 
   const activeNav = navFromPath(pathname);
   const activeProjectId = projectRouteIdFromPath(pathname) ?? projectIdFromPath(pathname);
-  const activeProjectBase = getWorkspaceProjectContext(activeProjectId, workspaceView);
+  const allowMockFallback = workspaceMode === "browser_fallback";
+  const activeProjectBase = getWorkspaceProjectContext(activeProjectId, workspaceView, allowMockFallback);
   const selectedAppIds = selectedAppIdsForProject(activeProjectBase.projectId, selectedAppIdsByProject, activeProjectBase.selectedApps);
   const canStartScan = selectedAppIds.length > 0;
   const activeProject = { ...activeProjectBase, selectedApps: selectedAppIds.length };
@@ -156,6 +211,7 @@ export function App() {
   const armedSensitiveOptions = sensitiveOptions.filter((option) => option.value && option.sensitive);
   const armedSensitiveSignature = armedSensitiveOptions.map((option) => option.key).join("|");
   const visibleTabs = tabsForWorkspaceProjects(openProjectTabIds, workspaceView);
+  const activeProjectApps = appsForProject(activeProject.projectId, workspaceHome, workspaceMode);
   const showMockAction: MockActionHandler = (message, options = {}) => {
     setMockFeedback({
       id: Date.now(),
@@ -181,7 +237,7 @@ export function App() {
   const onboardingSiteId = new URLSearchParams(search).get("site");
   const defaultProjectsRoot = workspaceHome?.defaultProjectsRoot ?? "C:\\tmp\\Kintone Site Discovery\\Projects";
 
-  async function handleOnboardingFinish(draft: OnboardingFinishDraft) {
+  async function handleOnboardingFinish(draft: OnboardingFinishDraft): Promise<OnboardingFinishResult> {
     if (draft.entry === "new-project" && draft.project) {
       const site = domainConnectedSiteForId(draft.project.selectedSiteId, workspaceHome);
       const authProfile = draft.project.selectedAuthProfileId ? domainAuthProfileForId(draft.project.selectedAuthProfileId, workspaceHome) : undefined;
@@ -195,8 +251,10 @@ export function App() {
       });
 
       if (!result.ok || !result.project) {
-        showMockAction(result.message ?? "Project metadata could not be saved.", { tone: "err", sticky: true });
-        return;
+        const message = result.message ?? "Project metadata could not be saved.";
+        await delay(ONBOARDING_FINISH_VISIBLE_MS);
+        showMockAction(message, { tone: "err", sticky: true });
+        return projectOnboardingFailureResult(message, result.errors);
       }
 
       const createdProject = result.project;
@@ -204,26 +262,55 @@ export function App() {
       setSelectedAppIdsByProject((current) => ({ ...current, [createdProject.id]: draft.project?.selectedAppIds ?? [] }));
       setOpenProjectTabIds((current) => (current.includes(createdProject.id) ? current : [...current, createdProject.id]));
       showMockAction("Project metadata was saved locally. No kintone request or snapshot write happened.", { tone: "ok" });
+      await delay(ONBOARDING_FINISH_VISIBLE_MS);
       navigate(projectRouteByNavForProject(createdProject.id).overview);
-      return;
+      return { ok: true };
     }
 
     if (draft.entry === "add-site" && draft.connectedSite) {
       const site = domainConnectedSiteFromDraft(draft.connectedSite);
       const result = await platform.saveConnectedSite(site);
       setWorkspaceHome(await platform.getWorkspaceHome());
-      showMockAction(result.ok ? "Connected site metadata saved locally." : result.message, { tone: result.ok ? "ok" : "err", sticky: !result.ok });
+      const message = result.ok ? "Connected site metadata saved locally." : result.message;
+      if (!result.ok) {
+        await delay(ONBOARDING_FINISH_VISIBLE_MS);
+        showMockAction(message, { tone: "err", sticky: true });
+        const field = /name|display/i.test(message) ? "siteDisplayName" : "siteDomain";
+        return onboardingFailureResult(message, "site", field);
+      }
+      showMockAction(message, { tone: "ok" });
+      await delay(ONBOARDING_FINISH_VISIBLE_MS);
       navigate("/");
-      return;
+      return { ok: true };
     }
 
     if (draft.entry === "add-auth" && draft.authProfile) {
       const profile = domainAuthProfileFromDraft(draft.authProfile);
       const result = await platform.saveAuthProfile(profile);
       setWorkspaceHome(await platform.getWorkspaceHome());
-      showMockAction(result.ok ? "Auth profile metadata saved locally. No password was written to metadata." : result.message, { tone: result.ok ? "ok" : "err", sticky: !result.ok });
+      const message = result.ok ? "Auth profile metadata saved locally. No password was written to metadata." : result.message;
+      if (!result.ok) {
+        await delay(ONBOARDING_FINISH_VISIBLE_MS);
+        showMockAction(message, { tone: "err", sticky: true });
+        const field = /user|email/i.test(message) ? "authUsername" : "authProfileDisplayName";
+        return onboardingFailureResult(message, "auth", field);
+      }
+      showMockAction(message, { tone: "ok" });
+      await delay(ONBOARDING_FINISH_VISIBLE_MS);
       navigate("/");
+      return { ok: true };
     }
+
+    const message = "Setup could not finish because the wizard draft was incomplete.";
+    await delay(ONBOARDING_FINISH_VISIBLE_MS);
+    showMockAction(message, { tone: "err", sticky: true });
+    if (draft.entry === "add-auth") {
+      return onboardingFailureResult(message, "auth", "authProfileDisplayName");
+    }
+    if (draft.entry === "add-site") {
+      return onboardingFailureResult(message, "site", "siteDomain");
+    }
+    return onboardingFailureResult(message, "project", "projectName");
   }
 
   async function handleOpenProjectFromFolder() {
@@ -261,7 +348,7 @@ export function App() {
     showMockAction(...feedbackForResult(result));
   }
 
-  async function handleUpdateProjectMetadata(projectIdValue: string, draft: { name: string; siteId: string; authProfileId: string }) {
+  async function handleUpdateProjectMetadata(projectIdValue: string, draft: { name: string; siteId: string; authSelection: Project["authSelection"] }) {
     const currentProject = workspaceHome?.projects.find((project) => project.id === projectIdValue);
     if (!currentProject) {
       showMockAction("Project metadata was not found.", { tone: "err", sticky: true });
@@ -272,7 +359,7 @@ export function App() {
       projectId: projectIdValue,
       name: draft.name,
       siteId: draft.siteId,
-      authSelection: { kind: "global_profile", authProfileId: draft.authProfileId },
+      authSelection: draft.authSelection,
     });
     await refreshWorkspaceHome();
     showMockAction(...feedbackForResult(result));
@@ -357,7 +444,16 @@ export function App() {
     showMockAction(result.message, { tone: result.ok ? "ok" : "err", sticky: !result.ok });
   }
 
-  const menus = buildTopMenus(navigate, showMockAction, activeProject, shellVariant === "site", handleOpenProjectFromFolder, handleOpenActiveProjectFolder);
+  const menus = buildTopMenus(
+    navigate,
+    showMockAction,
+    activeProject,
+    shellVariant === "site",
+    workspaceView.projects,
+    openProjectTab,
+    handleOpenProjectFromFolder,
+    handleOpenActiveProjectFolder,
+  );
 
   const screen = useMemo(
     () =>
@@ -372,6 +468,8 @@ export function App() {
         onOpenProjectFromFolder: handleOpenProjectFromFolder,
         onOpenProjectFolder: handleOpenActiveProjectFolder,
         workspaceView,
+        workspaceMode,
+        activeProjectApps,
         selectedAppIds,
         canStartScan,
         onSelectedAppIdsChange: (nextSelectedAppIds) =>
@@ -396,7 +494,7 @@ export function App() {
         onRemoveAuthProfile: handleRemoveAuthProfile,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pathname, search, locationKey, workspaceView, selectedAppIds, canStartScan, sensitiveOptions, appsGuardMessage, workspaceHome],
+    [pathname, search, locationKey, workspaceView, workspaceMode, activeProjectApps, selectedAppIds, canStartScan, sensitiveOptions, appsGuardMessage, workspaceHome],
   );
 
   useEffect(() => {
@@ -443,7 +541,7 @@ export function App() {
 
   function applyRouteGuard(path: string) {
     const routeProjectId = projectRouteIdFromPath(path) ?? activeProject.projectId;
-    const routeProjectContext = getWorkspaceProjectContext(routeProjectId, workspaceView);
+    const routeProjectContext = getWorkspaceProjectContext(routeProjectId, workspaceView, allowMockFallback);
     const routeProjectRoutes = projectRouteByNavForProject(routeProjectContext.projectId);
     const routeSelectedAppIds = selectedAppIdsForProject(routeProjectContext.projectId, selectedAppIdsByProject, routeProjectContext.selectedApps);
     const routeSensitiveOptions = sensitiveOptionsForProject(routeProjectId, sensitiveOptionsByProject);
@@ -471,14 +569,20 @@ export function App() {
 
   if (pathname.startsWith("/onboarding")) {
     return (
-      <OnboardingScreen
-        entry={onboardingEntry}
-        initialSiteId={onboardingSiteId}
-        defaultProjectsRoot={defaultProjectsRoot}
-        onCancel={() => navigate("/")}
-        onFinish={handleOnboardingFinish}
-        onMockAction={showMockAction}
-      />
+      <>
+        <OnboardingScreen
+          entry={onboardingEntry}
+          initialSiteId={onboardingSiteId}
+          defaultProjectsRoot={defaultProjectsRoot}
+          onCancel={() => navigate("/")}
+          onFinish={handleOnboardingFinish}
+          onMockAction={showMockAction}
+          connectedSites={workspaceHome?.connectedSites ?? []}
+          authProfiles={workspaceHome?.authProfiles ?? []}
+          workspaceMode={workspaceMode}
+        />
+        {mockFeedback ? <MockToast feedback={mockFeedback} onDismiss={() => setMockFeedback(null)} /> : null}
+      </>
     );
   }
 
@@ -547,15 +651,19 @@ export function App() {
             />
           </div>
         ) : null}
-        {mockFeedback ? (
-          <div className={`mock-toast mock-toast--${mockFeedback.tone}`} role={mockFeedback.tone === "err" ? "alert" : "status"} aria-live="polite">
-            <span>{mockFeedback.message}</span>
-            <button type="button" aria-label="Dismiss message" onClick={() => setMockFeedback(null)}>
-              ×
-            </button>
-          </div>
-        ) : null}
+        {mockFeedback ? <MockToast feedback={mockFeedback} onDismiss={() => setMockFeedback(null)} /> : null}
       </div>
+    </div>
+  );
+}
+
+function MockToast({ feedback, onDismiss }: { feedback: MockFeedbackState; onDismiss: () => void }) {
+  return (
+    <div className={`mock-toast mock-toast--${feedback.tone}`} role={feedback.tone === "err" ? "alert" : "status"} aria-live="polite">
+      <span>{feedback.message}</span>
+      <button type="button" aria-label="Dismiss message" onClick={onDismiss}>
+        ×
+      </button>
     </div>
   );
 }
@@ -566,12 +674,28 @@ interface WorkspaceViewModels {
   profiles: AuthProfileModel[];
 }
 
-function buildWorkspaceView(home: WorkspaceHomeSnapshot | null): WorkspaceViewModels {
-  if (!home) {
+function buildWorkspaceView(home: WorkspaceHomeSnapshot | null, mode: WorkspaceMode): WorkspaceViewModels {
+  if (mode === "loading") {
+    return {
+      projects: [],
+      connectedSites: [],
+      profiles: [],
+    };
+  }
+
+  if (mode === "browser_fallback") {
     return {
       projects: mockProjectRows,
       connectedSites,
       profiles,
+    };
+  }
+
+  if (!home) {
+    return {
+      projects: [],
+      connectedSites: [],
+      profiles: [],
     };
   }
 
@@ -583,6 +707,7 @@ function buildWorkspaceView(home: WorkspaceHomeSnapshot | null): WorkspaceViewMo
         project,
         domainSites.find((site) => site.id === project.siteId),
         domainProfiles.find((profile) => profile.id === authProfileIdForSelection(project.authSelection)),
+        home.projectAppListsByProjectId[project.id],
       ),
     ),
     connectedSites: domainSites.map(connectedSiteModelFromDomain),
@@ -662,10 +787,10 @@ function pruneAuthProfileFromWorkspaceHome(home: WorkspaceHomeSnapshot, authProf
   };
 }
 
-function getWorkspaceProjectContext(id: string | null | undefined, view: WorkspaceViewModels): ProjectContextModel {
+function getWorkspaceProjectContext(id: string | null | undefined, view: WorkspaceViewModels, allowMockFallback = false): ProjectContextModel {
   const project = view.projects.find((item) => item.id === id) ?? view.projects.find((item) => item.siteId === id);
   if (!project) {
-    return projectContext(id);
+    return allowMockFallback ? projectContext(id) : emptyProjectContext(id);
   }
 
   const site = view.connectedSites.find((item) => item.id === project.siteId) ?? getConnectedSiteById(project.siteId);
@@ -698,6 +823,33 @@ function getWorkspaceProjectContext(id: string | null | undefined, view: Workspa
   };
 }
 
+function emptyProjectContext(id: string | null | undefined): ProjectContextModel {
+  const projectIdValue = id ?? "no_project";
+  return {
+    id: projectIdValue,
+    projectId: projectIdValue,
+    projectName: "No project selected",
+    projectPath: "",
+    opened: "not opened",
+    siteId: "no_site",
+    name: "No connected site",
+    domain: "",
+    status: "No project",
+    tone: "idle",
+    meta: "Create or open a project to continue.",
+    siteMeta: "No connected site selected",
+    authSelection: { kind: "project_local", displayName: "No auth selected", username: "", authType: "password", credentialStatus: "no_credential" },
+    profile: "No auth selected",
+    profileUser: "",
+    credentialStatus: "No credential",
+    hasSnapshot: false,
+    selectedApps: 0,
+    appsAvailable: 0,
+    pluginsCaptured: 0,
+    redactions: 0,
+  };
+}
+
 function tabsForWorkspaceProjects(projectIds: string[], view: WorkspaceViewModels): TabModel[] {
   if (view.projects.length === 0) {
     return [{ id: "home", title: "Home", kind: "home" }];
@@ -705,9 +857,9 @@ function tabsForWorkspaceProjects(projectIds: string[], view: WorkspaceViewModel
 
   return [
     { id: "home", title: "Home", kind: "home" },
-    ...projectIds.map((id) => {
-      const project = view.projects.find((item) => item.id === id) ?? mockProjectRows.find((item) => item.id === id);
-      return { id, title: project?.name ?? id, kind: "project" as const };
+    ...projectIds.flatMap((id): TabModel[] => {
+      const project = view.projects.find((item) => item.id === id);
+      return project ? [{ id, title: project.name, kind: "project" }] : [];
     }),
   ];
 }
@@ -718,6 +870,24 @@ function selectedAppIdsForProject(projectIdValue: string, selectedAppIdsByProjec
   }
 
   return fallbackSelectedAppCount > 0 ? defaultSelectedAppIds : [];
+}
+
+function selectedAppIdsFromWorkspaceHome(home: WorkspaceHomeSnapshot): Record<string, string[]> {
+  return Object.fromEntries(
+    Object.entries(home.projectAppListsByProjectId).map(([projectIdValue, appList]) => [projectIdValue, appList.apps.map((app) => app.id)]),
+  );
+}
+
+function appsForProject(projectIdValue: string, home: WorkspaceHomeSnapshot | null, mode: WorkspaceMode): { apps: AppSummary[]; source: AppListSource } {
+  const appList = home?.projectAppListsByProjectId[projectIdValue];
+  if (appList && appList.apps.length > 0) {
+    return { apps: appList.apps, source: "persisted" };
+  }
+
+  return {
+    apps: mockAppSummaries,
+    source: mode === "browser_fallback" ? "sample" : "sample",
+  };
 }
 
 function sensitiveOptionsForProject(projectIdValue: string, sensitiveOptionsByProject: Record<string, SensitiveOption[]>): SensitiveOption[] {
@@ -794,10 +964,16 @@ function buildTopMenus(
   onMockAction: MockActionHandler,
   activeProject: SiteWorkspaceModel,
   hasActiveProjectTab: boolean,
+  recentProjects: ProjectModel[],
+  openProjectTab: (id: string, nav?: NavKey) => void,
   onOpenProjectFromFolder: () => void,
   onOpenActiveProjectFolder: () => void,
 ): TopMenuModel[] {
   const activeProjectRoutes = projectRouteByNavForProject(activeProject.projectId);
+  const recentProjectItems = recentProjects.slice(0, 10).map((project) => ({
+    label: `${project.name} · ${project.path}`,
+    onSelect: () => openProjectTab(project.id, "overview"),
+  }));
   const activeProjectCommand = (label: string, onSelect: () => void, shortcut?: string, forceDisabled = false) => ({
     label,
     shortcut,
@@ -811,7 +987,8 @@ function buildTopMenus(
       items: [
         { label: "Projects", shortcut: "Ctrl+1", onSelect: () => navigate("/") },
         { label: "New project", onSelect: () => navigate(onboardingPath("new-project")) },
-        { label: "Open project...", onSelect: onOpenProjectFromFolder },
+        { label: "Open recent project", disabled: recentProjectItems.length === 0, items: recentProjectItems },
+        { label: "Open from folder...", onSelect: onOpenProjectFromFolder },
         activeProjectCommand("Open active project folder", onOpenActiveProjectFolder),
       ],
     },
@@ -893,6 +1070,8 @@ function renderScreen({
   onOpenProjectFromFolder,
   onOpenProjectFolder,
   workspaceView,
+  workspaceMode,
+  activeProjectApps,
   selectedAppIds,
   canStartScan,
   onSelectedAppIdsChange,
@@ -918,6 +1097,8 @@ function renderScreen({
   onOpenProjectFromFolder: () => void;
   onOpenProjectFolder: () => void;
   workspaceView: WorkspaceViewModels;
+  workspaceMode: WorkspaceMode;
+  activeProjectApps: { apps: AppSummary[]; source: AppListSource };
   selectedAppIds: string[];
   canStartScan: boolean;
   onSelectedAppIdsChange: (selectedAppIds: string[]) => void;
@@ -926,7 +1107,7 @@ function renderScreen({
   appsGuardMessage: string | null;
   clearAppsGuardMessage: () => void;
   onOpenProjectFolderById: (projectId: string) => void;
-  onUpdateProjectMetadata: (projectId: string, draft: { name: string; siteId: string; authProfileId: string }) => void;
+  onUpdateProjectMetadata: (projectId: string, draft: { name: string; siteId: string; authSelection: Project["authSelection"] }) => void;
   onRemoveProjectFromHome: (projectId: string) => void;
   onUpdateConnectedSite: (siteId: string, draft: { displayName: string; domain: string }) => void;
   onRemoveConnectedSite: (siteId: string) => void;
@@ -948,6 +1129,7 @@ function renderScreen({
         projects={workspaceView.projects}
         connectedSites={workspaceView.connectedSites}
         profiles={workspaceView.profiles}
+        workspaceMode={workspaceMode}
         onOpenProjectFolder={onOpenProjectFolderById}
         onUpdateProject={onUpdateProjectMetadata}
         onRemoveProject={onRemoveProjectFromHome}
@@ -964,7 +1146,9 @@ function renderScreen({
       <NewTabScreen
         onAddSite={() => navigate(onboardingPath("add-site"))}
         onNewProject={() => navigate(onboardingPath("new-project"))}
-        onOpenProject={onOpenProjectFromFolder}
+        onOpenProjectFromFolder={onOpenProjectFromFolder}
+        onOpenRecentProject={(id) => openProjectTab(id, "overview")}
+        projects={workspaceView.projects}
       />
     );
   }
@@ -973,6 +1157,8 @@ function renderScreen({
     return (
       <AppsScreen
         site={activeProject}
+        apps={activeProjectApps.apps}
+        appListSource={activeProjectApps.source}
         selectedAppIds={selectedAppIds}
         onSelectionChange={(nextSelectedIds) => {
           clearAppsGuardMessage();

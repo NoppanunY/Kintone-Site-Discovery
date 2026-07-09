@@ -7,6 +7,7 @@ import type {
   CreateProjectRequest,
   CreateProjectResult,
   CredentialStoreStatus,
+  FolderSelectionRequest,
   FolderSelectionResult,
   OpenFolderRequest,
   OpenProjectResult,
@@ -48,6 +49,7 @@ let mainWindow: BrowserWindow | null = null;
 let platformBridgeHandlersRegistered = false;
 let rendererProtocolRegistered = false;
 let workspaceStorage: ReturnType<typeof createWorkspaceStorage> | null = null;
+let lastSelectedProjectFolder: string | null = null;
 
 async function createMainWindow() {
   registerPlatformBridgeHandlers();
@@ -157,10 +159,12 @@ function registerPlatformBridgeHandlers() {
     };
   });
 
-  ipcMain.handle("platform:chooseLocalFolder", async (): Promise<FolderSelectionResult> => {
+  ipcMain.handle("platform:chooseLocalFolder", async (_event, request?: FolderSelectionRequest): Promise<FolderSelectionResult> => {
+    const defaultPath = await folderDialogDefaultPath(request);
     const options: OpenDialogOptions = {
       title: "Choose a local project folder",
       properties: ["openDirectory", "createDirectory"],
+      defaultPath,
     };
     const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
 
@@ -168,15 +172,17 @@ function registerPlatformBridgeHandlers() {
       return { ok: false, cancelled: true };
     }
 
+    lastSelectedProjectFolder = result.filePaths[0];
     return { ok: true, cancelled: false, path: result.filePaths[0] };
   });
 
   ipcMain.handle("platform:openLocalFolder", async (_event, request: OpenFolderRequest): Promise<BridgeResult> => {
-    if (!request.path || !path.isAbsolute(request.path)) {
-      return { ok: false, code: "INVALID_INPUT", message: "A valid absolute folder path is required." };
+    const validation = await storage.validateOpenLocalFolder(request.path);
+    if (!validation.ok) {
+      return validation;
     }
 
-    const error = await shell.openPath(request.path);
+    const error = await shell.openPath(path.resolve(request.path));
     if (error) {
       return { ok: false, code: "IO_ERROR", message: error };
     }
@@ -270,6 +276,43 @@ function registerPlatformBridgeHandlers() {
 function getWorkspaceStorage() {
   workspaceStorage ??= createWorkspaceStorage({ appDataRoot: app.getPath("userData") });
   return workspaceStorage;
+}
+
+async function folderDialogDefaultPath(request?: FolderSelectionRequest): Promise<string | undefined> {
+  const candidates = [request?.defaultPath, lastSelectedProjectFolder].filter((item): item is string => Boolean(item?.trim()));
+
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    const directory = await existingDirectoryOrParent(resolved);
+    if (directory) {
+      return directory;
+    }
+  }
+
+  return undefined;
+}
+
+async function existingDirectoryOrParent(folderPath: string): Promise<string | undefined> {
+  const direct = await directoryExists(folderPath);
+  if (direct) {
+    return folderPath;
+  }
+
+  const parent = path.dirname(folderPath);
+  if (parent !== folderPath && (await directoryExists(parent))) {
+    return parent;
+  }
+
+  return undefined;
+}
+
+async function directoryExists(folderPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.stat(folderPath);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 app.setAppUserModelId("com.kintone-site-discovery.desktop");

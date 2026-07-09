@@ -191,6 +191,10 @@ select:focus-visible,
   z-index: 50;
 }
 
+.menu-item-shell {
+  position: relative;
+}
+
 .menu-root--end .menu-popover {
   right: 0;
   left: auto;
@@ -198,7 +202,7 @@ select:focus-visible,
 
 .menu-item {
   width: 100%;
-  height: 24px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -212,11 +216,50 @@ select:focus-visible,
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.menu-item--rich {
+  min-height: 42px;
+  align-items: flex-start;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 .menu-item span {
   color: inherit;
   font: inherit;
+}
+
+.menu-item__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.menu-item__label,
+.menu-item__description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-item__label {
+  max-width: 100%;
+}
+
+.menu-item__description {
+  max-width: 330px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.menu-item__chevron {
+  flex: none;
+  margin-left: var(--sp-5);
+  color: var(--text-3);
 }
 
 .menu-item:hover:not(:disabled),
@@ -236,6 +279,20 @@ select:focus-visible,
 .menu-item__shortcut {
   color: var(--text-2);
   font-weight: 400;
+}
+
+.menu-submenu {
+  position: absolute;
+  top: -3px;
+  left: calc(100% + 2px);
+  width: 390px;
+  max-width: min(390px, calc(100vw - 32px));
+  padding: 2px;
+  border: 1px solid #aeb7c2;
+  border-radius: 2px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.16);
+  z-index: 55;
 }
 
 .sitetabs {
@@ -1323,6 +1380,10 @@ select:focus-visible,
   color: var(--text-3);
 }
 
+.field-error {
+  color: var(--danger);
+}
+
 .input,
 .select {
   height: var(--input-h);
@@ -2031,6 +2092,17 @@ body.desktop-runtime .modal-host > .app {
   color: var(--surface);
 }
 
+.step--error {
+  color: var(--danger);
+}
+
+.step--error .step__number,
+.step.step--error .sn {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--surface);
+}
+
 .step-line {
   width: var(--page-pad-x);
   height: 1.5px;
@@ -2155,7 +2227,7 @@ body.desktop-runtime .modal-host > .app {
 }
 
 .new-tab-panel {
-  width: min(520px, 100%);
+  width: min(640px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2176,6 +2248,54 @@ body.desktop-runtime .modal-host > .app {
 .new-tab-actions {
   justify-content: center;
   flex-wrap: wrap;
+}
+
+.new-tab-recent-list {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-sm);
+  overflow: hidden;
+}
+
+.new-tab-recent-row {
+  width: 100%;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.new-tab-recent-row:last-child {
+  border-bottom: none;
+}
+
+.new-tab-recent-row:hover {
+  background: var(--surface-2);
+}
+
+.new-tab-recent-row span:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.new-tab-recent-row span:first-child span {
+  overflow: hidden;
+  color: var(--text-3);
+  font: 12px var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .advanced-gate-page {

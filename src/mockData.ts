@@ -12,7 +12,7 @@ import type {
   SiteWorkspaceModel,
   TabModel,
 } from "./types";
-import type { AuthProfile, ConnectedSite, Project } from "@kintone-site-discovery/core";
+import type { AuthProfile, ConnectedSite, Project, ProjectAppList } from "@kintone-site-discovery/core";
 
 export const projectId = "client-crm-discovery";
 export const siteId = "client-a-production";
@@ -287,8 +287,9 @@ export function authProfileModelFromDomain(profile: AuthProfile): AuthProfileMod
   };
 }
 
-export function projectModelFromDomain(project: Project, site: ConnectedSite | undefined, profile: AuthProfile | undefined): ProjectModel {
+export function projectModelFromDomain(project: Project, site: ConnectedSite | undefined, profile: AuthProfile | undefined, appList?: ProjectAppList): ProjectModel {
   const hasGlobalProfile = project.authSelection.kind === "global_profile";
+  const selectedApps = appList?.apps.length ?? 0;
   return {
     id: project.id,
     name: project.name,
@@ -296,10 +297,10 @@ export function projectModelFromDomain(project: Project, site: ConnectedSite | u
     authSelection: project.authSelection,
     path: project.folderPath,
     opened: "opened from local metadata",
-    meta: "no real snapshot written yet",
+    meta: selectedApps > 0 ? `${selectedApps} app${selectedApps === 1 ? "" : "s"} selected · no real snapshot written yet` : "no apps selected yet · no real snapshot written yet",
     hasSnapshot: false,
-    selectedApps: 0,
-    appsAvailable: 0,
+    selectedApps,
+    appsAvailable: selectedApps,
     pluginsCaptured: 0,
     redactions: 0,
     ...(site ? { siteId: site.id } : {}),

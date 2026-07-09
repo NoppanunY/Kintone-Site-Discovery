@@ -4,6 +4,7 @@ import { createFailedConnectionResult, createPassedConnectionResult, createTesti
 import { authProfileIdForSelection, connectedSites as mockConnectedSites, profiles as mockProfiles, projectRows as mockProjectRows } from "../mockData";
 import type { AuthProfileModel, ConnectedSiteModel, ConnectionTestResult, ConnectionTestTarget, MockActionHandler, ProjectModel } from "../types";
 import { PageHeader } from "./shared";
+import { validateKintoneDomain, validateLocalId, validateProjectName, type ProjectAuthSelection } from "@kintone-site-discovery/core";
 
 interface ProjectHomeScreenProps {
   onAddProfile: () => void;
@@ -17,8 +18,9 @@ interface ProjectHomeScreenProps {
   projects?: ProjectModel[];
   connectedSites?: ConnectedSiteModel[];
   profiles?: AuthProfileModel[];
+  workspaceMode?: "loading" | "desktop_metadata" | "browser_fallback" | "empty";
   onOpenProjectFolder: (projectId: string) => void;
-  onUpdateProject: (projectId: string, draft: { name: string; siteId: string; authProfileId: string }) => void;
+  onUpdateProject: (projectId: string, draft: { name: string; siteId: string; authSelection: ProjectAuthSelection }) => void;
   onRemoveProject: (projectId: string) => void;
   onUpdateSite: (siteId: string, draft: { displayName: string; domain: string }) => void;
   onRemoveSite: (siteId: string) => void;
@@ -58,6 +60,7 @@ export function ProjectHomeScreen({
   projects: projectRows = mockProjectRows,
   connectedSites = mockConnectedSites,
   profiles = mockProfiles,
+  workspaceMode = "desktop_metadata",
   onOpenProjectFolder,
   onUpdateProject,
   onRemoveProject,
@@ -128,6 +131,11 @@ export function ProjectHomeScreen({
         subtitle="Projects are local folders. Each project selects one connected site, and the same site can be reused by multiple projects."
         actions={<PrimaryActionButton label="＋ New project" onClick={onNewProject} />}
       />
+      {workspaceMode === "browser_fallback" ? (
+        <div className="banner screen-note">
+          <div>Browser fallback preview mode is showing sample projects, sites, and auth profiles. Desktop metadata is not being read or written here.</div>
+        </div>
+      ) : null}
 
       <div className="list">
         {projectItems.length === 0 ? (
@@ -249,7 +257,7 @@ export function ProjectHomeScreen({
           onCancel={() => setEditTarget(null)}
           onSave={(target, draft) => {
             if (target.kind === "project") {
-              onUpdateProject(target.project.id, draft as { name: string; siteId: string; authProfileId: string });
+              onUpdateProject(target.project.id, draft as { name: string; siteId: string; authSelection: ProjectAuthSelection });
             } else if (target.kind === "site") {
               onUpdateSite(target.site.id, draft as { displayName: string; domain: string });
             } else {
@@ -366,7 +374,7 @@ function MetadataEditModal({
   onCancel: () => void;
   onSave: (
     target: Exclude<EditTarget, null>,
-    draft: { name: string; siteId: string; authProfileId: string } | { displayName: string; domain: string } | { displayName: string; username: string; credentialUpdated?: boolean },
+    draft: { name: string; siteId: string; authSelection: ProjectAuthSelection } | { displayName: string; domain: string } | { displayName: string; username: string; credentialUpdated?: boolean },
   ) => void;
 }) {
   const [projectName, setProjectName] = useState(target.kind === "project" ? target.project.name : "");
@@ -377,13 +385,22 @@ function MetadataEditModal({
   const [profileName, setProfileName] = useState(target.kind === "auth" ? target.profile.name : "");
   const [profileUsername, setProfileUsername] = useState(target.kind === "auth" ? target.profile.user : "");
   const [credentialUpdated, setCredentialUpdated] = useState(false);
-  const projectCanSave = projectName.trim().length > 0 && projectSiteId.length > 0 && projectAuthProfileId.length > 0;
-  const siteCanSave = siteName.trim().length > 0 && siteDomain.trim().length > 0;
-  const authCanSave = profileName.trim().length > 0 && profileUsername.trim().length > 0;
+  const projectLocalAuthSelection = target.kind === "project" && target.project.authSelection.kind === "project_local" ? target.project.authSelection : null;
+  const projectUsesLocalAuth = Boolean(projectLocalAuthSelection);
+  const projectIssues = target.kind === "project" ? projectEditIssues(projectName, projectSiteId, projectAuthProfileId, connectedSites, profiles, projectUsesLocalAuth) : {};
+  const siteIssues = target.kind === "site" ? siteEditIssues(siteName, siteDomain) : {};
+  const authIssues = target.kind === "auth" ? authEditIssues(profileName, profileUsername) : {};
+  const projectCanSave = Object.keys(projectIssues).length === 0;
+  const siteCanSave = Object.keys(siteIssues).length === 0;
+  const authCanSave = Object.keys(authIssues).length === 0;
 
   function save() {
     if (target.kind === "project") {
-      onSave(target, { name: projectName.trim(), siteId: projectSiteId, authProfileId: projectAuthProfileId });
+      onSave(target, {
+        name: projectName.trim(),
+        siteId: projectSiteId,
+        authSelection: projectUsesLocalAuth ? target.project.authSelection : { kind: "global_profile", authProfileId: projectAuthProfileId },
+      });
     } else if (target.kind === "site") {
       onSave(target, { displayName: siteName.trim(), domain: siteDomain.trim() });
     } else {
@@ -416,19 +433,28 @@ function MetadataEditModal({
         <div className="modal__section">
           {target.kind === "project" ? (
             <div className="form-grid">
-              <ModalTextField label="Project name" value={projectName} onChange={setProjectName} />
-              <ModalSelectField label="Connected site" value={projectSiteId} options={connectedSites.map((site) => ({ value: site.id, label: `${site.name} · ${site.domain}` }))} onChange={setProjectSiteId} />
-              <ModalSelectField label="Auth profile" value={projectAuthProfileId} options={profiles.map((profile) => ({ value: profile.id, label: `${profile.name} · ${profile.user}` }))} onChange={setProjectAuthProfileId} full />
+              <ModalTextField label="Project name" value={projectName} onChange={setProjectName} error={projectIssues.name} />
+              <ModalSelectField label="Connected site" value={projectSiteId} options={connectedSites.map((site) => ({ value: site.id, label: `${site.name} · ${site.domain}` }))} onChange={setProjectSiteId} error={projectIssues.siteId} />
+              {projectLocalAuthSelection ? (
+                <ModalReadOnlyField
+                  label="Project-local auth"
+                  value={`${projectLocalAuthSelection.displayName} · ${projectLocalAuthSelection.username}`}
+                  meta="Project-local auth is preserved by this editor. Change credentials in a later secure-storage phase."
+                  full
+                />
+              ) : (
+                <ModalSelectField label="Auth profile" value={projectAuthProfileId} options={profiles.map((profile) => ({ value: profile.id, label: `${profile.name} · ${profile.user}` }))} onChange={setProjectAuthProfileId} error={projectIssues.authProfileId} full />
+              )}
             </div>
           ) : target.kind === "site" ? (
             <div className="form-grid">
-              <ModalTextField label="Site display name" value={siteName} onChange={setSiteName} />
-              <ModalTextField label="kintone domain" value={siteDomain} onChange={setSiteDomain} />
+              <ModalTextField label="Site display name" value={siteName} onChange={setSiteName} error={siteIssues.displayName} />
+              <ModalTextField label="kintone domain" value={siteDomain} onChange={setSiteDomain} error={siteIssues.domain} />
             </div>
           ) : (
             <div className="form-grid">
-              <ModalTextField label="Profile name" value={profileName} onChange={setProfileName} />
-              <ModalTextField label="Username" value={profileUsername} onChange={setProfileUsername} />
+              <ModalTextField label="Profile name" value={profileName} onChange={setProfileName} error={authIssues.displayName} />
+              <ModalTextField label="Username" value={profileUsername} onChange={setProfileUsername} error={authIssues.username} />
               <div className="form-group--full">
                 <SecretField label="New password" hasStoredSecret={credentialUpdated} onSet={() => setCredentialUpdated(true)} />
                 <span className="hint">This preview records only that the credential was updated. The password itself is never serialized.</span>
@@ -447,13 +473,14 @@ function MetadataEditModal({
   );
 }
 
-function ModalTextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function ModalTextField({ label, value, error, onChange }: { label: string; value: string; error?: string; onChange: (value: string) => void }) {
   return (
     <div className="form-group">
       <label className="label" htmlFor={`modal-${label.replace(/\s+/g, "-").toLowerCase()}`}>
         {label}
       </label>
       <input id={`modal-${label.replace(/\s+/g, "-").toLowerCase()}`} className="input" value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+      {error ? <span className="hint field-error">{error}</span> : null}
     </div>
   );
 }
@@ -463,12 +490,14 @@ function ModalSelectField({
   value,
   options,
   full,
+  error,
   onChange,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
   full?: boolean;
+  error?: string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -484,8 +513,67 @@ function ModalSelectField({
         ))}
       </select>
       {options.length === 0 ? <span className="hint">Create metadata first before selecting this value.</span> : null}
+      {error ? <span className="hint field-error">{error}</span> : null}
     </div>
   );
+}
+
+function ModalReadOnlyField({ label, value, meta, full }: { label: string; value: string; meta?: string; full?: boolean }) {
+  return (
+    <div className={`form-group ${full ? "form-group--full" : ""}`}>
+      <span className="label">{label}</span>
+      <div className="input input--readonly filled">
+        <span>{value}</span>
+      </div>
+      {meta ? <span className="hint">{meta}</span> : null}
+    </div>
+  );
+}
+
+function projectEditIssues(projectName: string, siteId: string, authProfileId: string, sites: ConnectedSiteModel[], profiles: AuthProfileModel[], localAuth: boolean) {
+  const issues: Record<string, string> = {};
+  const nameResult = validateProjectName(projectName, "name");
+  if (!nameResult.ok) {
+    issues.name = nameResult.issues[0]?.message ?? "Project name is invalid.";
+  }
+  const siteIdResult = validateLocalId(siteId, "siteId");
+  if (!siteIdResult.ok) {
+    issues.siteId = siteIdResult.issues[0]?.message ?? "Connected site ID is invalid.";
+  } else if (!sites.some((site) => site.id === siteId)) {
+    issues.siteId = "Choose a connected site.";
+  }
+  if (!localAuth) {
+    const authIdResult = validateLocalId(authProfileId, "authProfileId");
+    if (!authIdResult.ok) {
+      issues.authProfileId = authIdResult.issues[0]?.message ?? "Auth profile ID is invalid.";
+    } else if (!profiles.some((profile) => profile.id === authProfileId)) {
+      issues.authProfileId = "Choose an auth profile.";
+    }
+  }
+  return issues;
+}
+
+function siteEditIssues(displayName: string, domain: string) {
+  const issues: Record<string, string> = {};
+  if (displayName.trim().length === 0) {
+    issues.displayName = "Site display name is required.";
+  }
+  const domainResult = validateKintoneDomain(domain, "domain");
+  if (!domainResult.ok) {
+    issues.domain = domainResult.issues[0]?.message ?? "Domain is invalid.";
+  }
+  return issues;
+}
+
+function authEditIssues(displayName: string, username: string) {
+  const issues: Record<string, string> = {};
+  if (displayName.trim().length === 0) {
+    issues.displayName = "Auth profile display name is required.";
+  }
+  if (username.trim().length === 0) {
+    issues.username = "Username is required.";
+  }
+  return issues;
 }
 
 function projectsUsingSite(siteIdValue: string, projects: ProjectModel[]) {

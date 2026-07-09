@@ -68,9 +68,11 @@ export type SiteWorkspaceModel = ProjectContextModel;
 
 export interface TopMenuItemModel {
   label: string;
+  description?: string;
   onSelect?: () => void;
   disabled?: boolean;
   shortcut?: string;
+  items?: TopMenuItemModel[];
 }
 
 export interface TopMenuModel {
