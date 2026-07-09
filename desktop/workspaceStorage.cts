@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type {
+  BridgeResult,
   CreateProjectRequest,
   CreateProjectResult,
   OpenProjectResult,
@@ -26,9 +27,13 @@ import type {
   Project,
   ProjectAppList,
   ProjectHistory,
+  ValidationResult,
 } from "../packages/core/src/types.js";
 
 const schemaVersion = 1;
+type CoreModule = typeof import("../packages/core/src/index.js");
+type MetadataValidator<T> = (core: CoreModule, value: unknown) => ValidationResult<T>;
+const coreModulePromise: Promise<CoreModule> = import("../packages/core/src/index.js");
 
 interface WorkspaceStorageOptions {
   appDataRoot: string;
@@ -53,19 +58,23 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     await ensureDir(defaultProjectsRoot);
 
     const errors: WorkspaceMetadataIssue[] = [];
-    const appIndex = await readJson<AppIndex>(path.join(appDataRoot, appIndexFile), defaultAppIndex(), "app", false);
-    const connectedSites = await readJson<ConnectedSite[]>(path.join(appDataRoot, connectedSitesFile), [], "app", false);
-    const authProfiles = await readJson<AuthProfile[]>(path.join(appDataRoot, authProfilesFile), [], "app", false);
+    const appIndex = await readJson<AppIndex>(path.join(appDataRoot, appIndexFile), defaultAppIndex(), "app", false, (core, value) => core.validateAppIndex(value));
+    const connectedSites = await readJson<ConnectedSite[]>(path.join(appDataRoot, connectedSitesFile), [], "app", false, (core, value) => core.validateConnectedSiteList(value));
+    const authProfiles = await readJson<AuthProfile[]>(path.join(appDataRoot, authProfilesFile), [], "app", false, (core, value) => core.validateAuthProfileList(value));
 
     pushIssue(errors, appIndex.issue);
     pushIssue(errors, connectedSites.issue);
     pushIssue(errors, authProfiles.issue);
 
     const projects: Project[] = [];
+    const projectAppListsByProjectId: Record<string, ProjectAppList> = {};
     for (const entry of appIndex.value?.recentProjects ?? []) {
       const projectRead = await readProjectAt(entry.folderPath);
       if (projectRead.ok && projectRead.project) {
         projects.push(projectRead.project);
+        if (projectRead.appList) {
+          projectAppListsByProjectId[projectRead.project.id] = projectRead.appList;
+        }
       } else {
         projectRead.errors?.forEach((issue) => errors.push(issue));
       }
@@ -78,6 +87,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       projects,
       connectedSites: connectedSites.value ?? [],
       authProfiles: authProfiles.value ?? [],
+      projectAppListsByProjectId,
       errors,
     };
   }
@@ -89,8 +99,17 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     if (pathIssue) {
       return { ok: false, message: pathIssue.message, errors: [pathIssue] };
     }
+    if (await fileExists(path.join(folderPath, "project.json"))) {
+      return {
+        ok: false,
+        message: "A project.json file already exists in that folder. Choose a different local folder or open the existing project.",
+        errors: [{ scope: "project", path: folderPath, code: "invalid_metadata", message: "Project folder already contains project metadata.", recoverable: true }],
+      };
+    }
 
-    const projectId = createLocalId("project", request.name);
+    const core = await coreModulePromise;
+    const appIndex = await readAppIndex();
+    const projectId = core.createCollisionSafeLocalId("project", request.name, appIndex.recentProjects.map((entry) => entry.projectId));
     const project: Project = {
       id: projectId,
       name: request.name.trim(),
@@ -111,8 +130,6 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     const appSummaries = request.appSummaries ?? [];
 
     try {
-      assertNoSecretKeys(project);
-      assertNoSecretKeys(connectedSite);
       await initializeProjectFolder(project, connectedSite, appSummaries, timestamp);
       await upsertConnectedSite(connectedSite);
       if (request.authSelection.kind === "global_profile" && request.authProfile) {
@@ -136,10 +153,14 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     const projectPath = path.join(folderPath, "project.json");
     const sitePath = path.join(folderPath, "connected-site.json");
     const appListPath = path.join(folderPath, "app-list.json");
-    const projectRead = await readJson<Project>(projectPath, null, "project", true);
-    const siteRead = await readJson<ConnectedSite>(sitePath, null, "project", true);
-    const appListRead = await readJson<ProjectAppList>(appListPath, null, "project", false);
-    const errors = [projectRead.issue, siteRead.issue, appListRead.issue].filter(Boolean) as WorkspaceMetadataIssue[];
+    const currentPath = path.join(folderPath, "current.json");
+    const historyPath = path.join(folderPath, "history.json");
+    const projectRead = await readJson<Project>(projectPath, null, "project", true, (core, value) => core.validateProject(value));
+    const siteRead = await readJson<ConnectedSite>(sitePath, null, "project", true, (core, value) => core.validateConnectedSite(value));
+    const appListRead = await readJson<ProjectAppList>(appListPath, null, "project", true, (core, value) => core.validateProjectAppList(value));
+    const currentRead = await readJson<CurrentSnapshotPointer>(currentPath, null, "project", true, (core, value) => core.validateCurrentSnapshotPointer(value));
+    const historyRead = await readJson<ProjectHistory>(historyPath, null, "project", true, (core, value) => core.validateProjectHistory(value));
+    const errors = [projectRead.issue, siteRead.issue, appListRead.issue, currentRead.issue, historyRead.issue].filter(Boolean) as WorkspaceMetadataIssue[];
 
     if (!projectRead.value || !siteRead.value) {
       return {
@@ -153,6 +174,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       ok: true,
       project: projectRead.value,
       connectedSite: siteRead.value,
+      appList: appListRead.value ?? undefined,
       appSummaries: appListRead.value?.apps ?? [],
       errors,
     };
@@ -168,7 +190,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     const openedAt = toIso(now());
     const project = { ...readResult.project, lastOpenedAt: openedAt };
     try {
-      await writeJsonAtomic(path.join(resolvedPath, "project.json"), project);
+      await writeJsonAtomic(path.join(resolvedPath, "project.json"), project, (core, value) => core.validateProject(value));
       await writeJsonAtomic(path.join(resolvedPath, ".app", "recent.json"), {
         projectId: project.id,
         lastOpenedAt: openedAt,
@@ -190,20 +212,24 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
   }
 
   async function saveConnectedSite(site: ConnectedSite): Promise<SaveConnectedSiteResult> {
+    let connectedSite = site;
     try {
-      await upsertConnectedSite({ ...site, savedStatus: "saved" });
-      return { ok: true, code: "OK", message: "Connected site metadata saved.", connectedSite: site };
+      connectedSite = await prepareNewConnectedSite(site);
+      await upsertConnectedSite({ ...connectedSite, savedStatus: "saved" });
+      return { ok: true, code: "OK", message: "Connected site metadata saved.", connectedSite };
     } catch (error) {
-      return { ok: false, code: "IO_ERROR", message: errorMessage(error), connectedSite: site };
+      return { ok: false, code: "IO_ERROR", message: errorMessage(error), connectedSite };
     }
   }
 
   async function saveAuthProfile(profile: AuthProfile): Promise<SaveAuthProfileResult> {
+    let authProfile = profile;
     try {
-      await upsertAuthProfile(profile);
-      return { ok: true, code: "OK", message: "Auth profile metadata saved.", authProfile: profile };
+      authProfile = await prepareNewAuthProfile(profile);
+      await upsertAuthProfile(authProfile);
+      return { ok: true, code: "OK", message: "Auth profile metadata saved.", authProfile };
     } catch (error) {
-      return { ok: false, code: "IO_ERROR", message: errorMessage(error), authProfile: profile };
+      return { ok: false, code: "IO_ERROR", message: errorMessage(error), authProfile };
     }
   }
 
@@ -236,12 +262,11 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     };
 
     try {
-      assertNoSecretKeys(project);
-      await writeJsonAtomic(path.join(project.folderPath, "project.json"), project);
+      await writeJsonAtomic(path.join(project.folderPath, "project.json"), project, (core, value) => core.validateProject(value));
       await writeJsonAtomic(path.join(project.folderPath, "connected-site.json"), {
         ...nextSite,
         linkedProjectIds: addUnique(nextSite.linkedProjectIds, project.id),
-      });
+      }, (core, value) => core.validateConnectedSite(value));
       await writeJsonAtomic(path.join(project.folderPath, ".app", "recent.json"), {
         projectId: project.id,
         lastOpenedAt: timestamp,
@@ -366,8 +391,10 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
   }
 
   async function readWindowState(): Promise<WindowStateSnapshot> {
-    const read = await readJson<WindowStateSnapshot>(path.join(appDataRoot, windowStateFile), defaultWindowState(false), "app", false);
-    return { ...(read.value ?? defaultWindowState(false)), restored: Boolean(read.value) };
+    const filePath = path.join(appDataRoot, windowStateFile);
+    const exists = await fileExists(filePath);
+    const read = await readJson<WindowStateSnapshot>(filePath, defaultWindowState(false), "app", false, (core, value) => core.validateWindowStateSnapshot(value));
+    return { ...(read.value ?? defaultWindowState(false)), restored: exists && !read.issue };
   }
 
   async function writeWindowState(state: WindowStateSnapshot) {
@@ -376,7 +403,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       openProjectTabs: state.openProjectTabs,
       activeTabId: state.activeTabId,
       restored: true,
-    });
+    }, (core, value) => core.validateWindowStateSnapshot(value));
   }
 
   async function readOpenProjectTabs(): Promise<ProjectTabSnapshot[]> {
@@ -389,44 +416,113 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     await writeWindowState({ ...current, openProjectTabs: tabs });
   }
 
+  async function validateOpenLocalFolder(folderPath: string): Promise<BridgeResult> {
+    if (!folderPath || !path.isAbsolute(folderPath)) {
+      return { ok: false, code: "INVALID_INPUT", message: "A valid absolute folder path is required." };
+    }
+    if (hasTraversalSegment(folderPath)) {
+      return { ok: false, code: "INVALID_INPUT", message: "Folder paths with traversal segments are not allowed." };
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    const directory = await readDirectoryStat(resolvedPath);
+    if (!directory.exists) {
+      return { ok: false, code: "INVALID_INPUT", message: "The requested folder does not exist." };
+    }
+    if (!directory.isDirectory) {
+      return { ok: false, code: "INVALID_INPUT", message: "The requested path is not a folder." };
+    }
+
+    const appRoot = path.resolve(appDataRoot);
+    if (samePath(resolvedPath, appRoot)) {
+      return { ok: true, code: "OK", message: "Folder is allowed." };
+    }
+
+    const appIndex = await readAppIndex();
+    for (const projectEntry of appIndex.recentProjects) {
+      const projectRoot = path.resolve(projectEntry.folderPath);
+      if (samePath(resolvedPath, projectRoot)) {
+        return { ok: true, code: "OK", message: "Folder is allowed." };
+      }
+
+      const relativePath = path.relative(projectRoot, resolvedPath);
+      if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+        continue;
+      }
+
+      const [topLevel] = relativePath.split(/[\\/]+/);
+      if (["snapshots", ".app", ".kintone", "packages"].includes(topLevel)) {
+        return { ok: true, code: "OK", message: "Folder is allowed." };
+      }
+    }
+
+    return { ok: false, code: "INVALID_INPUT", message: "Only the app data folder, known project folders, and generated project subfolders can be opened from the app." };
+  }
+
+  async function prepareNewConnectedSite(site: ConnectedSite): Promise<ConnectedSite> {
+    const current = await readConnectedSites();
+    if (!current.some((item) => item.id === site.id)) {
+      return site;
+    }
+
+    const core = await coreModulePromise;
+    return {
+      ...site,
+      id: core.createCollisionSafeLocalId("site", site.displayName || site.domain, current.map((item) => item.id)),
+      linkedProjectIds: [],
+    };
+  }
+
+  async function prepareNewAuthProfile(profile: AuthProfile): Promise<AuthProfile> {
+    const current = await readAuthProfiles();
+    if (!current.some((item) => item.id === profile.id)) {
+      return profile;
+    }
+
+    const core = await coreModulePromise;
+    const id = core.createCollisionSafeLocalId("auth", profile.displayName || profile.username, current.map((item) => item.id));
+    return {
+      ...profile,
+      id,
+      keychainRef: `keychain://pending/${id}`,
+      linkedProjectIds: [],
+    };
+  }
+
   async function upsertConnectedSite(site: ConnectedSite) {
-    assertNoSecretKeys(site);
     const filePath = path.join(appDataRoot, connectedSitesFile);
-    const current = (await readJson<ConnectedSite[]>(filePath, [], "app", false)).value ?? [];
+    const current = (await readJson<ConnectedSite[]>(filePath, [], "app", false, (core, value) => core.validateConnectedSiteList(value))).value ?? [];
     const next = upsertById(current, site);
-    await writeJsonAtomic(filePath, next);
+    await writeJsonAtomic(filePath, next, (core, value) => core.validateConnectedSiteList(value));
   }
 
   async function readConnectedSites() {
-    return (await readJson<ConnectedSite[]>(path.join(appDataRoot, connectedSitesFile), [], "app", false)).value ?? [];
+    return (await readJson<ConnectedSite[]>(path.join(appDataRoot, connectedSitesFile), [], "app", false, (core, value) => core.validateConnectedSiteList(value))).value ?? [];
   }
 
   async function updateConnectedSites(mutator: (items: ConnectedSite[]) => ConnectedSite[]) {
     const filePath = path.join(appDataRoot, connectedSitesFile);
     const current = await readConnectedSites();
     const next = mutator(current);
-    assertNoSecretKeys(next);
-    await writeJsonAtomic(filePath, next);
+    await writeJsonAtomic(filePath, next, (core, value) => core.validateConnectedSiteList(value));
   }
 
   async function upsertAuthProfile(profile: AuthProfile) {
-    assertNoSecretKeys(profile);
     const filePath = path.join(appDataRoot, authProfilesFile);
-    const current = (await readJson<AuthProfile[]>(filePath, [], "app", false)).value ?? [];
+    const current = (await readJson<AuthProfile[]>(filePath, [], "app", false, (core, value) => core.validateAuthProfileList(value))).value ?? [];
     const next = upsertById(current, profile);
-    await writeJsonAtomic(filePath, next);
+    await writeJsonAtomic(filePath, next, (core, value) => core.validateAuthProfileList(value));
   }
 
   async function readAuthProfiles() {
-    return (await readJson<AuthProfile[]>(path.join(appDataRoot, authProfilesFile), [], "app", false)).value ?? [];
+    return (await readJson<AuthProfile[]>(path.join(appDataRoot, authProfilesFile), [], "app", false, (core, value) => core.validateAuthProfileList(value))).value ?? [];
   }
 
   async function updateAuthProfiles(mutator: (items: AuthProfile[]) => AuthProfile[]) {
     const filePath = path.join(appDataRoot, authProfilesFile);
     const current = await readAuthProfiles();
     const next = mutator(current);
-    assertNoSecretKeys(next);
-    await writeJsonAtomic(filePath, next);
+    await writeJsonAtomic(filePath, next, (core, value) => core.validateAuthProfileList(value));
   }
 
   async function upsertRecentProject(project: Project) {
@@ -443,11 +539,11 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
   }
 
   async function readAppIndex() {
-    return (await readJson<AppIndex>(path.join(appDataRoot, appIndexFile), defaultAppIndex(), "app", false)).value ?? defaultAppIndex();
+    return (await readJson<AppIndex>(path.join(appDataRoot, appIndexFile), defaultAppIndex(), "app", false, (core, value) => core.validateAppIndex(value))).value ?? defaultAppIndex();
   }
 
   async function writeAppIndex(appIndex: AppIndex) {
-    await writeJsonAtomic(path.join(appDataRoot, appIndexFile), { schemaVersion, recentProjects: appIndex.recentProjects });
+    await writeJsonAtomic(path.join(appDataRoot, appIndexFile), { schemaVersion, recentProjects: appIndex.recentProjects }, (core, value) => core.validateAppIndex(value));
   }
 
   async function rewriteProjectLinks(projectId: string, previousSiteId: string, nextSiteId: string, previousAuthSelection: Project["authSelection"], nextAuthSelection: Project["authSelection"]) {
@@ -478,7 +574,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       }
 
       try {
-        await writeJsonAtomic(path.join(projectEntry.folderPath, "connected-site.json"), site);
+        await writeJsonAtomic(path.join(projectEntry.folderPath, "connected-site.json"), site, (core, value) => core.validateConnectedSite(value));
       } catch {
         // Best-effort cache refresh. The app-level metadata remains the source of truth.
       }
@@ -512,11 +608,11 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       runs: [],
     };
 
-    await writeJsonAtomic(path.join(project.folderPath, "project.json"), project);
-    await writeJsonAtomic(path.join(project.folderPath, "connected-site.json"), connectedSite);
-    await writeJsonAtomic(path.join(project.folderPath, "app-list.json"), appList);
-    await writeJsonAtomic(path.join(project.folderPath, "current.json"), current);
-    await writeJsonAtomic(path.join(project.folderPath, "history.json"), history);
+    await writeJsonAtomic(path.join(project.folderPath, "project.json"), project, (core, value) => core.validateProject(value));
+    await writeJsonAtomic(path.join(project.folderPath, "connected-site.json"), connectedSite, (core, value) => core.validateConnectedSite(value));
+    await writeJsonAtomic(path.join(project.folderPath, "app-list.json"), appList, (core, value) => core.validateProjectAppList(value));
+    await writeJsonAtomic(path.join(project.folderPath, "current.json"), current, (core, value) => core.validateCurrentSnapshotPointer(value));
+    await writeJsonAtomic(path.join(project.folderPath, "history.json"), history, (core, value) => core.validateProjectHistory(value));
     await writeJsonAtomic(path.join(project.folderPath, ".app", "schema-version.json"), { schemaVersion, updatedAt: timestamp });
     await writeJsonAtomic(path.join(project.folderPath, ".app", "recent.json"), { projectId: project.id, lastOpenedAt: timestamp });
   }
@@ -540,13 +636,34 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     writeWindowState,
     readOpenProjectTabs,
     writeOpenProjectTabs,
+    validateOpenLocalFolder,
   };
 }
 
-async function readJson<T>(filePath: string, fallback: T | null, scope: "app" | "project", required: boolean): Promise<JsonReadResult<T>> {
+async function readJson<T>(filePath: string, fallback: T | null, scope: "app" | "project", required: boolean, validator?: MetadataValidator<T>): Promise<JsonReadResult<T>> {
   try {
     const raw = await fs.readFile(filePath, "utf8");
-    return { value: JSON.parse(raw) as T };
+    const parsed = JSON.parse(raw) as unknown;
+    if (!validator) {
+      return { value: parsed as T };
+    }
+
+    const core = await coreModulePromise;
+    const result = validator(core, parsed);
+    if (!result.ok) {
+      return {
+        value: fallback,
+        issue: {
+          scope,
+          path: filePath,
+          code: "invalid_metadata",
+          message: `Metadata JSON is parseable but invalid: ${formatValidationIssues(result.issues)}`,
+          recoverable: true,
+        },
+      };
+    }
+
+    return { value: result.value };
   } catch (error) {
     if (isMissingFileError(error)) {
       return {
@@ -569,57 +686,20 @@ async function readJson<T>(filePath: string, fallback: T | null, scope: "app" | 
   }
 }
 
-async function writeJsonAtomic(filePath: string, value: unknown) {
-  assertNoSecretKeys(value);
+async function writeJsonAtomic<T>(filePath: string, value: T, validator?: MetadataValidator<T>) {
+  const core = await coreModulePromise;
+  core.assertNoSecretReferences(value);
+  if (validator) {
+    const validation = validator(core, value);
+    if (!validation.ok) {
+      throw new Error(`Invalid metadata for ${path.basename(filePath)}: ${formatValidationIssues(validation.issues)}`);
+    }
+  }
+
   await ensureDir(path.dirname(filePath));
   const tempPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
-  await fs.writeFile(tempPath, stringifyDeterministic(value), "utf8");
+  await fs.writeFile(tempPath, core.stringifyDeterministic(value), "utf8");
   await fs.rename(tempPath, filePath);
-}
-
-function stringifyDeterministic(value: unknown) {
-  return `${JSON.stringify(sortJson(value), null, 2)}\n`;
-}
-
-function sortJson(value: unknown): unknown {
-  if (value === null || typeof value !== "object") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(sortJson);
-  }
-  const record = value as Record<string, unknown>;
-  return Object.keys(record)
-    .sort()
-    .reduce<Record<string, unknown>>((result, key) => {
-      if (record[key] !== undefined) {
-        result[key] = sortJson(record[key]);
-      }
-      return result;
-    }, {});
-}
-
-function assertNoSecretKeys(value: unknown) {
-  const secretKeyPattern = /(password|token|api[_-]?token|access[_-]?token|refresh[_-]?token|session|cookie|authorization|client[_-]?secret|private[_-]?key|bearer|proxy[_-]?secret)/i;
-  const allowedKeys = new Set(["authType", "credentialStatus", "keychainRef"]);
-
-  function walk(current: unknown, trail: string) {
-    if (!current || typeof current !== "object") {
-      return;
-    }
-    if (Array.isArray(current)) {
-      current.forEach((item, index) => walk(item, `${trail}[${index}]`));
-      return;
-    }
-    Object.entries(current as Record<string, unknown>).forEach(([key, item]) => {
-      if (!allowedKeys.has(key) && secretKeyPattern.test(key)) {
-        throw new Error(`Refusing to write secret-bearing metadata key: ${trail ? `${trail}.` : ""}${key}`);
-      }
-      walk(item, trail ? `${trail}.${key}` : key);
-    });
-  }
-
-  walk(value, "");
 }
 
 async function ensureDir(dirPath: string) {
@@ -640,6 +720,39 @@ function pushIssue(errors: WorkspaceMetadataIssue[], issue: WorkspaceMetadataIss
   }
 }
 
+function formatValidationIssues(issues: { path: string; message: string }[]) {
+  return issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ");
+}
+
+async function fileExists(filePath: string) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readDirectoryStat(folderPath: string): Promise<{ exists: boolean; isDirectory: boolean }> {
+  try {
+    const stat = await fs.stat(folderPath);
+    return { exists: true, isDirectory: stat.isDirectory() };
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return { exists: false, isDirectory: false };
+    }
+    throw error;
+  }
+}
+
+function samePath(left: string, right: string) {
+  return path.normalize(left).toLowerCase() === path.normalize(right).toLowerCase();
+}
+
+function hasTraversalSegment(folderPath: string) {
+  return folderPath.split(/[\\/]+/).some((segment) => segment === "..");
+}
+
 function upsertById<T extends { id: string }>(items: T[], nextItem: T): T[] {
   const existing = items.filter((item) => item.id !== nextItem.id);
   return [nextItem, ...existing];
@@ -655,17 +768,6 @@ function removeValue(items: string[], value: string) {
 
 function toIso(date: Date) {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
-function createLocalId(prefix: string, source: string) {
-  const sourceSlug =
-    source
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 80) || "local";
-  return `${prefix}_${sourceSlug}`;
 }
 
 function validateProjectFolderPath(folderPath: string): WorkspaceMetadataIssue | undefined {

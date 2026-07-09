@@ -1,5 +1,6 @@
 export type ISODateString = string;
 export type Id = string;
+export type SchemaVersion = number;
 
 export type ResultStatus = "completed" | "completed_with_warnings" | "failed";
 export type ConnectionStatus = "idle" | "testing" | "connected" | "unreachable" | "auth_failed";
@@ -59,7 +60,7 @@ export interface Project {
   lastOpenedAt: ISODateString;
   siteId: Id;
   authSelection: ProjectAuthSelection;
-  schemaVersion: number;
+  schemaVersion: SchemaVersion;
 }
 
 export interface AuthProfile {
@@ -169,7 +170,7 @@ export interface SnapshotManifest {
   siteId: Id;
   siteDomain: string;
   authSelection: SnapshotAuthSelection;
-  schemaVersion: number;
+  schemaVersion: SchemaVersion;
   capturedAt: ISODateString;
   status: ResultStatus;
   isCurrent: boolean;
@@ -264,13 +265,13 @@ export interface CurrentSnapshotPointer {
 }
 
 export interface ProjectAppList {
-  schemaVersion: number;
+  schemaVersion: SchemaVersion;
   appListFetchedAt: ISODateString | null;
   apps: AppSummary[];
 }
 
 export interface ProjectHistory {
-  schemaVersion: number;
+  schemaVersion: SchemaVersion;
   runs: unknown[];
 }
 
@@ -283,6 +284,19 @@ export interface AppIndexEntry {
 }
 
 export interface AppIndex {
-  schemaVersion: number;
+  schemaVersion: SchemaVersion;
   recentProjects: AppIndexEntry[];
+}
+
+export interface ProjectTabSnapshot {
+  id: Id;
+  title: string;
+  projectId?: Id;
+  routePath: string;
+}
+
+export interface WindowStateSnapshot {
+  openProjectTabs: ProjectTabSnapshot[];
+  activeTabId: Id | "home";
+  restored: boolean;
 }

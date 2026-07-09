@@ -1,13 +1,20 @@
 import { STORAGE_SCHEMA_VERSION } from "./constants.js";
 import type {
+  AppIndex,
+  AppIndexEntry,
   AppSummary,
   AuthProfile,
   ConnectedSite,
+  CurrentSnapshotPointer,
   Id,
   Project,
+  ProjectAppList,
   ProjectAuthSelection,
+  ProjectHistory,
+  ProjectTabSnapshot,
   ValidationIssue,
   ValidationResult,
+  WindowStateSnapshot,
 } from "./types.js";
 
 function ok<T>(value: T): ValidationResult<T> {
@@ -35,16 +42,54 @@ export function validateLocalId(value: unknown, path = "id"): ValidationResult<I
   return ok(trimmed);
 }
 
-export function createLocalId(prefix: string, source: string): Id {
+export interface LocalIdOptions {
+  now?: () => Date;
+  random?: () => number;
+  suffix?: string;
+}
+
+function normalizeLocalIdPart(value: string, fallback: string, maxLength: number): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, maxLength) || fallback;
+}
+
+function defaultLocalIdSuffix(options: LocalIdOptions): string {
+  if (options.suffix) {
+    return normalizeLocalIdPart(options.suffix, "local", 32);
+  }
+
+  const date = options.now?.() ?? new Date();
+  const timestamp = date.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14) || "local";
+  const randomValue = Math.floor((options.random?.() ?? Math.random()) * 36 ** 5)
+    .toString(36)
+    .padStart(5, "0")
+    .slice(0, 5);
+  return `${timestamp}_${randomValue}`;
+}
+
+export function createCollisionSafeLocalId(prefix: string, source: string, existingIds: Iterable<string> = [], options: LocalIdOptions = {}): Id {
   const normalizedPrefix = prefix.toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "id";
-  const normalizedSource =
-    source
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 80) || "local";
-  return `${normalizedPrefix}_${normalizedSource}`;
+  const normalizedSource = normalizeLocalIdPart(source, "local", 64);
+  const suffix = defaultLocalIdSuffix(options);
+  const existing = new Set(existingIds);
+  const base = `${normalizedPrefix}_${normalizedSource}_${suffix}`.slice(0, 120).replace(/_+$/g, "");
+
+  let candidate = base;
+  let counter = 2;
+  while (existing.has(candidate)) {
+    candidate = `${base}_${counter}`.slice(0, 128);
+    counter += 1;
+  }
+
+  return candidate;
+}
+
+export function createLocalId(prefix: string, source: string, options: LocalIdOptions = {}): Id {
+  return createCollisionSafeLocalId(prefix, source, [], options);
 }
 
 export function validateKintoneDomain(value: unknown, path = "domain"): ValidationResult<string> {
@@ -284,9 +329,228 @@ export function validateAppSummary(value: unknown, path = "app"): ValidationResu
   if (typeof app.name !== "string" || app.name.trim().length === 0) {
     issues.push({ path: `${path}.name`, code: "required", message: "App name is required." });
   }
+  if (typeof app.isGuestSpace !== "boolean") {
+    issues.push({ path: `${path}.isGuestSpace`, code: "invalid_type", message: "Guest-space flag must be a boolean." });
+  }
+  if (typeof app.hasPlugins !== "boolean") {
+    issues.push({ path: `${path}.hasPlugins`, code: "invalid_type", message: "Plugin flag must be a boolean." });
+  }
+  if (typeof app.hasCustomization !== "boolean") {
+    issues.push({ path: `${path}.hasCustomization`, code: "invalid_type", message: "Customization flag must be a boolean." });
+  }
   if (!["in_snapshot", "not_captured", "last_scan_warning"].includes(app.captureStatus)) {
     issues.push({ path: `${path}.captureStatus`, code: "invalid_status", message: "App capture status is invalid." });
   }
+  if (app.lastCapturedAt !== undefined && !isIsoDateString(app.lastCapturedAt)) {
+    issues.push({ path: `${path}.lastCapturedAt`, code: "invalid_timestamp", message: "Last captured timestamp must be ISO 8601." });
+  }
 
   return collect(app, issues);
+}
+
+export function validateConnectedSiteList(value: unknown, path = "connectedSites"): ValidationResult<ConnectedSite[]> {
+  if (!Array.isArray(value)) {
+    return fail(path, "invalid_type", "Connected sites must be an array.");
+  }
+
+  const issues: ValidationIssue[] = [];
+  value.forEach((site, index) => {
+    const result = validateConnectedSite(site, `${path}[${index}]`);
+    if (!result.ok) issues.push(...result.issues);
+  });
+  return collect(value as ConnectedSite[], issues);
+}
+
+export function validateAuthProfileList(value: unknown, path = "authProfiles"): ValidationResult<AuthProfile[]> {
+  if (!Array.isArray(value)) {
+    return fail(path, "invalid_type", "Auth profiles must be an array.");
+  }
+
+  const issues: ValidationIssue[] = [];
+  value.forEach((profile, index) => {
+    const result = validateAuthProfile(profile, `${path}[${index}]`);
+    if (!result.ok) issues.push(...result.issues);
+  });
+  return collect(value as AuthProfile[], issues);
+}
+
+export function validateProjectAppList(value: unknown, path = "appList"): ValidationResult<ProjectAppList> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "App list metadata must be an object.");
+  }
+
+  const appList = value as ProjectAppList;
+  const issues: ValidationIssue[] = [];
+  if (appList.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+    issues.push({ path: `${path}.schemaVersion`, code: "unsupported_schema_version", message: "App list schema version is unsupported." });
+  }
+  if (appList.appListFetchedAt !== null && !isIsoDateString(appList.appListFetchedAt)) {
+    issues.push({ path: `${path}.appListFetchedAt`, code: "invalid_timestamp", message: "App list fetched timestamp must be ISO 8601 or null." });
+  }
+  if (!Array.isArray(appList.apps)) {
+    issues.push({ path: `${path}.apps`, code: "invalid_type", message: "App list apps must be an array." });
+  } else {
+    appList.apps.forEach((app, index) => {
+      const result = validateAppSummary(app, `${path}.apps[${index}]`);
+      if (!result.ok) issues.push(...result.issues);
+    });
+  }
+
+  return collect(appList, issues);
+}
+
+export function validateCurrentSnapshotPointer(value: unknown, path = "current"): ValidationResult<CurrentSnapshotPointer> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Current snapshot pointer must be an object.");
+  }
+
+  const current = value as CurrentSnapshotPointer;
+  const issues: ValidationIssue[] = [];
+  const projectId = validateLocalId(current.projectId, `${path}.projectId`);
+  const siteId = validateLocalId(current.siteId, `${path}.siteId`);
+  if (!projectId.ok) issues.push(...projectId.issues);
+  if (!siteId.ok) issues.push(...siteId.issues);
+  if (current.currentSnapshotId !== null) {
+    const snapshotId = validateLocalId(current.currentSnapshotId, `${path}.currentSnapshotId`);
+    if (!snapshotId.ok) issues.push(...snapshotId.issues);
+  }
+  if (current.currentSnapshotPath !== null && !isSafeRelativePath(current.currentSnapshotPath)) {
+    issues.push({ path: `${path}.currentSnapshotPath`, code: "invalid_path", message: "Current snapshot path must be a safe relative path or null." });
+  }
+  if (current.updatedAt !== null && !isIsoDateString(current.updatedAt)) {
+    issues.push({ path: `${path}.updatedAt`, code: "invalid_timestamp", message: "Current pointer timestamp must be ISO 8601 or null." });
+  }
+
+  return collect(current, issues);
+}
+
+export function validateProjectHistory(value: unknown, path = "history"): ValidationResult<ProjectHistory> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "History metadata must be an object.");
+  }
+
+  const history = value as ProjectHistory;
+  const issues: ValidationIssue[] = [];
+  if (history.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+    issues.push({ path: `${path}.schemaVersion`, code: "unsupported_schema_version", message: "History schema version is unsupported." });
+  }
+  if (!Array.isArray(history.runs)) {
+    issues.push({ path: `${path}.runs`, code: "invalid_type", message: "History runs must be an array." });
+  }
+
+  return collect(history, issues);
+}
+
+export function validateAppIndex(value: unknown, path = "appIndex"): ValidationResult<AppIndex> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "App index metadata must be an object.");
+  }
+
+  const appIndex = value as AppIndex;
+  const issues: ValidationIssue[] = [];
+  if (appIndex.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+    issues.push({ path: `${path}.schemaVersion`, code: "unsupported_schema_version", message: "App index schema version is unsupported." });
+  }
+  if (!Array.isArray(appIndex.recentProjects)) {
+    issues.push({ path: `${path}.recentProjects`, code: "invalid_type", message: "Recent projects must be an array." });
+  } else {
+    appIndex.recentProjects.forEach((entry, index) => {
+      const result = validateAppIndexEntry(entry, `${path}.recentProjects[${index}]`);
+      if (!result.ok) issues.push(...result.issues);
+    });
+  }
+
+  return collect(appIndex, issues);
+}
+
+export function validateWindowStateSnapshot(value: unknown, path = "windowState"): ValidationResult<WindowStateSnapshot> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Window state metadata must be an object.");
+  }
+
+  const state = value as WindowStateSnapshot;
+  const issues: ValidationIssue[] = [];
+  if (!Array.isArray(state.openProjectTabs)) {
+    issues.push({ path: `${path}.openProjectTabs`, code: "invalid_type", "message": "Open project tabs must be an array." });
+  } else {
+    state.openProjectTabs.forEach((tab, index) => {
+      const result = validateProjectTabSnapshot(tab, `${path}.openProjectTabs[${index}]`);
+      if (!result.ok) issues.push(...result.issues);
+    });
+  }
+  if (state.activeTabId !== "home") {
+    const activeId = validateLocalId(state.activeTabId, `${path}.activeTabId`);
+    if (!activeId.ok) issues.push(...activeId.issues);
+    if (Array.isArray(state.openProjectTabs) && !state.openProjectTabs.some((tab) => tab.id === state.activeTabId)) {
+      issues.push({ path: `${path}.activeTabId`, code: "unknown_tab", message: "Active tab must be Home or one of the open project tabs." });
+    }
+  }
+  if (typeof state.restored !== "boolean") {
+    issues.push({ path: `${path}.restored`, code: "invalid_type", message: "Restored flag must be a boolean." });
+  }
+
+  return collect(state, issues);
+}
+
+function validateAppIndexEntry(value: unknown, path: string): ValidationResult<AppIndexEntry> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Recent project entry must be an object.");
+  }
+
+  const entry = value as AppIndexEntry;
+  const issues: ValidationIssue[] = [];
+  const projectId = validateLocalId(entry.projectId, `${path}.projectId`);
+  const name = validateProjectName(entry.name, `${path}.name`);
+  const folder = validateWindowsSafeLocalPath(entry.folderPath, `${path}.folderPath`);
+  const siteId = validateLocalId(entry.siteId, `${path}.siteId`);
+  if (!projectId.ok) issues.push(...projectId.issues);
+  if (!name.ok) issues.push(...name.issues);
+  if (!folder.ok) issues.push(...folder.issues);
+  if (!siteId.ok) issues.push(...siteId.issues);
+  if (!isIsoDateString(entry.lastOpenedAt)) {
+    issues.push({ path: `${path}.lastOpenedAt`, code: "invalid_timestamp", message: "Last opened timestamp must be ISO 8601." });
+  }
+
+  return collect(entry, issues);
+}
+
+function validateProjectTabSnapshot(value: unknown, path: string): ValidationResult<ProjectTabSnapshot> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Project tab must be an object.");
+  }
+
+  const tab = value as ProjectTabSnapshot;
+  const issues: ValidationIssue[] = [];
+  const id = validateLocalId(tab.id, `${path}.id`);
+  if (!id.ok) issues.push(...id.issues);
+  if (tab.projectId !== undefined) {
+    const projectId = validateLocalId(tab.projectId, `${path}.projectId`);
+    if (!projectId.ok) issues.push(...projectId.issues);
+  }
+  if (typeof tab.title !== "string" || tab.title.trim().length === 0) {
+    issues.push({ path: `${path}.title`, code: "required", message: "Project tab title is required." });
+  }
+  if (typeof tab.routePath !== "string" || !tab.routePath.startsWith("/") || tab.routePath.includes("\u0000")) {
+    issues.push({ path: `${path}.routePath`, code: "invalid_route", message: "Project tab route must be an app route path." });
+  }
+
+  return collect(tab, issues);
+}
+
+function isIsoDateString(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return false;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && /\d{4}-\d{2}-\d{2}T/.test(value);
+}
+
+function isSafeRelativePath(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return false;
+  }
+  if (/^[A-Za-z]:[\\/]/.test(value) || /^\\\\/.test(value) || value.includes("\u0000")) {
+    return false;
+  }
+  return !value.split(/[\\/]+/).some((segment) => segment === "." || segment === "..");
 }

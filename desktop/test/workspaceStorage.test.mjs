@@ -81,7 +81,7 @@ test("storage creates project metadata layout and reads it back", async () => {
 test("storage reports corrupt project JSON as recoverable", async () => {
   const { root, storage } = await createTempStorage();
   const folderPath = path.join(root, "Client CRM");
-  await storage.createProject({
+  const created = await storage.createProject({
     name: "Client CRM",
     folderPath,
     connectedSite: sampleConnectedSite(),
@@ -112,7 +112,7 @@ test("window state persists open tabs", async () => {
 test("storage updates project metadata and preserves local project folder", async () => {
   const { root, storage } = await createTempStorage();
   const folderPath = path.join(root, "Client CRM");
-  await storage.createProject({
+  const created = await storage.createProject({
     name: "Client CRM",
     folderPath,
     connectedSite: sampleConnectedSite(),
@@ -140,7 +140,7 @@ test("storage updates project metadata and preserves local project folder", asyn
   });
 
   const update = await storage.updateProjectMetadata({
-    projectId: "project_client_crm",
+    projectId: created.project.id,
     name: "Client CRM Review",
     siteId: "site_client_b",
     authSelection: { kind: "global_profile", authProfileId: "auth_client_b" },
@@ -157,7 +157,7 @@ test("storage updates project metadata and preserves local project folder", asyn
 test("storage removes project from app metadata only", async () => {
   const { root, storage } = await createTempStorage();
   const folderPath = path.join(root, "Client CRM");
-  await storage.createProject({
+  const created = await storage.createProject({
     name: "Client CRM",
     folderPath,
     connectedSite: sampleConnectedSite(),
@@ -166,7 +166,7 @@ test("storage removes project from app metadata only", async () => {
     appSummaries: [],
   });
 
-  const removed = await storage.removeProjectFromApp("project_client_crm");
+  const removed = await storage.removeProjectFromApp(created.project.id);
   assert.equal(removed.ok, true);
   const home = await storage.readWorkspaceHome();
   assert.equal(home.projects.length, 0);
@@ -192,7 +192,7 @@ test("storage removes unlinked site and auth profile metadata", async () => {
 
 test("storage allows site and auth removal after linked project is removed from app metadata", async () => {
   const { root, storage } = await createTempStorage();
-  await storage.createProject({
+  const created = await storage.createProject({
     name: "Client CRM",
     folderPath: path.join(root, "Client CRM"),
     connectedSite: sampleConnectedSite(),
@@ -201,7 +201,7 @@ test("storage allows site and auth removal after linked project is removed from 
     appSummaries: [],
   });
 
-  const projectRemove = await storage.removeProjectFromApp("project_client_crm");
+  const projectRemove = await storage.removeProjectFromApp(created.project.id);
   const siteRemove = await storage.removeConnectedSite("site_client_a");
   const authRemove = await storage.removeAuthProfile("auth_client_a");
 
@@ -255,5 +255,138 @@ test("storage refuses to serialize secret-bearing metadata", async () => {
     password: "do-not-write",
   });
   assert.equal(result.ok, false);
-  assert.match(result.message, /secret-bearing metadata key/i);
+  assert.match(result.message, /secret-bearing data/i);
+});
+
+test("storage reports parseable invalid project metadata as recoverable", async () => {
+  const { root, storage } = await createTempStorage();
+  const folderPath = path.join(root, "Client CRM");
+  await storage.createProject({
+    name: "Client CRM",
+    folderPath,
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" },
+    appSummaries: [],
+  });
+
+  await fs.writeFile(path.join(folderPath, "project.json"), JSON.stringify({ schemaVersion: 1, id: "project_bad" }), "utf8");
+  const home = await storage.readWorkspaceHome();
+  assert.equal(home.projects.length, 0);
+  assert.ok(home.errors.some((issue) => issue.code === "invalid_metadata" && issue.recoverable));
+});
+
+test("duplicate project, site, and auth display names do not collide", async () => {
+  const { root, storage } = await createTempStorage();
+  const first = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM One"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "global_profile", authProfileId: "auth_client_a" },
+    authProfile: sampleAuthProfile(),
+    appSummaries: [],
+  });
+  const second = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM Two"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "global_profile", authProfileId: "auth_client_a" },
+    authProfile: sampleAuthProfile(),
+    appSummaries: [],
+  });
+
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+  assert.notEqual(first.project.id, second.project.id);
+
+  const savedSiteA = await storage.saveConnectedSite(sampleConnectedSite());
+  const savedSiteB = await storage.saveConnectedSite(sampleConnectedSite());
+  const savedAuthA = await storage.saveAuthProfile(sampleAuthProfile());
+  const savedAuthB = await storage.saveAuthProfile(sampleAuthProfile());
+  assert.notEqual(savedSiteA.connectedSite.id, savedSiteB.connectedSite.id);
+  assert.notEqual(savedAuthA.authProfile.id, savedAuthB.authProfile.id);
+});
+
+test("app-list hydration preserves selected counts", async () => {
+  const { root, storage } = await createTempStorage();
+  const apps = [
+    { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: true, captureStatus: "not_captured" },
+    { id: "102", kintoneAppId: 102, name: "Support", isGuestSpace: false, hasPlugins: false, hasCustomization: true, captureStatus: "not_captured" },
+  ];
+  const created = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" },
+    appSummaries: apps,
+  });
+
+  const home = await storage.readWorkspaceHome();
+  assert.equal(home.projectAppListsByProjectId[created.project.id].apps.length, 2);
+});
+
+test("choose-later app-list remains empty", async () => {
+  const { root, storage } = await createTempStorage();
+  const created = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" },
+    appSummaries: [],
+  });
+
+  const home = await storage.readWorkspaceHome();
+  assert.deepEqual(home.projectAppListsByProjectId[created.project.id].apps, []);
+});
+
+test("open-folder allow-list accepts known folders and rejects arbitrary paths", async () => {
+  const { root, storage } = await createTempStorage();
+  const folderPath = path.join(root, "Client CRM");
+  await storage.createProject({
+    name: "Client CRM",
+    folderPath,
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" },
+    appSummaries: [],
+  });
+  const arbitrary = path.join(root, "Other Folder");
+  await fs.mkdir(arbitrary);
+  const filePath = path.join(folderPath, "project.json");
+
+  assert.equal((await storage.validateOpenLocalFolder(path.join(root, "AppData"))).ok, true);
+  assert.equal((await storage.validateOpenLocalFolder(folderPath)).ok, true);
+  assert.equal((await storage.validateOpenLocalFolder(path.join(folderPath, "snapshots"))).ok, true);
+  assert.equal((await storage.validateOpenLocalFolder(arbitrary)).ok, false);
+  assert.equal((await storage.validateOpenLocalFolder(`${folderPath}\\snapshots\\..\\.app`)).ok, false);
+  assert.equal((await storage.validateOpenLocalFolder(filePath)).ok, false);
+});
+
+test("project-local auth remains project-local when metadata is edited", async () => {
+  const { root, storage } = await createTempStorage();
+  const localAuth = { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" };
+  const created = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: localAuth,
+    appSummaries: [],
+  });
+
+  const update = await storage.updateProjectMetadata({
+    projectId: created.project.id,
+    name: "Client CRM Review",
+    siteId: "site_client_a",
+    authSelection: localAuth,
+  });
+  const readBack = await storage.readProjectAt(created.project.folderPath);
+
+  assert.equal(update.ok, true);
+  assert.equal(readBack.project.authSelection.kind, "project_local");
+});
+
+test("empty desktop metadata returns an empty home snapshot", async () => {
+  const { storage } = await createTempStorage();
+  const home = await storage.readWorkspaceHome();
+  assert.equal(home.projects.length, 0);
+  assert.equal(home.connectedSites.length, 0);
+  assert.equal(home.authProfiles.length, 0);
 });

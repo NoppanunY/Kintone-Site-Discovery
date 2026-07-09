@@ -10,6 +10,11 @@ export interface SecretFinding {
 
 const secretKeyPattern = /(password|token|api[_-]?token|access[_-]?token|refresh[_-]?token|session|cookie|authorization|client[_-]?secret|private[_-]?key|bearer|proxy[_-]?secret)/i;
 const secretValuePattern = /^\s*(bearer|basic)\s+[a-z0-9._~+/-]+=*\s*$/i;
+const privateKeyValuePattern = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
+const jwtValuePattern = /^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$/;
+const tokenPrefixValuePattern = /^(?:sk|pk|ghp|gho|github_pat|xox[baprs]|ya29|AKIA)[A-Za-z0-9_./+=-]{8,}$/;
+const highEntropyValuePattern = /^[A-Za-z0-9_./+=-]{40,}$/;
+const localIdValuePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const allowedSecretishKeys = new Set(["authType", "credentialStatus", "keychainRef"]);
 
 export function findSecretReferences(value: unknown): SecretFinding[] {
@@ -24,6 +29,14 @@ export function findSecretReferences(value: unknown): SecretFinding[] {
     if (typeof current === "string") {
       if (secretValuePattern.test(current)) {
         findings.push({ path, reason: "String value looks like an authorization header." });
+      } else if (privateKeyValuePattern.test(current)) {
+        findings.push({ path, reason: "String value looks like a private key." });
+      } else if (jwtValuePattern.test(current)) {
+        findings.push({ path, reason: "String value looks like a JWT or session token." });
+      } else if (tokenPrefixValuePattern.test(current)) {
+        findings.push({ path, reason: "String value looks like an API token." });
+      } else if (looksHighEntropySecret(current, path)) {
+        findings.push({ path, reason: "String value looks like a generated secret." });
       }
       return;
     }
@@ -53,6 +66,22 @@ export function findSecretReferences(value: unknown): SecretFinding[] {
 
   walk(value, "");
   return findings;
+}
+
+function looksHighEntropySecret(value: string, path: string): boolean {
+  if (!highEntropyValuePattern.test(value) || value.includes("://")) {
+    return false;
+  }
+  if (isLocalIdPath(path) && localIdValuePattern.test(value)) {
+    return false;
+  }
+
+  const classes = [/[a-z]/.test(value), /[A-Z]/.test(value), /\d/.test(value), /[_.+=/-]/.test(value)].filter(Boolean).length;
+  return classes >= 3;
+}
+
+function isLocalIdPath(path: string): boolean {
+  return /(?:^|\.)(?:id|[A-Za-z]+Id)$/.test(path) || /(?:^|\.)(?:id|[A-Za-z]+Id|[A-Za-z]+Ids)\[\d+\]$/.test(path);
 }
 
 export function assertNoSecretReferences(value: unknown): void {

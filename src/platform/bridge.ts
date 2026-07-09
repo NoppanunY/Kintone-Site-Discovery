@@ -46,6 +46,7 @@ const browserFallbackBridge: PlatformBridge = {
       projects: [],
       connectedSites: [],
       authProfiles: [],
+      projectAppListsByProjectId: {},
       errors: [
         {
           scope: "app",

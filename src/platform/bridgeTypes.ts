@@ -1,4 +1,4 @@
-import type { AppSummary, AuthProfile, ConnectedSite, Project, ProjectAuthSelection } from "@kintone-site-discovery/core";
+import type { AppSummary, AuthProfile, ConnectedSite, Project, ProjectAppList, ProjectAuthSelection } from "@kintone-site-discovery/core";
 
 export type DesktopRuntime = "electron" | "browser";
 
@@ -20,6 +20,10 @@ export interface FolderSelectionResult {
   cancelled: boolean;
   path?: string;
   reason?: string;
+}
+
+export interface FolderSelectionRequest {
+  defaultPath?: string;
 }
 
 export interface OpenFolderRequest {
@@ -60,6 +64,7 @@ export interface WorkspaceHomeSnapshot {
   projects: Project[];
   connectedSites: ConnectedSite[];
   authProfiles: AuthProfile[];
+  projectAppListsByProjectId: Record<string, ProjectAppList>;
   errors: WorkspaceMetadataIssue[];
 }
 
@@ -76,6 +81,7 @@ export interface CreateProjectResult {
   ok: boolean;
   project?: Project;
   connectedSite?: ConnectedSite;
+  appList?: ProjectAppList;
   appSummaries?: AppSummary[];
   errors?: WorkspaceMetadataIssue[];
   message?: string;
@@ -85,6 +91,7 @@ export interface OpenProjectResult {
   ok: boolean;
   project?: Project;
   connectedSite?: ConnectedSite;
+  appList?: ProjectAppList;
   appSummaries?: AppSummary[];
   errors?: WorkspaceMetadataIssue[];
   message?: string;
@@ -143,7 +150,7 @@ export interface CredentialStoreStatus {
 
 export interface PlatformBridge {
   getRuntimeInfo(): Promise<PlatformRuntimeInfo>;
-  chooseLocalFolder(): Promise<FolderSelectionResult>;
+  chooseLocalFolder(request?: FolderSelectionRequest): Promise<FolderSelectionResult>;
   openLocalFolder(request: OpenFolderRequest): Promise<BridgeResult>;
   getWorkspaceHome(): Promise<WorkspaceHomeSnapshot>;
   createProject(request: CreateProjectRequest): Promise<CreateProjectResult>;

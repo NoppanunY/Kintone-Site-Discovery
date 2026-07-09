@@ -21,6 +21,12 @@ import {
   validateProjectName,
   validateWindowsSafeLocalPath,
   createDefaultSensitiveOptions,
+  createCollisionSafeLocalId,
+  validateAppIndex,
+  validateCurrentSnapshotPointer,
+  validateProjectAppList,
+  validateProjectHistory,
+  validateWindowStateSnapshot,
 } from "../dist/index.js";
 
 test("domain, project name, path, and local id validators accept safe input", () => {
@@ -101,6 +107,38 @@ test("deterministic serialization sorts keys and refuses secret-bearing metadata
   const findings = findSecretReferences({ metadata: { password: "never-write-this" } });
   assert.equal(findings.length, 1);
   assert.throws(() => stringifyDeterministic({ token: "abc" }), /Refusing to serialize/);
+  assert.equal(findSecretReferences({ metadata: { harmlessKey: "sk-1234567890abcdef" } }).length, 1);
+  assert.equal(findSecretReferences({ metadata: { source: "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9.signature" } }).length, 1);
+  assert.equal(findSecretReferences({ id: "project_client_crm_discovery_copy_20260708100000_abcde" }).length, 0);
+  assert.equal(findSecretReferences({ linkedProjectIds: ["project_client_crm_discovery_copy_20260708100000_abcde"] }).length, 0);
+  assert.equal(findSecretReferences({ id: "sk-1234567890abcdef" }).length, 1);
+});
+
+test("collision-safe local IDs include suffixes and avoid existing IDs", () => {
+  const options = { suffix: "20260708100000_abcde" };
+  const first = createCollisionSafeLocalId("project", "Client CRM", [], options);
+  const second = createCollisionSafeLocalId("project", "Client CRM", [first], options);
+
+  assert.match(first, /^project_client_crm_20260708100000_abcde$/);
+  assert.equal(second, `${first}_2`);
+});
+
+test("metadata file validators accept valid shapes and reject parseable invalid metadata", () => {
+  const validApp = { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: true, captureStatus: "not_captured" };
+
+  assert.equal(validateProjectAppList({ schemaVersion: 1, appListFetchedAt: null, apps: [validApp] }).ok, true);
+  assert.equal(validateProjectAppList({ schemaVersion: 1, appListFetchedAt: "not-a-date", apps: [validApp] }).ok, false);
+  assert.equal(
+    validateAppIndex({
+      schemaVersion: 1,
+      recentProjects: [{ projectId: "project_1", name: "Client CRM", folderPath: "C:\\Projects\\Client CRM", siteId: "site_1", lastOpenedAt: "2026-07-08T10:00:00Z" }],
+    }).ok,
+    true,
+  );
+  assert.equal(validateCurrentSnapshotPointer({ projectId: "project_1", siteId: "site_1", currentSnapshotId: null, currentSnapshotPath: null, updatedAt: null }).ok, true);
+  assert.equal(validateCurrentSnapshotPointer({ projectId: "project_1", siteId: "site_1", currentSnapshotId: "snap_1", currentSnapshotPath: "../snapshots/snap_1", updatedAt: "2026-07-08T10:00:00Z" }).ok, false);
+  assert.equal(validateProjectHistory({ schemaVersion: 1, runs: [] }).ok, true);
+  assert.equal(validateWindowStateSnapshot({ openProjectTabs: [{ id: "project_1", title: "Client CRM", projectId: "project_1", routePath: "/project/project_1/overview" }], activeTabId: "project_1", restored: true }).ok, true);
 });
 
 test("project folder helper follows project name until user overrides path", () => {
