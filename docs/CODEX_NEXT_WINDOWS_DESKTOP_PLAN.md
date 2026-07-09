@@ -4,6 +4,8 @@ This plan tracks the implementation batches after the hi-fi renderer skeleton an
 
 For the next Codex implementation pass, read `docs/CODEX_N5_HARDENING_PLAN.md` first. That file is the active checklist after the first N4/N5 metadata foundation landed on `develop`.
 
+If launching Codex directly, use `docs/CODEX_N5_HARDENING_PROMPT.md` as the ready-to-send execution prompt. The prompt wraps the hardening plan and does not replace it.
+
 The product is a **Windows desktop app**. The React/Vite UI is the renderer, not the final product boundary. The app must run locally on Windows, keep local project data on the user's machine, and read from kintone without writing anything back.
 
 ## Current state
@@ -107,6 +109,7 @@ Goal: make the existing local metadata foundation safe, validated, and stable en
 Recommended scope:
 
 - Follow `docs/CODEX_N5_HARDENING_PLAN.md` exactly.
+- Use `docs/CODEX_N5_HARDENING_PROMPT.md` when starting a new Codex run.
 - Keep all work inside local metadata, UI binding, bridge boundaries, validation, and tests.
 - Do not add kintone clients, real credential providers, scan runner, snapshot writer, reports generator, CLI behavior, or packaging.
 
