@@ -11,6 +11,7 @@ const platformBridge: PlatformBridge = {
   saveConnectedSite: (site) => ipcRenderer.invoke("platform:saveConnectedSite", site),
   saveAuthProfile: (profile) => ipcRenderer.invoke("platform:saveAuthProfile", profile),
   updateProjectMetadata: (request) => ipcRenderer.invoke("platform:updateProjectMetadata", request),
+  updateProjectAppList: (request) => ipcRenderer.invoke("platform:updateProjectAppList", request),
   removeProjectFromApp: (request) => ipcRenderer.invoke("platform:removeProjectFromApp", request),
   updateConnectedSite: (site) => ipcRenderer.invoke("platform:updateConnectedSite", site),
   removeConnectedSite: (request) => ipcRenderer.invoke("platform:removeConnectedSite", request),

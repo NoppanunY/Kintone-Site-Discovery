@@ -429,6 +429,31 @@ export function App() {
     });
   }
 
+  async function handleSelectedAppIdsChange(nextSelectedAppIds: string[]) {
+    const projectIdValue = activeProject.projectId;
+    setSelectedAppIdsByProject((current) => ({
+      ...current,
+      [projectIdValue]: nextSelectedAppIds,
+    }));
+
+    if (workspaceMode !== "desktop_metadata" || !workspaceHome?.projects.some((project) => project.id === projectIdValue)) {
+      return;
+    }
+
+    const result = await platform.updateProjectAppList({
+      projectId: projectIdValue,
+      appSummaries: activeProjectApps.apps,
+      selectedAppIds: nextSelectedAppIds,
+    });
+
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+      return;
+    }
+
+    await refreshWorkspaceHome();
+  }
+
   async function handleRemoveAuthProfile(authProfileIdValue: string) {
     setRemovedMetadataIds((current) => addRemovedMetadataId(current, "authProfiles", authProfileIdValue));
     const result = await platform.removeAuthProfile({ authProfileId: authProfileIdValue });
@@ -472,11 +497,7 @@ export function App() {
         activeProjectApps,
         selectedAppIds,
         canStartScan,
-        onSelectedAppIdsChange: (nextSelectedAppIds) =>
-          setSelectedAppIdsByProject((current) => ({
-            ...current,
-            [activeProject.projectId]: nextSelectedAppIds,
-          })),
+        onSelectedAppIdsChange: handleSelectedAppIdsChange,
         sensitiveOptions,
         onSensitiveOptionsChange: (nextOptions) =>
           setSensitiveOptionsByProject((current) => ({
@@ -874,7 +895,7 @@ function selectedAppIdsForProject(projectIdValue: string, selectedAppIdsByProjec
 
 function selectedAppIdsFromWorkspaceHome(home: WorkspaceHomeSnapshot): Record<string, string[]> {
   return Object.fromEntries(
-    Object.entries(home.projectAppListsByProjectId).map(([projectIdValue, appList]) => [projectIdValue, appList.apps.map((app) => app.id)]),
+    Object.entries(home.projectAppListsByProjectId).map(([projectIdValue, appList]) => [projectIdValue, appList.selectedAppIds ?? appList.apps.map((app) => app.id)]),
   );
 }
 
@@ -953,8 +974,8 @@ function domainAuthProfileFromDraft(draft: { displayName: string; username: stri
   };
 }
 
-function appSummariesForIds(ids: string[]): AppSummary[] {
-  return mockAppSummaries
+function appSummariesForIds(ids: string[], sourceApps: AppSummary[] = mockAppSummaries): AppSummary[] {
+  return sourceApps
     .filter((app) => ids.includes(app.id))
     .map((app) => ({ ...app, captureStatus: "not_captured" as const }));
 }

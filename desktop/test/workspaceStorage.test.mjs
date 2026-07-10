@@ -322,6 +322,36 @@ test("app-list hydration preserves selected counts", async () => {
 
   const home = await storage.readWorkspaceHome();
   assert.equal(home.projectAppListsByProjectId[created.project.id].apps.length, 2);
+  assert.deepEqual(home.projectAppListsByProjectId[created.project.id].selectedAppIds, ["101", "102"]);
+});
+
+test("app-list update persists selected app metadata", async () => {
+  const { root, storage } = await createTempStorage();
+  const apps = [
+    { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: true, captureStatus: "not_captured" },
+    { id: "102", kintoneAppId: 102, name: "Support", isGuestSpace: false, hasPlugins: false, hasCustomization: true, captureStatus: "not_captured" },
+  ];
+  const created = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" },
+    appSummaries: [],
+  });
+
+  const update = await storage.updateProjectAppList(created.project.id, apps, ["102"]);
+  const home = await storage.readWorkspaceHome();
+
+  assert.equal(update.ok, true);
+  assert.equal(home.projectAppListsByProjectId[created.project.id].apps.length, 2);
+  assert.deepEqual(
+    home.projectAppListsByProjectId[created.project.id].selectedAppIds,
+    ["102"],
+  );
+
+  const invalidUpdate = await storage.updateProjectAppList(created.project.id, apps, ["999"]);
+  assert.equal(invalidUpdate.ok, false);
+  assert.equal(invalidUpdate.code, "INVALID_INPUT");
 });
 
 test("choose-later app-list remains empty", async () => {
@@ -336,6 +366,7 @@ test("choose-later app-list remains empty", async () => {
 
   const home = await storage.readWorkspaceHome();
   assert.deepEqual(home.projectAppListsByProjectId[created.project.id].apps, []);
+  assert.deepEqual(home.projectAppListsByProjectId[created.project.id].selectedAppIds, []);
 });
 
 test("open-folder allow-list accepts known folders and rejects arbitrary paths", async () => {

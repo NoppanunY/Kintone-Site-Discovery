@@ -11,6 +11,7 @@ import type {
   RemoveProjectFromAppResult,
   SaveAuthProfileResult,
   SaveConnectedSiteResult,
+  UpdateProjectAppListResult,
   UpdateProjectMetadataRequest,
   UpdateProjectMetadataResult,
   WindowStateSnapshot,
@@ -276,6 +277,43 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       return { ok: true, code: "OK", message: "Project metadata updated.", project, connectedSite: nextSite };
     } catch (error) {
       return { ok: false, code: "IO_ERROR", message: errorMessage(error), errors: [ioIssue("project", project.folderPath, errorMessage(error))], project };
+    }
+  }
+
+  async function updateProjectAppList(projectId: string, appSummaries: AppSummary[], selectedAppIds: string[]): Promise<UpdateProjectAppListResult> {
+    const idValidation = (await coreModulePromise).validateLocalId(projectId, "projectId");
+    if (!idValidation.ok) {
+      return { ok: false, code: "INVALID_INPUT", message: formatValidationIssues(idValidation.issues) };
+    }
+
+    const appIndex = await readAppIndex();
+    const entry = appIndex.recentProjects.find((item) => item.projectId === projectId);
+    if (!entry) {
+      return { ok: false, code: "INVALID_INPUT", message: "Project is not in the app metadata index." };
+    }
+
+    const readResult = await readProjectAt(entry.folderPath);
+    if (!readResult.ok || !readResult.project) {
+      return { ok: false, code: "IO_ERROR", message: readResult.message ?? "Project metadata is unreadable." };
+    }
+
+    const appList: ProjectAppList = {
+      schemaVersion,
+      appListFetchedAt: readResult.appList?.appListFetchedAt ?? null,
+      apps: appSummaries,
+      selectedAppIds,
+    };
+    const core = await coreModulePromise;
+    const validation = core.validateProjectAppList(appList);
+    if (!validation.ok) {
+      return { ok: false, code: "INVALID_INPUT", message: `App-list metadata is invalid: ${formatValidationIssues(validation.issues)}` };
+    }
+
+    try {
+      await writeJsonAtomic(path.join(readResult.project.folderPath, "app-list.json"), appList, (coreModule, value) => coreModule.validateProjectAppList(value));
+      return { ok: true, code: "OK", message: "Project app-list metadata updated.", appList };
+    } catch (error) {
+      return { ok: false, code: "IO_ERROR", message: errorMessage(error), appList };
     }
   }
 
@@ -595,6 +633,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       schemaVersion,
       appListFetchedAt: null,
       apps,
+      selectedAppIds: apps.map((app) => app.id),
     };
     const current: CurrentSnapshotPointer = {
       projectId: project.id,
@@ -627,6 +666,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     saveConnectedSite,
     saveAuthProfile,
     updateProjectMetadata,
+    updateProjectAppList,
     removeProjectFromApp,
     updateConnectedSite,
     removeConnectedSite,

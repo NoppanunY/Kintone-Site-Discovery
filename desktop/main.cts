@@ -21,6 +21,8 @@ import type {
   RemoveProjectFromAppResult,
   SaveAuthProfileResult,
   SaveConnectedSiteResult,
+  UpdateProjectAppListRequest,
+  UpdateProjectAppListResult,
   UpdateProjectMetadataRequest,
   UpdateProjectMetadataResult,
   WorkspaceHomeSnapshot,
@@ -222,6 +224,10 @@ function registerPlatformBridgeHandlers() {
 
   ipcMain.handle("platform:updateProjectMetadata", (_event, request: UpdateProjectMetadataRequest): Promise<UpdateProjectMetadataResult> => {
     return storage.updateProjectMetadata(request);
+  });
+
+  ipcMain.handle("platform:updateProjectAppList", (_event, request: UpdateProjectAppListRequest): Promise<UpdateProjectAppListResult> => {
+    return storage.updateProjectAppList(request.projectId, request.appSummaries, request.selectedAppIds);
   });
 
   ipcMain.handle("platform:removeProjectFromApp", (_event, request: RemoveProjectFromAppRequest): Promise<RemoveProjectFromAppResult> => {

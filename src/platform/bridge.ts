@@ -114,6 +114,14 @@ const browserFallbackBridge: PlatformBridge = {
     };
   },
 
+  async updateProjectAppList() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Project app-list metadata is not persisted in browser fallback mode.",
+    };
+  },
+
   async removeProjectFromApp(request) {
     return {
       ok: false,

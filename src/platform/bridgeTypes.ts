@@ -118,6 +118,16 @@ export interface UpdateProjectMetadataResult extends BridgeResult {
   errors?: WorkspaceMetadataIssue[];
 }
 
+export interface UpdateProjectAppListRequest {
+  projectId: string;
+  appSummaries: AppSummary[];
+  selectedAppIds: string[];
+}
+
+export interface UpdateProjectAppListResult extends BridgeResult {
+  appList?: ProjectAppList;
+}
+
 export interface RemoveProjectFromAppRequest {
   projectId: string;
 }
@@ -158,6 +168,7 @@ export interface PlatformBridge {
   saveConnectedSite(site: ConnectedSite): Promise<SaveConnectedSiteResult>;
   saveAuthProfile(profile: AuthProfile): Promise<SaveAuthProfileResult>;
   updateProjectMetadata(request: UpdateProjectMetadataRequest): Promise<UpdateProjectMetadataResult>;
+  updateProjectAppList(request: UpdateProjectAppListRequest): Promise<UpdateProjectAppListResult>;
   removeProjectFromApp(request: RemoveProjectFromAppRequest): Promise<RemoveProjectFromAppResult>;
   updateConnectedSite(site: ConnectedSite): Promise<SaveConnectedSiteResult>;
   removeConnectedSite(request: RemoveConnectedSiteRequest): Promise<RemoveConnectedSiteResult>;
