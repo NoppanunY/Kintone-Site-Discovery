@@ -26,6 +26,9 @@ import {
   validateCurrentSnapshotPointer,
   validateProjectAppList,
   validateProjectHistory,
+  validateAuthProfile,
+  validateConnectedSite,
+  validateProject,
   validateWindowStateSnapshot,
 } from "../dist/index.js";
 
@@ -127,6 +130,8 @@ test("metadata file validators accept valid shapes and reject parseable invalid 
   const validApp = { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: true, captureStatus: "not_captured" };
 
   assert.equal(validateProjectAppList({ schemaVersion: 1, appListFetchedAt: null, apps: [validApp] }).ok, true);
+  assert.equal(validateProjectAppList({ schemaVersion: 1, appListFetchedAt: null, apps: [validApp], selectedAppIds: ["101"] }).ok, true);
+  assert.equal(validateProjectAppList({ schemaVersion: 1, appListFetchedAt: null, apps: [validApp], selectedAppIds: ["999"] }).ok, false);
   assert.equal(validateProjectAppList({ schemaVersion: 1, appListFetchedAt: "not-a-date", apps: [validApp] }).ok, false);
   assert.equal(
     validateAppIndex({
@@ -139,6 +144,48 @@ test("metadata file validators accept valid shapes and reject parseable invalid 
   assert.equal(validateCurrentSnapshotPointer({ projectId: "project_1", siteId: "site_1", currentSnapshotId: "snap_1", currentSnapshotPath: "../snapshots/snap_1", updatedAt: "2026-07-08T10:00:00Z" }).ok, false);
   assert.equal(validateProjectHistory({ schemaVersion: 1, runs: [] }).ok, true);
   assert.equal(validateWindowStateSnapshot({ openProjectTabs: [{ id: "project_1", title: "Client CRM", projectId: "project_1", routePath: "/project/project_1/overview" }], activeTabId: "project_1", restored: true }).ok, true);
+});
+
+test("project, site, and auth validators reject invalid timestamps and linked IDs", () => {
+  const validProject = {
+    id: "project_1",
+    name: "Client CRM",
+    folderPath: "C:\\Projects\\Client CRM",
+    createdAt: "2026-07-08T10:00:00Z",
+    lastOpenedAt: "2026-07-08T10:00:00Z",
+    siteId: "site_1",
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password", credentialStatus: "no_credential" },
+    schemaVersion: 1,
+  };
+  const validSite = {
+    id: "site_1",
+    displayName: "Client A",
+    domain: "client-a.cybozu.com",
+    savedStatus: "saved",
+    linkedProjectIds: ["project_1"],
+    createdAt: "2026-07-08T10:00:00Z",
+  };
+  const validProfile = {
+    id: "auth_1",
+    displayName: "Client A Admin",
+    username: "admin@example.com",
+    authType: "password",
+    credentialStatus: "saved",
+    keychainRef: "keychain://pending/auth_1",
+    linkedProjectIds: ["project_1"],
+    lastTestedAt: "2026-07-08T10:00:00Z",
+  };
+
+  assert.equal(validateProject(validProject).ok, true);
+  assert.equal(validateProject({ ...validProject, createdAt: "not-a-date" }).ok, false);
+  assert.equal(validateProject({ ...validProject, authSelection: { ...validProject.authSelection, keychainRef: "" } }).ok, false);
+  assert.equal(validateConnectedSite(validSite).ok, true);
+  assert.equal(validateConnectedSite({ ...validSite, linkedProjectIds: ["../bad"] }).ok, false);
+  assert.equal(validateConnectedSite({ ...validSite, createdAt: "not-a-date" }).ok, false);
+  assert.equal(validateAuthProfile(validProfile).ok, true);
+  assert.equal(validateAuthProfile({ ...validProfile, credentialStatus: "stored" }).ok, false);
+  assert.equal(validateAuthProfile({ ...validProfile, linkedProjectIds: ["project_1", "../bad"] }).ok, false);
+  assert.equal(validateAuthProfile({ ...validProfile, lastTestedAt: "not-a-date" }).ok, false);
 });
 
 test("project folder helper follows project name until user overrides path", () => {

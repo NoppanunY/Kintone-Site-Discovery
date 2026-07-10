@@ -233,6 +233,9 @@ export function validateProjectAuthSelection(value: unknown, path = "authSelecti
   if (!["saved", "needs_update", "no_credential", "invalid"].includes(auth.credentialStatus)) {
     issues.push({ path: `${path}.credentialStatus`, code: "invalid_status", message: "Credential status is invalid." });
   }
+  if (auth.keychainRef !== undefined && (typeof auth.keychainRef !== "string" || auth.keychainRef.trim().length === 0)) {
+    issues.push({ path: `${path}.keychainRef`, code: "invalid_type", message: "Keychain reference must be a non-empty string when present." });
+  }
 
   return collect(auth, issues);
 }
@@ -256,6 +259,11 @@ export function validateConnectedSite(value: unknown, path = "connectedSite"): V
   }
   if (!Array.isArray(site.linkedProjectIds)) {
     issues.push({ path: `${path}.linkedProjectIds`, code: "invalid_type", message: "Linked project IDs must be an array." });
+  } else {
+    issues.push(...validateLocalIdArray(site.linkedProjectIds, `${path}.linkedProjectIds`));
+  }
+  if (!isIsoDateString(site.createdAt)) {
+    issues.push({ path: `${path}.createdAt`, code: "invalid_timestamp", message: "Connected site creation timestamp must be ISO 8601." });
   }
 
   return collect(site, issues);
@@ -284,6 +292,14 @@ export function validateAuthProfile(value: unknown, path = "authProfile"): Valid
   }
   if (!Array.isArray(profile.linkedProjectIds)) {
     issues.push({ path: `${path}.linkedProjectIds`, code: "invalid_type", message: "Linked project IDs must be an array." });
+  } else {
+    issues.push(...validateLocalIdArray(profile.linkedProjectIds, `${path}.linkedProjectIds`));
+  }
+  if (!["saved", "needs_update", "no_credential", "invalid"].includes(profile.credentialStatus)) {
+    issues.push({ path: `${path}.credentialStatus`, code: "invalid_status", message: "Credential status is invalid." });
+  }
+  if (profile.lastTestedAt !== undefined && !isIsoDateString(profile.lastTestedAt)) {
+    issues.push({ path: `${path}.lastTestedAt`, code: "invalid_timestamp", message: "Last tested timestamp must be ISO 8601." });
   }
 
   return collect(profile, issues);
@@ -307,6 +323,12 @@ export function validateProject(value: unknown, path = "project"): ValidationRes
   if (!folderResult.ok) issues.push(...folderResult.issues);
   if (!siteIdResult.ok) issues.push(...siteIdResult.issues);
   if (!authResult.ok) issues.push(...authResult.issues);
+  if (!isIsoDateString(project.createdAt)) {
+    issues.push({ path: `${path}.createdAt`, code: "invalid_timestamp", message: "Project creation timestamp must be ISO 8601." });
+  }
+  if (!isIsoDateString(project.lastOpenedAt)) {
+    issues.push({ path: `${path}.lastOpenedAt`, code: "invalid_timestamp", message: "Project last-opened timestamp must be ISO 8601." });
+  }
   if (project.schemaVersion !== STORAGE_SCHEMA_VERSION) {
     issues.push({ path: `${path}.schemaVersion`, code: "unsupported_schema_version", message: "Project schema version is unsupported." });
   }
@@ -394,6 +416,21 @@ export function validateProjectAppList(value: unknown, path = "appList"): Valida
       const result = validateAppSummary(app, `${path}.apps[${index}]`);
       if (!result.ok) issues.push(...result.issues);
     });
+  }
+  if (appList.selectedAppIds !== undefined) {
+    if (!Array.isArray(appList.selectedAppIds)) {
+      issues.push({ path: `${path}.selectedAppIds`, code: "invalid_type", message: "Selected app IDs must be an array when present." });
+    } else {
+      issues.push(...validateLocalIdArray(appList.selectedAppIds, `${path}.selectedAppIds`));
+      if (Array.isArray(appList.apps)) {
+        const availableIds = new Set(appList.apps.map((app) => (typeof app === "object" && app !== null ? (app as AppSummary).id : undefined)));
+        appList.selectedAppIds.forEach((appId, index) => {
+          if (typeof appId === "string" && !availableIds.has(appId)) {
+            issues.push({ path: `${path}.selectedAppIds[${index}]`, code: "unknown_app", message: "Selected app ID is not present in the app list." });
+          }
+        });
+      }
+    }
   }
 
   return collect(appList, issues);
@@ -535,6 +572,17 @@ function validateProjectTabSnapshot(value: unknown, path: string): ValidationRes
   }
 
   return collect(tab, issues);
+}
+
+function validateLocalIdArray(values: unknown[], path: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  values.forEach((value, index) => {
+    const result = validateLocalId(value, `${path}[${index}]`);
+    if (!result.ok) {
+      issues.push(...result.issues);
+    }
+  });
+  return issues;
 }
 
 function isIsoDateString(value: unknown): value is string {

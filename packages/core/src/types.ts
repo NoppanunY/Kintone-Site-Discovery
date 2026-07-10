@@ -268,6 +268,7 @@ export interface ProjectAppList {
   schemaVersion: SchemaVersion;
   appListFetchedAt: ISODateString | null;
   apps: AppSummary[];
+  selectedAppIds?: Id[];
 }
 
 export interface ProjectHistory {
