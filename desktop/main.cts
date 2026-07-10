@@ -9,6 +9,8 @@ import type {
   CredentialStoreStatus,
   ForgetCredentialRequest,
   ForgetCredentialResult,
+  FetchKintoneAppListRequest,
+  FetchKintoneAppListResult,
   FolderSelectionRequest,
   FolderSelectionResult,
   OpenFolderRequest,
@@ -29,11 +31,14 @@ import type {
   UpdateProjectAppListResult,
   UpdateProjectMetadataRequest,
   UpdateProjectMetadataResult,
+  ValidateKintoneConnectionRequest,
+  ValidateKintoneConnectionResult,
   WorkspaceHomeSnapshot,
   WindowStateSnapshot,
 } from "../src/platform/bridgeTypes";
 import type { AuthProfile, ConnectedSite } from "../packages/core/src/types.js";
 import { createCredentialStore } from "./credentialStore.cjs";
+import { createKintoneAccessService } from "./kintoneAccess.cjs";
 import { createWorkspaceStorage } from "./workspaceStorage.cjs";
 
 const APP_PROTOCOL = "ksd";
@@ -57,6 +62,7 @@ let platformBridgeHandlersRegistered = false;
 let rendererProtocolRegistered = false;
 let workspaceStorage: ReturnType<typeof createWorkspaceStorage> | null = null;
 let credentialStore: ReturnType<typeof createCredentialStore> | null = null;
+let kintoneAccessService: ReturnType<typeof createKintoneAccessService> | null = null;
 let lastSelectedProjectFolder: string | null = null;
 
 async function createMainWindow() {
@@ -286,6 +292,14 @@ function registerPlatformBridgeHandlers() {
     return getCredentialStore().forgetCredential(request);
   });
 
+  ipcMain.handle("platform:validateKintoneConnection", (_event, request: ValidateKintoneConnectionRequest): Promise<ValidateKintoneConnectionResult> => {
+    return getKintoneAccessService().validateKintoneConnection(request);
+  });
+
+  ipcMain.handle("platform:fetchKintoneAppList", (_event, request: FetchKintoneAppListRequest): Promise<FetchKintoneAppListResult> => {
+    return getKintoneAccessService().fetchKintoneAppList(request);
+  });
+
   platformBridgeHandlersRegistered = true;
 }
 
@@ -297,6 +311,14 @@ function getWorkspaceStorage() {
 function getCredentialStore() {
   credentialStore ??= createCredentialStore({ appDataRoot: app.getPath("userData") });
   return credentialStore;
+}
+
+function getKintoneAccessService() {
+  kintoneAccessService ??= createKintoneAccessService({
+    storage: getWorkspaceStorage(),
+    credentialStore: getCredentialStore(),
+  });
+  return kintoneAccessService;
 }
 
 async function folderDialogDefaultPath(request?: FolderSelectionRequest): Promise<string | undefined> {

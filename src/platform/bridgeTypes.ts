@@ -1,4 +1,4 @@
-import type { AppSummary, AuthProfile, ConnectedSite, CredentialStatus, Project, ProjectAppList, ProjectAuthSelection } from "@kintone-site-discovery/core";
+import type { AppSummary, AuthProfile, ConnectedSite, CredentialStatus, KintoneConnectionStatus, Project, ProjectAppList, ProjectAuthSelection } from "@kintone-site-discovery/core";
 
 export type DesktopRuntime = "electron" | "browser";
 
@@ -128,6 +128,30 @@ export interface UpdateProjectAppListResult extends BridgeResult {
   appList?: ProjectAppList;
 }
 
+export type KintoneBridgeConnectionStatus = KintoneConnectionStatus | "no_credential";
+
+export interface ValidateKintoneConnectionRequest {
+  projectId: string;
+}
+
+export interface ValidateKintoneConnectionResult extends BridgeResult {
+  status: KintoneBridgeConnectionStatus;
+  checkedAt?: string;
+  httpStatus?: number;
+}
+
+export interface FetchKintoneAppListRequest {
+  projectId: string;
+}
+
+export interface FetchKintoneAppListResult extends BridgeResult {
+  status: KintoneBridgeConnectionStatus;
+  fetchedAt?: string;
+  apps?: AppSummary[];
+  appList?: ProjectAppList;
+  httpStatus?: number;
+}
+
 export interface RemoveProjectFromAppRequest {
   projectId: string;
 }
@@ -202,4 +226,6 @@ export interface PlatformBridge {
   getCredentialStoreStatus(): Promise<CredentialStoreStatus>;
   storeCredential(request: StoreCredentialRequest): Promise<StoreCredentialResult>;
   forgetCredential(request: ForgetCredentialRequest): Promise<ForgetCredentialResult>;
+  validateKintoneConnection(request: ValidateKintoneConnectionRequest): Promise<ValidateKintoneConnectionResult>;
+  fetchKintoneAppList(request: FetchKintoneAppListRequest): Promise<FetchKintoneAppListResult>;
 }

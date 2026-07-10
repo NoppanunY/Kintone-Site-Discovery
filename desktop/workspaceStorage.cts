@@ -281,7 +281,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     }
   }
 
-  async function updateProjectAppList(projectId: string, appSummaries: AppSummary[], selectedAppIds: string[]): Promise<UpdateProjectAppListResult> {
+  async function updateProjectAppList(projectId: string, appSummaries: AppSummary[], selectedAppIds: string[], appListFetchedAt?: string): Promise<UpdateProjectAppListResult> {
     const idValidation = (await coreModulePromise).validateLocalId(projectId, "projectId");
     if (!idValidation.ok) {
       return { ok: false, code: "INVALID_INPUT", message: formatValidationIssues(idValidation.issues) };
@@ -300,7 +300,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
 
     const appList: ProjectAppList = {
       schemaVersion,
-      appListFetchedAt: readResult.appList?.appListFetchedAt ?? null,
+      appListFetchedAt: appListFetchedAt ?? readResult.appList?.appListFetchedAt ?? null,
       apps: appSummaries,
       selectedAppIds,
     };

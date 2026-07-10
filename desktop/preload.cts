@@ -24,6 +24,8 @@ const platformBridge: PlatformBridge = {
   getCredentialStoreStatus: () => ipcRenderer.invoke("platform:getCredentialStoreStatus"),
   storeCredential: (request) => ipcRenderer.invoke("platform:storeCredential", request),
   forgetCredential: (request) => ipcRenderer.invoke("platform:forgetCredential", request),
+  validateKintoneConnection: (request) => ipcRenderer.invoke("platform:validateKintoneConnection", request),
+  fetchKintoneAppList: (request) => ipcRenderer.invoke("platform:fetchKintoneAppList", request),
 };
 
 contextBridge.exposeInMainWorld("kintoneDiscoveryPlatform", platformBridge);

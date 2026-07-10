@@ -221,8 +221,29 @@ const browserFallbackBridge: PlatformBridge = {
       credentialStatus: "no_credential",
     };
   },
+
+  async validateKintoneConnection() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      status: "no_credential",
+      message: "Read-only kintone access requires the desktop runtime bridge.",
+    };
+  },
+
+  async fetchKintoneAppList() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      status: "no_credential",
+      message: "Read-only kintone access requires the desktop runtime bridge.",
+    };
+  },
 };
 
 export function getPlatformBridge(): PlatformBridge {
-  return window.kintoneDiscoveryPlatform ?? browserFallbackBridge;
+  return {
+    ...browserFallbackBridge,
+    ...window.kintoneDiscoveryPlatform,
+  };
 }
