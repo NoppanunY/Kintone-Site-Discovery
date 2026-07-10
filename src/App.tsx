@@ -241,16 +241,50 @@ export function App() {
     if (draft.entry === "new-project" && draft.project) {
       const site = domainConnectedSiteForId(draft.project.selectedSiteId, workspaceHome);
       const authProfile = draft.project.selectedAuthProfileId ? domainAuthProfileForId(draft.project.selectedAuthProfileId, workspaceHome) : undefined;
+      let authSelection = draft.project.authSelection;
+      let storedCredentialRef: string | undefined;
+
+      if (authSelection.kind === "project_local") {
+        if (!draft.project.credentialValue) {
+          const message = "Password is required before project-local auth can be saved.";
+          await delay(ONBOARDING_FINISH_VISIBLE_MS);
+          showMockAction(message, { tone: "err", sticky: true });
+          return onboardingFailureResult(message, "auth", "secret");
+        }
+
+        const credentialResult = await platform.storeCredential({
+          ownerKind: "project_local",
+          ownerId: createLocalId("project_auth", `${draft.project.name} ${authSelection.username}`),
+          credential: draft.project.credentialValue,
+          keychainRef: authSelection.keychainRef,
+        });
+
+        if (!credentialResult.ok || !credentialResult.keychainRef) {
+          const message = credentialResult.message || "Password could not be stored securely.";
+          await delay(ONBOARDING_FINISH_VISIBLE_MS);
+          showMockAction(message, { tone: "err", sticky: true });
+          return onboardingFailureResult(message, "auth", "secret");
+        }
+
+        storedCredentialRef = credentialResult.keychainRef;
+        authSelection = {
+          ...authSelection,
+          credentialStatus: credentialResult.credentialStatus,
+          keychainRef: credentialResult.keychainRef,
+        };
+      }
+
       const result = await platform.createProject({
         name: draft.project.name,
         folderPath: draft.project.folderPath,
         connectedSite: site,
-        authSelection: draft.project.authSelection,
+        authSelection,
         authProfile,
         appSummaries: appSummariesForIds(draft.project.selectedAppIds),
       });
 
       if (!result.ok || !result.project) {
+        await forgetCredentialBestEffort(storedCredentialRef);
         const message = result.message ?? "Project metadata could not be saved.";
         await delay(ONBOARDING_FINISH_VISIBLE_MS);
         showMockAction(message, { tone: "err", sticky: true });
@@ -285,11 +319,37 @@ export function App() {
     }
 
     if (draft.entry === "add-auth" && draft.authProfile) {
-      const profile = domainAuthProfileFromDraft(draft.authProfile);
+      if (!draft.authProfile.credentialValue) {
+        const message = "Password is required before an auth profile can be saved.";
+        await delay(ONBOARDING_FINISH_VISIBLE_MS);
+        showMockAction(message, { tone: "err", sticky: true });
+        return onboardingFailureResult(message, "auth", "secret");
+      }
+
+      const authProfileId = createLocalId("auth", draft.authProfile.displayName || draft.authProfile.username);
+      const credentialResult = await platform.storeCredential({
+        ownerKind: "auth_profile",
+        ownerId: authProfileId,
+        credential: draft.authProfile.credentialValue,
+      });
+
+      if (!credentialResult.ok || !credentialResult.keychainRef) {
+        const message = credentialResult.message || "Password could not be stored securely.";
+        await delay(ONBOARDING_FINISH_VISIBLE_MS);
+        showMockAction(message, { tone: "err", sticky: true });
+        return onboardingFailureResult(message, "auth", "secret");
+      }
+
+      const profile = domainAuthProfileFromDraft(draft.authProfile, {
+        id: authProfileId,
+        keychainRef: credentialResult.keychainRef,
+        credentialStatus: credentialResult.credentialStatus,
+      });
       const result = await platform.saveAuthProfile(profile);
       setWorkspaceHome(await platform.getWorkspaceHome());
-      const message = result.ok ? "Auth profile metadata saved locally. No password was written to metadata." : result.message;
+      const message = result.ok ? "Auth profile metadata saved locally. Password was stored securely." : result.message;
       if (!result.ok) {
+        await forgetCredentialBestEffort(credentialResult.keychainRef);
         await delay(ONBOARDING_FINISH_VISIBLE_MS);
         showMockAction(message, { tone: "err", sticky: true });
         const field = /user|email/i.test(message) ? "authUsername" : "authProfileDisplayName";
@@ -336,6 +396,18 @@ export function App() {
     const home = await platform.getWorkspaceHome();
     setWorkspaceHome(home);
     return home;
+  }
+
+  async function forgetCredentialBestEffort(keychainRef: string | undefined) {
+    if (!keychainRef) {
+      return;
+    }
+
+    try {
+      await platform.forgetCredential({ keychainRef });
+    } catch {
+      // Metadata remains the source of truth; cleanup can be retried by replacing the credential later.
+    }
   }
 
   async function handleOpenProjectFolderById(projectIdValue: string) {
@@ -410,20 +482,47 @@ export function App() {
     showMockAction(...removeFeedbackForResult(result));
   }
 
-  async function handleUpdateAuthProfile(authProfileIdValue: string, draft: { displayName: string; username: string; credentialUpdated?: boolean }) {
+  async function handleUpdateAuthProfile(authProfileIdValue: string, draft: { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string }) {
     const currentProfile = workspaceHome?.authProfiles.find((profile) => profile.id === authProfileIdValue);
     if (!currentProfile) {
       showMockAction("Auth profile metadata was not found.", { tone: "err", sticky: true });
       return;
     }
+
+    let keychainRef = currentProfile.keychainRef;
+    let credentialStatus = currentProfile.credentialStatus;
+    let storedCredentialRef: string | undefined;
+
+    if (draft.credentialValue) {
+      const credentialResult = await platform.storeCredential({
+        ownerKind: "auth_profile",
+        ownerId: currentProfile.id,
+        credential: draft.credentialValue,
+        keychainRef: currentProfile.keychainRef,
+      });
+
+      if (!credentialResult.ok || !credentialResult.keychainRef) {
+        showMockAction(credentialResult.message || "Password could not be stored securely.", { tone: "err", sticky: true });
+        return;
+      }
+
+      keychainRef = credentialResult.keychainRef;
+      credentialStatus = credentialResult.credentialStatus;
+      storedCredentialRef = keychainRef === currentProfile.keychainRef ? undefined : keychainRef;
+    }
+
     const result = await platform.updateAuthProfile({
       ...currentProfile,
       displayName: draft.displayName,
       username: draft.username,
-      credentialStatus: draft.credentialUpdated ? "saved" : currentProfile.credentialStatus,
+      credentialStatus,
+      keychainRef,
     });
+    if (!result.ok) {
+      await forgetCredentialBestEffort(storedCredentialRef);
+    }
     await refreshWorkspaceHome();
-    showMockAction(draft.credentialUpdated && result.ok ? "Auth profile updated. Password was accepted as write-only preview input and was not saved to metadata." : result.message, {
+    showMockAction(draft.credentialValue && result.ok ? "Auth profile updated. Password was stored securely and was not written to metadata." : result.message, {
       tone: result.ok ? "ok" : "err",
       sticky: !result.ok,
     });
@@ -961,15 +1060,18 @@ function domainAuthProfileForId(id: string, home: WorkspaceHomeSnapshot | null):
   };
 }
 
-function domainAuthProfileFromDraft(draft: { displayName: string; username: string }): AuthProfile {
-  const id = createLocalId("auth", draft.displayName || draft.username);
+function domainAuthProfileFromDraft(
+  draft: { displayName: string; username: string },
+  options: { id?: string; keychainRef?: string; credentialStatus?: AuthProfile["credentialStatus"] } = {},
+): AuthProfile {
+  const id = options.id ?? createLocalId("auth", draft.displayName || draft.username);
   return {
     id,
     displayName: draft.displayName,
     username: draft.username,
     authType: "password",
-    credentialStatus: "saved",
-    keychainRef: `keychain://pending/${id}`,
+    credentialStatus: options.credentialStatus ?? "no_credential",
+    keychainRef: options.keychainRef ?? `keychain://pending/${id}`,
     linkedProjectIds: [],
   };
 }
@@ -1132,7 +1234,7 @@ function renderScreen({
   onRemoveProjectFromHome: (projectId: string) => void;
   onUpdateConnectedSite: (siteId: string, draft: { displayName: string; domain: string }) => void;
   onRemoveConnectedSite: (siteId: string) => void;
-  onUpdateAuthProfile: (authProfileId: string, draft: { displayName: string; username: string; credentialUpdated?: boolean }) => void;
+  onUpdateAuthProfile: (authProfileId: string, draft: { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string }) => void;
   onRemoveAuthProfile: (authProfileId: string) => void;
 }) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {

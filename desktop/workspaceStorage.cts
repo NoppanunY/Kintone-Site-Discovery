@@ -50,6 +50,7 @@ const appIndexFile = "app-index.json";
 const connectedSitesFile = "connected-sites.json";
 const authProfilesFile = "auth-profiles.json";
 const windowStateFile = "window-state.json";
+const managedCredentialRefPattern = /^keychain:\/\/ksd\/(auth_profile|project_local)\/[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
 export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: WorkspaceStorageOptions) {
   const defaultProjectsRoot = path.join(appDataRoot, "Projects");
@@ -391,6 +392,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       username: profile.username,
       authType: "password",
       credentialStatus: profile.credentialStatus,
+      keychainRef: profile.keychainRef || current.keychainRef,
     };
 
     try {
@@ -522,7 +524,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     return {
       ...profile,
       id,
-      keychainRef: `keychain://pending/${id}`,
+      keychainRef: isManagedCredentialRef(profile.keychainRef) ? profile.keychainRef : `keychain://pending/${id}`,
       linkedProjectIds: [],
     };
   }
@@ -791,6 +793,10 @@ function samePath(left: string, right: string) {
 
 function hasTraversalSegment(folderPath: string) {
   return folderPath.split(/[\\/]+/).some((segment) => segment === "..");
+}
+
+function isManagedCredentialRef(value: string) {
+  return managedCredentialRefPattern.test(value);
 }
 
 function upsertById<T extends { id: string }>(items: T[], nextItem: T): T[] {

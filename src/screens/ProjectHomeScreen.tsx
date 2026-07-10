@@ -1,4 +1,4 @@
-import { Fragment, useEffect, type CSSProperties, useState } from "react";
+import { Fragment, useEffect, useRef, type CSSProperties, useState } from "react";
 import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, SecretField, StatusPill } from "../components";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
 import { authProfileIdForSelection, connectedSites as mockConnectedSites, profiles as mockProfiles, projectRows as mockProjectRows } from "../mockData";
@@ -24,7 +24,7 @@ interface ProjectHomeScreenProps {
   onRemoveProject: (projectId: string) => void;
   onUpdateSite: (siteId: string, draft: { displayName: string; domain: string }) => void;
   onRemoveSite: (siteId: string) => void;
-  onUpdateAuthProfile: (authProfileId: string, draft: { displayName: string; username: string; credentialUpdated?: boolean }) => void;
+  onUpdateAuthProfile: (authProfileId: string, draft: { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string }) => void;
   onRemoveAuthProfile: (authProfileId: string) => void;
 }
 
@@ -261,7 +261,7 @@ export function ProjectHomeScreen({
             } else if (target.kind === "site") {
               onUpdateSite(target.site.id, draft as { displayName: string; domain: string });
             } else {
-              onUpdateAuthProfile(target.profile.id, draft as { displayName: string; username: string; credentialUpdated?: boolean });
+              onUpdateAuthProfile(target.profile.id, draft as { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string });
             }
             setEditTarget(null);
           }}
@@ -358,7 +358,7 @@ function removeDialogBody(target: Exclude<RemoveTarget, null>, blocked: boolean)
   }
   return blocked
     ? "This auth profile is still selected by one or more projects. Edit those projects to use another auth profile first, then try again."
-    : "This removes only the auth profile entry from app metadata. Stored credentials are not implemented in this preview.";
+    : "This removes only the auth profile entry from app metadata. Stored credentials are kept outside project files.";
 }
 
 function MetadataEditModal({
@@ -374,7 +374,10 @@ function MetadataEditModal({
   onCancel: () => void;
   onSave: (
     target: Exclude<EditTarget, null>,
-    draft: { name: string; siteId: string; authSelection: ProjectAuthSelection } | { displayName: string; domain: string } | { displayName: string; username: string; credentialUpdated?: boolean },
+    draft:
+      | { name: string; siteId: string; authSelection: ProjectAuthSelection }
+      | { displayName: string; domain: string }
+      | { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string },
   ) => void;
 }) {
   const [projectName, setProjectName] = useState(target.kind === "project" ? target.project.name : "");
@@ -385,6 +388,7 @@ function MetadataEditModal({
   const [profileName, setProfileName] = useState(target.kind === "auth" ? target.profile.name : "");
   const [profileUsername, setProfileUsername] = useState(target.kind === "auth" ? target.profile.user : "");
   const [credentialUpdated, setCredentialUpdated] = useState(false);
+  const credentialValueRef = useRef<string | null>(null);
   const projectLocalAuthSelection = target.kind === "project" && target.project.authSelection.kind === "project_local" ? target.project.authSelection : null;
   const projectUsesLocalAuth = Boolean(projectLocalAuthSelection);
   const projectIssues = target.kind === "project" ? projectEditIssues(projectName, projectSiteId, projectAuthProfileId, connectedSites, profiles, projectUsesLocalAuth) : {};
@@ -404,7 +408,7 @@ function MetadataEditModal({
     } else if (target.kind === "site") {
       onSave(target, { displayName: siteName.trim(), domain: siteDomain.trim() });
     } else {
-      onSave(target, { displayName: profileName.trim(), username: profileUsername.trim(), credentialUpdated });
+      onSave(target, { displayName: profileName.trim(), username: profileUsername.trim(), credentialUpdated, credentialValue: credentialValueRef.current ?? undefined });
     }
   }
 
@@ -439,7 +443,7 @@ function MetadataEditModal({
                 <ModalReadOnlyField
                   label="Project-local auth"
                   value={`${projectLocalAuthSelection.displayName} · ${projectLocalAuthSelection.username}`}
-                  meta="Project-local auth is preserved by this editor. Change credentials in a later secure-storage phase."
+                  meta="Project-local auth is preserved by this editor. Credential replacement stays in the auth setup flow for now."
                   full
                 />
               ) : (
@@ -456,8 +460,15 @@ function MetadataEditModal({
               <ModalTextField label="Profile name" value={profileName} onChange={setProfileName} error={authIssues.displayName} />
               <ModalTextField label="Username" value={profileUsername} onChange={setProfileUsername} error={authIssues.username} />
               <div className="form-group--full">
-                <SecretField label="New password" hasStoredSecret={credentialUpdated} onSet={() => setCredentialUpdated(true)} />
-                <span className="hint">This preview records only that the credential was updated. The password itself is never serialized.</span>
+                <SecretField
+                  label="New password"
+                  hasStoredSecret={credentialUpdated || target.profile.tone === "ok"}
+                  onSet={(value) => {
+                    credentialValueRef.current = value;
+                    setCredentialUpdated(true);
+                  }}
+                />
+                <span className="hint">The password is passed once to secure storage and is never serialized in metadata.</span>
               </div>
             </div>
           )}

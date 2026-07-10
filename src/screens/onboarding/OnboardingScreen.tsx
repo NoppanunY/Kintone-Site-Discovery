@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionTestPanel, SecretField, StatusPill } from "../../components";
 import { mockAppSummaries } from "../../appPickerData";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../../mockConnection";
@@ -44,6 +44,7 @@ export interface OnboardingFinishDraft {
     authSelection: ProjectAuthSelection;
     selectedAuthProfileId?: string;
     selectedAppIds: string[];
+    credentialValue?: string;
   };
   connectedSite?: {
     displayName: string;
@@ -52,6 +53,7 @@ export interface OnboardingFinishDraft {
   authProfile?: {
     displayName: string;
     username: string;
+    credentialValue?: string;
   };
 }
 
@@ -158,6 +160,7 @@ export function OnboardingScreen({
   const [selectedSiteId, setSelectedSiteId] = useState(() => getInitialSiteId(initialSiteId, siteChoices));
   const [selectedAuthProfileId, setSelectedAuthProfileId] = useState(() => getInitialAuthProfileId(authChoices));
   const [hasEnteredSecret, setHasEnteredSecret] = useState(false);
+  const pendingCredentialRef = useRef<string | null>(null);
   const [appScopeMode, setAppScopeMode] = useState<AppScopeMode>("all");
   const [selectedSpaceNames, setSelectedSpaceNames] = useState<string[]>([]);
   const [selectedAppIds, setSelectedAppIds] = useState(() => appIdsForDiscoveryScope(mockAppSummaries, "all"));
@@ -231,6 +234,17 @@ export function OnboardingScreen({
     setFinishError(null);
   }
 
+  function clearPendingCredential() {
+    pendingCredentialRef.current = null;
+    setHasEnteredSecret(false);
+  }
+
+  function acceptPendingCredential(value: string) {
+    clearFinishIssuesFor("secret");
+    pendingCredentialRef.current = value;
+    setHasEnteredSecret(true);
+  }
+
   function focusStep(stepKey: StepKey) {
     const nextIndex = steps.findIndex((item) => item.key === stepKey);
     if (nextIndex >= 0) {
@@ -281,10 +295,11 @@ export function OnboardingScreen({
                       displayName: projectLocalLabel,
                       username: projectLocalUsername.trim(),
                       authType: "password",
-                      credentialStatus: hasEnteredSecret ? "saved" : "no_credential",
+                      credentialStatus: "no_credential",
                     },
               selectedAuthProfileId: authMode === "existing" ? selectedAuthProfileId : undefined,
               selectedAppIds,
+              credentialValue: authMode === "new" ? (pendingCredentialRef.current ?? undefined) : undefined,
             }
           : undefined,
       connectedSite:
@@ -299,6 +314,7 @@ export function OnboardingScreen({
           ? {
               displayName: authProfileDisplayName.trim(),
               username: authUsername.trim(),
+              credentialValue: pendingCredentialRef.current ?? undefined,
             }
           : undefined,
     };
@@ -376,6 +392,7 @@ export function OnboardingScreen({
         },
         onSelectAuthMode: (mode) => {
           clearFinishIssuesFor("selectedAuthProfileId", "projectLocalUsername", "secret");
+          clearPendingCredential();
           setAuthMode(mode);
           setConnectionResult(null);
         },
@@ -443,10 +460,7 @@ export function OnboardingScreen({
           setProjectLocalUsername(value);
         },
         hasEnteredSecret,
-        onSetSecret: () => {
-          clearFinishIssuesFor("secret");
-          setHasEnteredSecret(true);
-        },
+        onSetSecret: acceptPendingCredential,
         selectedAppIds,
         appScopeMode,
         selectedSpaceNames,
@@ -497,6 +511,7 @@ export function OnboardingScreen({
     setProjectLocalUsername(DEFAULT_AUTH_USERNAME);
     setSelectedSiteId(getInitialSiteId(initialSiteId, siteChoices));
     setSelectedAuthProfileId(getInitialAuthProfileId(authChoices));
+    pendingCredentialRef.current = null;
     setHasEnteredSecret(false);
     setAppScopeMode("all");
     setSelectedSpaceNames([]);
@@ -696,7 +711,7 @@ function renderStep({
   projectLocalLabel: string;
   onProjectLocalUsernameChange: (value: string) => void;
   hasEnteredSecret: boolean;
-  onSetSecret: () => void;
+  onSetSecret: (value: string) => void;
   selectedAppIds: string[];
   appScopeMode: AppScopeMode;
   selectedSpaceNames: string[];
@@ -986,10 +1001,10 @@ function authStepTitle(entry: OnboardingEntry) {
 
 function authStepBody(entry: OnboardingEntry) {
   if (entry === "add-auth") {
-    return "Create a reusable global sign-in profile. This preview does not store real credentials yet.";
+    return "Create a reusable global sign-in profile. The password is passed once to secure desktop storage.";
   }
 
-  return "Choose a global auth profile, or enter auth used only by this project in the preview.";
+  return "Choose a global auth profile, or enter auth used only by this project.";
 }
 
 function AuthProfileFields({
@@ -1012,7 +1027,7 @@ function AuthProfileFields({
   onProfileNameChange?: (value: string) => void;
   onUsernameChange: (value: string) => void;
   hasEnteredSecret: boolean;
-  onSetSecret: () => void;
+  onSetSecret: (value: string) => void;
   profileNameError?: string;
   usernameError?: string;
   secretError?: string;
@@ -1048,7 +1063,7 @@ function SelectedProfileBanner({ selectedProfile }: { selectedProfile: string })
   return (
     <div className="banner screen-note">
       <div>
-        <b>{selectedProfile}</b> will be selected for this project in preview mode. Credential lookup is not connected yet.
+        <b>{selectedProfile}</b> will be selected for this project. Scan credential lookup will use the stored reference in a later phase.
       </div>
     </div>
   );
