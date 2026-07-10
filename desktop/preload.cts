@@ -22,6 +22,8 @@ const platformBridge: PlatformBridge = {
   getOpenProjectTabs: () => ipcRenderer.invoke("platform:getOpenProjectTabs"),
   saveOpenProjectTabs: (tabs) => ipcRenderer.invoke("platform:saveOpenProjectTabs", tabs),
   getCredentialStoreStatus: () => ipcRenderer.invoke("platform:getCredentialStoreStatus"),
+  storeCredential: (request) => ipcRenderer.invoke("platform:storeCredential", request),
+  forgetCredential: (request) => ipcRenderer.invoke("platform:forgetCredential", request),
 };
 
 contextBridge.exposeInMainWorld("kintoneDiscoveryPlatform", platformBridge);

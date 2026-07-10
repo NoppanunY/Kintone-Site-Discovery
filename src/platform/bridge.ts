@@ -199,7 +199,26 @@ const browserFallbackBridge: PlatformBridge = {
     return {
       available: false,
       provider: "stub",
-      reason: "Credential storage is not implemented in this scaffold.",
+      reason: "Credential storage requires the desktop runtime bridge.",
+    };
+  },
+
+  async storeCredential() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Credential storage requires the desktop runtime bridge.",
+      credentialStatus: "no_credential",
+    };
+  },
+
+  async forgetCredential(request) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Credential storage requires the desktop runtime bridge.",
+      keychainRef: request.keychainRef,
+      credentialStatus: "no_credential",
     };
   },
 };

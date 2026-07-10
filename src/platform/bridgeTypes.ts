@@ -1,4 +1,4 @@
-import type { AppSummary, AuthProfile, ConnectedSite, Project, ProjectAppList, ProjectAuthSelection } from "@kintone-site-discovery/core";
+import type { AppSummary, AuthProfile, ConnectedSite, CredentialStatus, Project, ProjectAppList, ProjectAuthSelection } from "@kintone-site-discovery/core";
 
 export type DesktopRuntime = "electron" | "browser";
 
@@ -154,8 +154,29 @@ export interface RemoveAuthProfileResult extends BridgeResult {
 
 export interface CredentialStoreStatus {
   available: boolean;
-  provider: "stub" | "windows-credential-manager" | "keychain";
+  provider: "stub" | "windows-credential-manager" | "windows-dpapi" | "keychain";
   reason?: string;
+}
+
+export interface StoreCredentialRequest {
+  ownerKind: "auth_profile" | "project_local";
+  ownerId: string;
+  credential: string;
+  keychainRef?: string;
+}
+
+export interface StoreCredentialResult extends BridgeResult {
+  keychainRef?: string;
+  credentialStatus: CredentialStatus;
+}
+
+export interface ForgetCredentialRequest {
+  keychainRef: string;
+}
+
+export interface ForgetCredentialResult extends BridgeResult {
+  keychainRef: string;
+  credentialStatus: CredentialStatus;
 }
 
 export interface PlatformBridge {
@@ -179,4 +200,6 @@ export interface PlatformBridge {
   getOpenProjectTabs(): Promise<ProjectTabSnapshot[]>;
   saveOpenProjectTabs(tabs: ProjectTabSnapshot[]): Promise<BridgeResult>;
   getCredentialStoreStatus(): Promise<CredentialStoreStatus>;
+  storeCredential(request: StoreCredentialRequest): Promise<StoreCredentialResult>;
+  forgetCredential(request: ForgetCredentialRequest): Promise<ForgetCredentialResult>;
 }

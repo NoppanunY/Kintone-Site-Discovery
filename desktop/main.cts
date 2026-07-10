@@ -7,6 +7,8 @@ import type {
   CreateProjectRequest,
   CreateProjectResult,
   CredentialStoreStatus,
+  ForgetCredentialRequest,
+  ForgetCredentialResult,
   FolderSelectionRequest,
   FolderSelectionResult,
   OpenFolderRequest,
@@ -21,6 +23,8 @@ import type {
   RemoveProjectFromAppResult,
   SaveAuthProfileResult,
   SaveConnectedSiteResult,
+  StoreCredentialRequest,
+  StoreCredentialResult,
   UpdateProjectAppListRequest,
   UpdateProjectAppListResult,
   UpdateProjectMetadataRequest,
@@ -29,6 +33,7 @@ import type {
   WindowStateSnapshot,
 } from "../src/platform/bridgeTypes";
 import type { AuthProfile, ConnectedSite } from "../packages/core/src/types.js";
+import { createCredentialStore } from "./credentialStore.cjs";
 import { createWorkspaceStorage } from "./workspaceStorage.cjs";
 
 const APP_PROTOCOL = "ksd";
@@ -51,6 +56,7 @@ let mainWindow: BrowserWindow | null = null;
 let platformBridgeHandlersRegistered = false;
 let rendererProtocolRegistered = false;
 let workspaceStorage: ReturnType<typeof createWorkspaceStorage> | null = null;
+let credentialStore: ReturnType<typeof createCredentialStore> | null = null;
 let lastSelectedProjectFolder: string | null = null;
 
 async function createMainWindow() {
@@ -268,12 +274,16 @@ function registerPlatformBridgeHandlers() {
     return { ok: true, code: "OK", message: "Project tabs saved." };
   });
 
-  ipcMain.handle("platform:getCredentialStoreStatus", (): CredentialStoreStatus => {
-    return {
-      available: false,
-      provider: "stub",
-      reason: "Credential storage will be implemented with an OS keychain provider in a later batch.",
-    };
+  ipcMain.handle("platform:getCredentialStoreStatus", (): Promise<CredentialStoreStatus> => {
+    return getCredentialStore().getStatus();
+  });
+
+  ipcMain.handle("platform:storeCredential", (_event, request: StoreCredentialRequest): Promise<StoreCredentialResult> => {
+    return getCredentialStore().storeCredential(request);
+  });
+
+  ipcMain.handle("platform:forgetCredential", (_event, request: ForgetCredentialRequest): Promise<ForgetCredentialResult> => {
+    return getCredentialStore().forgetCredential(request);
   });
 
   platformBridgeHandlersRegistered = true;
@@ -282,6 +292,11 @@ function registerPlatformBridgeHandlers() {
 function getWorkspaceStorage() {
   workspaceStorage ??= createWorkspaceStorage({ appDataRoot: app.getPath("userData") });
   return workspaceStorage;
+}
+
+function getCredentialStore() {
+  credentialStore ??= createCredentialStore({ appDataRoot: app.getPath("userData") });
+  return credentialStore;
 }
 
 async function folderDialogDefaultPath(request?: FolderSelectionRequest): Promise<string | undefined> {
