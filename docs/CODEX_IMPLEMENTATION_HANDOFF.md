@@ -4,36 +4,35 @@ This document points Codex to the current implementation specs for Kintone Site 
 
 ## Current status
 
-The hi-fi UI skeleton, Windows desktop shell scaffold, typed platform bridge foundation, `packages/core`, and the first local workspace metadata storage pass are now present on `develop`.
+The hi-fi UI skeleton, Windows desktop shell scaffold, typed platform bridge foundation, `packages/core`, local workspace metadata storage, and N5 local metadata hardening are now present on `develop`.
 
-The next implementation phase is **N5 hardening**, documented in `docs/CODEX_N5_HARDENING_PLAN.md`. Do this before N6 secure credential storage or N7 read-only kintone access.
+The next implementation phase is **N6 OS secure credential storage**. Do this before N7 read-only kintone access.
 
-A ready-to-send Codex prompt for this phase is available at `docs/CODEX_N5_HARDENING_PROMPT.md`. The prompt is an execution wrapper around the hardening plan; the plan remains the source of truth.
+The completed N5 hardening plan remains available at `docs/CODEX_N5_HARDENING_PLAN.md` for acceptance context. Do not continue implementing from the N5 prompt unless a review asks for a targeted N5 fix.
 
-The first N4/N5 pass added core types/helpers, local metadata storage, bridge APIs, persisted Home/New Project/Open Project wiring, app selection guards, and tests. The foundation still needs hardening around persisted metadata validation, onboarding using persisted sites/auth profiles, app-list hydration, project-local auth editing, folder-open path boundaries, collision-safe local IDs, and shared no-secret serialization.
+The N5 pass hardened persisted metadata validation, onboarding persisted site/auth use, app-list hydration and selected app persistence, project-local auth edit behavior, folder-open path allow-listing, collision-safe IDs, and shared no-secret serialization.
 
-A CLI command contract exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the current implementation batch. Do not implement CLI behavior in N5 hardening.
+A CLI command contract exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the current implementation batch. Do not implement CLI behavior in N6.
 
 ## Source-of-truth order
 
-1. `docs/CODEX_N5_HARDENING_PLAN.md` — active checklist for the next Codex pass
-2. `docs/CODEX_N5_HARDENING_PROMPT.md` — ready-to-send execution prompt for Codex; it must not override the plan
+1. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — phase boundaries and N4-N10 roadmap
+2. `docs/CODEX_N5_HARDENING_PLAN.md` — completed N5 hardening acceptance context
 3. `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md` — original N4/N5 foundation plan and acceptance context
-4. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — phase boundaries and N4-N10 roadmap
-5. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
-6. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
-7. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
-8. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
-9. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
-10. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
-11. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
-12. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
-13. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
-14. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
-15. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
-16. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
+4. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
+5. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
+6. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
+7. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
+8. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
+9. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
+10. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
+11. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
+12. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
+13. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
+14. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
+15. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
 
-If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`, but do not implement CLI behavior in N5 hardening.
+If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`, but do not implement CLI behavior in N6.
 
 ## Core product model
 
@@ -82,30 +81,26 @@ Do not implement:
 - N3 Typed platform bridge stubs
 - Initial N4 Core domain package
 - Initial N5 Local workspace metadata storage primitives
+- N5 Local workspace metadata hardening
 
 ## Active next batch
 
 Implement only:
 
-- N5 hardening from `docs/CODEX_N5_HARDENING_PLAN.md`
+- N6 OS secure credential storage through the desktop platform layer
 
-Specifically harden:
+Specifically plan and implement:
 
-- persisted Sites/Auth Profiles in onboarding
-- metadata schema validation on read/write
-- core validator use in UI submit paths
-- project-local auth preservation when editing project metadata
-- app-list and selected app state hydration
-- `openLocalFolder` allow-list path boundary
-- shared core no-secret serialization in desktop storage
-- collision-safe local ID creation
-- mock/browser fallback boundaries
-- tests for the above
+- a secure credential provider abstraction
+- Windows credential storage integration or a clearly isolated provider layer
+- write-only credential capture from desktop UI paths
+- credential status/keychain reference updates without writing secrets to metadata
+- tests proving metadata, logs, stdout/stderr, and serialized files contain no raw secrets
 
-Stop after N5 hardening is complete and reviewed before implementing OS secure storage, real kintone reads, scan runner, local snapshot writes, reports/developer-file generation, CLI behavior, or Windows packaging.
+Stop after N6 secure credential storage is complete and reviewed before implementing real kintone reads, scan runner, local snapshot writes, reports/developer-file generation, CLI behavior, or Windows packaging.
 
 ## CLI note for the next batch
 
-For N5 hardening, do **not** implement CLI behavior.
+For N6 secure credential storage, do **not** implement CLI behavior.
 
 It is acceptable to keep an empty CLI scaffold if one already exists, but command logic must remain unwired until the shared core interfaces and local storage foundation are reviewed. Any future CLI implementation must follow `docs/CLI_COMMAND_SPEC.md`, including `--json`, stable exit codes, no `--password`, no secret output, and `--confirm-sensitive` for sensitive non-interactive scans.

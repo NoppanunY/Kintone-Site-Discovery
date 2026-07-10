@@ -2,9 +2,9 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
-For the next Codex implementation pass, read `docs/CODEX_N5_HARDENING_PLAN.md` first. That file is the active checklist after the first N4/N5 metadata foundation landed on `develop`.
+N5 hardening is complete. For the next Codex implementation pass, plan and implement **N6 OS secure credential storage** before any read-only kintone access work.
 
-If launching Codex directly, use `docs/CODEX_N5_HARDENING_PROMPT.md` as the ready-to-send execution prompt. The prompt wraps the hardening plan and does not replace it.
+`docs/CODEX_N5_HARDENING_PLAN.md` remains available as completed acceptance context. Do not reuse the N5 prompt unless a review asks for a targeted N5 fix.
 
 The product is a **Windows desktop app**. The React/Vite UI is the renderer, not the final product boundary. The app must run locally on Windows, keep local project data on the user's machine, and read from kintone without writing anything back.
 
@@ -24,8 +24,9 @@ The `develop` branch has completed:
 - UI consistency pass for Project / Connected Site / Auth Profile terminology
 - Initial N4 Core domain package
 - Initial N5 Local workspace metadata storage primitives
+- N5 Local workspace metadata hardening
 
-The initial N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, and tests.
+The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests.
 
 Desktop runtime decision:
 
@@ -70,22 +71,18 @@ Definitions for the next phase:
 
 ## Active next implementation batch
 
-Implement only N5 hardening next. Stop before N6-N10.
+Implement only N6 OS secure credential storage next. Stop before N7-N10.
 
-N5 hardening is required because the first metadata foundation exists but still needs safety and correctness work before secure credentials or read-only kintone access can be built on top of it.
+N6 is required because the local metadata foundation is ready, but passwords still need a real secure credential provider before read-only kintone access can be built on top of it.
 
-Hardening focus:
+N6 focus:
 
-- Use persisted Connected Sites and Auth Profiles in the New Project wizard.
-- Validate all persisted metadata on read and write, not just JSON parse/cast.
-- Use core validators in UI submit paths for project names, paths, domains, and auth/site metadata.
-- Preserve project-local auth when editing project metadata.
-- Persist and hydrate app-list / selected-app state from project metadata.
-- Restrict `openLocalFolder` to allowed project/app-data paths.
-- Reuse core deterministic/no-secret serialization in desktop storage.
-- Make project/site/auth local IDs collision-safe.
-- Make mock/browser fallback boundaries explicit.
-- Add tests for all of the above.
+- Add a desktop credential provider abstraction.
+- Store passwords only through the secure provider, never in project/app metadata.
+- Keep metadata limited to credential status and opaque keychain references.
+- Wire add/update auth flows to write-only credential handling.
+- Preserve browser fallback as unavailable/stubbed for secure storage.
+- Add tests for no-secret metadata serialization and credential-status transitions.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
@@ -95,8 +92,8 @@ Hardening focus:
 | N3 | Done | Typed platform bridge stubs | Safe typed bridge stubs exist for future desktop operations. |
 | P0 | Done | Contract and flow corrections | Initial model/route/wizard/sensitive-flow fixes are implemented. |
 | N4 | Done | Core domain package | Initial shared pure TypeScript domain models, validators, constants, and safe helpers exist. |
-| N5 | In progress | Local workspace storage hardening | Harden metadata persistence before secure credentials and kintone reads. |
-| N6 | Later | OS secure storage | Add real secure credential handling through the platform layer. |
+| N5 | Done | Local workspace storage hardening | Harden metadata persistence before secure credentials and kintone reads. |
+| N6 | Next | OS secure storage | Add real secure credential handling through the platform layer. |
 | N7 | Later | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
 | N8 | Later | Scan runner | Add scan orchestration with fixture collectors first. |
 | N9 | Later | Reports and Developer Files | Generate derived outputs from Local Snapshot. |
@@ -104,14 +101,19 @@ Hardening focus:
 
 ## N5 hardening - local metadata safety
 
-Goal: make the existing local metadata foundation safe, validated, and stable enough to support N6 secure credential storage and N7 read-only kintone access.
+Status: complete. The local metadata foundation is safe, validated, and stable enough to support N6 secure credential storage and N7 read-only kintone access.
 
-Recommended scope:
+Completed scope:
 
-- Follow `docs/CODEX_N5_HARDENING_PLAN.md` exactly.
-- Use `docs/CODEX_N5_HARDENING_PROMPT.md` when starting a new Codex run.
-- Keep all work inside local metadata, UI binding, bridge boundaries, validation, and tests.
-- Do not add kintone clients, real credential providers, scan runner, snapshot writer, reports generator, CLI behavior, or packaging.
+- Persisted Connected Sites and Auth Profiles are available in New Project.
+- Persisted metadata is schema-validated on read and write.
+- UI submit paths use core validators for project names, paths, domains, and IDs.
+- Project-local auth is preserved when project metadata is edited.
+- Persisted app-list metadata hydrates app counts and selected app state.
+- `openLocalFolder` is allow-listed to app/project paths.
+- Desktop storage uses shared deterministic/no-secret serialization.
+- Project/site/auth local IDs avoid collisions.
+- Empty desktop metadata does not masquerade as sample/mock projects.
 
 Acceptance:
 
@@ -127,7 +129,7 @@ Acceptance:
 
 ## Later steps after N5 hardening review
 
-Do not start these until N5 hardening is reviewed:
+N5 has been completed and reviewed by local/manual checks. Next steps:
 
 - N6: Implement OS secure storage through the platform layer.
 - N7: Add read-only kintone client scaffolding and real connection/app-list tests.

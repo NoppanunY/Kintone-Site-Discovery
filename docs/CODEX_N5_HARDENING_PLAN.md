@@ -1,6 +1,8 @@
 # Codex N5 Hardening Plan
 
-This is the active follow-up plan after the first N4/N5 metadata foundation implementation landed on `develop`.
+Status: complete as of the N5 closing commit. Keep this file as acceptance context and use it only for targeted review fixes.
+
+This was the active follow-up plan after the first N4/N5 metadata foundation implementation landed on `develop`.
 
 Read this file before starting the next Codex pass. The goal is to harden the local metadata foundation so it is safe to build N6 secure credentials and N7 read-only kintone access on top of it.
 
