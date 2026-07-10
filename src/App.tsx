@@ -36,6 +36,8 @@ import type { AppSummary, AuthProfile, ConnectedSite, Project } from "@kintone-s
 import type {
   AuthProfileModel,
   ConnectedSiteModel,
+  ConnectionTestResult,
+  ConnectionTestTarget,
   MockActionHandler,
   MockFeedbackOptions,
   MockFeedbackTone,
@@ -47,7 +49,7 @@ import type {
   TabModel,
   TopMenuModel,
 } from "./types";
-import type { WorkspaceHomeSnapshot, WorkspaceMetadataIssue } from "./platform";
+import type { KintoneBridgeConnectionStatus, ValidateKintoneConnectionResult, WorkspaceHomeSnapshot, WorkspaceMetadataIssue } from "./platform";
 
 type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 type WorkspaceMode = "loading" | "desktop_metadata" | "browser_fallback" | "empty";
@@ -131,6 +133,7 @@ export function App() {
   const [selectedAppIdsByProject, setSelectedAppIdsByProject] = useState<Record<string, string[]>>({});
   const [sensitiveOptionsByProject, setSensitiveOptionsByProject] = useState<Record<string, SensitiveOption[]>>({});
   const [appsGuardMessage, setAppsGuardMessage] = useState<string | null>(null);
+  const [appListLoadingProjectId, setAppListLoadingProjectId] = useState<string | null>(null);
   const [windowStateRestored, setWindowStateRestored] = useState(false);
   const pathname = window.location.pathname;
   const search = window.location.search;
@@ -553,6 +556,48 @@ export function App() {
     await refreshWorkspaceHome();
   }
 
+  async function handleReloadActiveAppList() {
+    const projectIdValue = activeProject.projectId;
+    setAppListLoadingProjectId(projectIdValue);
+    try {
+      const result = await platform.fetchKintoneAppList({ projectId: projectIdValue });
+      if (!result.ok || !result.appList) {
+        showMockAction(result.message, { tone: "err", sticky: true });
+        return;
+      }
+
+      const home = await refreshWorkspaceHome();
+      setSelectedAppIdsByProject(selectedAppIdsFromWorkspaceHome(home));
+      setAppsGuardMessage(null);
+      showMockAction(result.message, { tone: "ok" });
+    } finally {
+      setAppListLoadingProjectId((current) => (current === projectIdValue ? null : current));
+    }
+  }
+
+  async function handleTestAuthProfileConnection(authProfileIdValue: string): Promise<ConnectionTestResult> {
+    const linkedProject = workspaceHome?.projects.find((project) => project.authSelection.kind === "global_profile" && project.authSelection.authProfileId === authProfileIdValue);
+    const profile = workspaceView.profiles.find((item) => item.id === authProfileIdValue);
+    const site = workspaceView.connectedSites.find((item) => item.id === linkedProject?.siteId) ?? workspaceView.connectedSites[0];
+    const target: ConnectionTestTarget = {
+      siteName: site?.name ?? "No connected site",
+      domain: site?.domain ?? "",
+      authProfile: profile?.name ?? "Auth profile",
+    };
+
+    if (!linkedProject) {
+      return createConnectionResultFromStatus(target, {
+        ok: false,
+        code: "INVALID_INPUT",
+        status: "no_credential",
+        message: "This auth profile is not linked to a project yet.",
+      });
+    }
+
+    const result = await platform.validateKintoneConnection({ projectId: linkedProject.id });
+    return createConnectionResultFromStatus(target, result);
+  }
+
   async function handleRemoveAuthProfile(authProfileIdValue: string) {
     setRemovedMetadataIds((current) => addRemovedMetadataId(current, "authProfiles", authProfileIdValue));
     const result = await platform.removeAuthProfile({ authProfileId: authProfileIdValue });
@@ -597,6 +642,8 @@ export function App() {
         selectedAppIds,
         canStartScan,
         onSelectedAppIdsChange: handleSelectedAppIdsChange,
+        onReloadAppList: handleReloadActiveAppList,
+        isReloadingAppList: appListLoadingProjectId === activeProject.projectId,
         sensitiveOptions,
         onSensitiveOptionsChange: (nextOptions) =>
           setSensitiveOptionsByProject((current) => ({
@@ -612,9 +659,10 @@ export function App() {
         onRemoveConnectedSite: handleRemoveConnectedSite,
         onUpdateAuthProfile: handleUpdateAuthProfile,
         onRemoveAuthProfile: handleRemoveAuthProfile,
+        onTestAuthProfile: handleTestAuthProfileConnection,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pathname, search, locationKey, workspaceView, workspaceMode, activeProjectApps, selectedAppIds, canStartScan, sensitiveOptions, appsGuardMessage, workspaceHome],
+    [pathname, search, locationKey, workspaceView, workspaceMode, activeProjectApps, selectedAppIds, canStartScan, sensitiveOptions, appsGuardMessage, workspaceHome, appListLoadingProjectId],
   );
 
   useEffect(() => {
@@ -864,6 +912,78 @@ function shouldRestoreRemovedMetadata(code: string) {
 
 function feedbackForResult(result: { ok: boolean; message: string }): [string, MockFeedbackOptions] {
   return [result.message, { tone: result.ok ? "ok" : "err", sticky: !result.ok }];
+}
+
+function createConnectionResultFromStatus(target: ConnectionTestTarget, result: ValidateKintoneConnectionResult): ConnectionTestResult {
+  const passed = result.ok && result.status === "connected";
+  return {
+    ...target,
+    status: passed ? "passed" : "failed",
+    checkedAt: result.checkedAt ? formatCheckedAt(result.checkedAt) : formatCheckedAt(new Date().toISOString()),
+    checks: connectionChecksForStatus(result.status, passed),
+    ...(passed
+      ? {}
+      : {
+          errorSummary: connectionErrorSummary(result.status),
+          likelyCause: result.message,
+          nextAction: connectionNextAction(result.status),
+        }),
+  };
+}
+
+function connectionChecksForStatus(status: KintoneBridgeConnectionStatus, passed: boolean) {
+  if (passed) {
+    return ["Domain format accepted", "Saved credential loaded", "Read-only app list endpoint responded"];
+  }
+  if (status === "no_credential") {
+    return ["Domain metadata found", "Saved credential missing", "Read-only app list endpoint was not called"];
+  }
+  if (status === "auth_failed") {
+    return ["Domain format accepted", "Saved credential loaded", "kintone sign-in rejected"];
+  }
+  if (status === "permission_denied") {
+    return ["Domain format accepted", "Saved credential loaded", "kintone app list permission denied"];
+  }
+  if (status === "invalid_response") {
+    return ["Domain format accepted", "Saved credential loaded", "kintone response could not be read"];
+  }
+  return ["Domain format accepted", "Saved credential loaded", "kintone site was not reachable"];
+}
+
+function connectionErrorSummary(status: KintoneBridgeConnectionStatus) {
+  if (status === "no_credential") {
+    return "Saved credential is not available";
+  }
+  if (status === "auth_failed") {
+    return "kintone rejected the saved sign-in";
+  }
+  if (status === "permission_denied") {
+    return "The account cannot list visible apps";
+  }
+  if (status === "invalid_response") {
+    return "kintone returned an unexpected response";
+  }
+  return "kintone site could not be reached";
+}
+
+function connectionNextAction(status: KintoneBridgeConnectionStatus) {
+  if (status === "no_credential" || status === "auth_failed") {
+    return "Update the auth profile password, confirm the username, then retry the read-only connection test.";
+  }
+  if (status === "permission_denied") {
+    return "Use an account that has permission to view records or add records in the apps you need to discover.";
+  }
+  if (status === "invalid_response") {
+    return "Retry after confirming the site domain points to a kintone tenant.";
+  }
+  return "Confirm the domain and network access, then retry the read-only connection test.";
+}
+
+function formatCheckedAt(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function removeFeedbackForResult(result: { ok: boolean; code: string; message: string }): [string, MockFeedbackOptions] {
@@ -1198,6 +1318,8 @@ function renderScreen({
   selectedAppIds,
   canStartScan,
   onSelectedAppIdsChange,
+  onReloadAppList,
+  isReloadingAppList,
   sensitiveOptions,
   onSensitiveOptionsChange,
   appsGuardMessage,
@@ -1209,6 +1331,7 @@ function renderScreen({
   onRemoveConnectedSite,
   onUpdateAuthProfile,
   onRemoveAuthProfile,
+  onTestAuthProfile,
 }: {
   pathname: string;
   search: string;
@@ -1225,6 +1348,8 @@ function renderScreen({
   selectedAppIds: string[];
   canStartScan: boolean;
   onSelectedAppIdsChange: (selectedAppIds: string[]) => void;
+  onReloadAppList: () => void;
+  isReloadingAppList: boolean;
   sensitiveOptions: SensitiveOption[];
   onSensitiveOptionsChange: (options: SensitiveOption[]) => void;
   appsGuardMessage: string | null;
@@ -1236,6 +1361,7 @@ function renderScreen({
   onRemoveConnectedSite: (siteId: string) => void;
   onUpdateAuthProfile: (authProfileId: string, draft: { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string }) => void;
   onRemoveAuthProfile: (authProfileId: string) => void;
+  onTestAuthProfile: (authProfileId: string) => Promise<ConnectionTestResult>;
 }) {
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
     const requestedAuthTest = new URLSearchParams(search).get("test");
@@ -1260,6 +1386,7 @@ function renderScreen({
         onRemoveSite={onRemoveConnectedSite}
         onUpdateAuthProfile={onUpdateAuthProfile}
         onRemoveAuthProfile={onRemoveAuthProfile}
+        onTestAuthProfile={onTestAuthProfile}
       />
     );
   }
@@ -1288,6 +1415,8 @@ function renderScreen({
           onSelectedAppIdsChange(nextSelectedIds);
         }}
         onContinue={() => navigate(projectRoutes.scan)}
+        onReloadApps={onReloadAppList}
+        isReloadingApps={isReloadingAppList}
         onMockAction={onMockAction}
         guardMessage={appsGuardMessage}
       />

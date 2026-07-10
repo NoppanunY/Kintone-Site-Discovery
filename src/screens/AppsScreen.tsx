@@ -10,16 +10,15 @@ interface AppsScreenProps {
   selectedAppIds: string[];
   onSelectionChange: (selectedAppIds: string[]) => void;
   onContinue: () => void;
+  onReloadApps: () => void;
+  isReloadingApps?: boolean;
   onMockAction: MockActionHandler;
   guardMessage?: string | null;
 }
 
-export function AppsScreen({ site, apps, appListSource, selectedAppIds, onSelectionChange, onContinue, onMockAction, guardMessage }: AppsScreenProps) {
+export function AppsScreen({ site, apps, appListSource, selectedAppIds, onSelectionChange, onContinue, onReloadApps, isReloadingApps = false, guardMessage }: AppsScreenProps) {
   const selectedCount = selectedAppIds.length;
-  const sourceCopy =
-    appListSource === "persisted"
-      ? "persisted app-list metadata"
-      : "development sample fallback · no kintone request sent";
+  const sourceCopy = appListSource === "persisted" ? "persisted app-list metadata" : "development sample fallback";
 
   return (
     <div className="page">
@@ -29,7 +28,7 @@ export function AppsScreen({ site, apps, appListSource, selectedAppIds, onSelect
         subtitle={`${apps.length} apps from ${sourceCopy} · ${selectedCount} selected`}
         actions={
           <>
-            <SecondaryActionButton label="⟳ Reload list" size="sm" onClick={() => onMockAction("App list preview refreshed. No kintone request was sent.")} />
+            <SecondaryActionButton label={isReloadingApps ? "⟳ Reloading..." : "⟳ Reload list"} size="sm" onClick={onReloadApps} disabled={isReloadingApps} />
             <PrimaryActionButton label="Continue to scan →" disabled={selectedCount === 0} onClick={onContinue} />
           </>
         }

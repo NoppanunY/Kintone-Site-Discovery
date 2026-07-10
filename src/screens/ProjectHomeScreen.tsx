@@ -26,6 +26,7 @@ interface ProjectHomeScreenProps {
   onRemoveSite: (siteId: string) => void;
   onUpdateAuthProfile: (authProfileId: string, draft: { displayName: string; username: string; credentialUpdated?: boolean; credentialValue?: string }) => void;
   onRemoveAuthProfile: (authProfileId: string) => void;
+  onTestAuthProfile?: (authProfileId: string) => Promise<ConnectionTestResult>;
 }
 
 const folderIconStyle: CSSProperties = {
@@ -68,6 +69,7 @@ export function ProjectHomeScreen({
   onRemoveSite,
   onUpdateAuthProfile,
   onRemoveAuthProfile,
+  onTestAuthProfile,
 }: ProjectHomeScreenProps) {
   const [profileConnectionResults, setProfileConnectionResults] = useState<Record<string, ConnectionTestResult | undefined>>({});
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
@@ -94,12 +96,24 @@ export function ProjectHomeScreen({
     };
   }
 
-  function runProfileConnectionTest(profile: Profile, outcome: TestOutcome = "passed") {
+  async function runProfileConnectionTest(profile: Profile, outcome: TestOutcome = "passed") {
     const target = targetForProfile(profile);
     setProfileConnectionResults((current) => ({
       ...current,
       [profile.name]: createTestingConnectionResult(target),
     }));
+
+    if (workspaceMode === "desktop_metadata" && onTestAuthProfile) {
+      const result = await onTestAuthProfile(profile.id);
+      setProfileConnectionResults((current) => ({
+        ...current,
+        [profile.name]: result,
+      }));
+      if (result.status === "passed") {
+        onMockAction(`${profile.name} connection test passed.`, { tone: "ok" });
+      }
+      return;
+    }
 
     window.setTimeout(() => {
       setProfileConnectionResults((current) => ({
@@ -119,7 +133,7 @@ export function ProjectHomeScreen({
 
     const requestedProfile = profiles.find((profile) => profile.id === requestedAuthTest || profile.name === requestedAuthTest);
     if (requestedProfile) {
-      runProfileConnectionTest(requestedProfile, requestedProfile.tone === "warn" ? "failed" : "passed");
+      void runProfileConnectionTest(requestedProfile, requestedProfile.tone === "warn" ? "failed" : "passed");
     }
   }, [requestedAuthTest, requestedAuthTestKey]);
 
@@ -225,7 +239,7 @@ export function ProjectHomeScreen({
                 <span className="small muted2">{profile.usage}</span>
                 {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
                 {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
-                <SecondaryActionButton label="Test" size="sm" onClick={() => runProfileConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
+                <SecondaryActionButton label="Test" size="sm" onClick={() => void runProfileConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")} />
                 <div className="row-actions">
                   <SecondaryActionButton label="Edit" size="sm" variant="ghost" onClick={() => setEditTarget({ kind: "auth", profile })} />
                   <SecondaryActionButton label="Remove" size="sm" variant="ghost" onClick={() => setRemoveTarget({ kind: "auth", profile, linkedProjects: projectsUsingAuthProfile(profile.id, projectRows) })} />
@@ -235,7 +249,7 @@ export function ProjectHomeScreen({
                 <div className="li li--panel">
                   <ConnectionTestPanel
                     result={connectionResult}
-                    onRetry={() => runProfileConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
+                    onRetry={() => void runProfileConnectionTest(profile, profile.tone === "warn" ? "failed" : "passed")}
                     onDismiss={() =>
                       setProfileConnectionResults((current) => ({
                         ...current,
