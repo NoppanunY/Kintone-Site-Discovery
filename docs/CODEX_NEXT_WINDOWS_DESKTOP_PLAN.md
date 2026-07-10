@@ -2,7 +2,7 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
-N6 secure credential storage is complete. For the next Codex implementation pass, plan and implement **N7 read-only kintone access** from `docs/CODEX_N7_READONLY_KINTONE_PLAN.md` before any scan runner or snapshot write work.
+N7 read-only kintone access is complete. For the next Codex implementation pass, plan and implement **N8 scan runner with fixture collectors first** before any real snapshot/report packaging work.
 
 `docs/CODEX_N5_HARDENING_PLAN.md` remains available as completed acceptance context. Do not reuse the N5 prompt unless a review asks for a targeted N5 fix.
 
@@ -26,7 +26,7 @@ The `develop` branch has completed:
 - Initial N5 Local workspace metadata storage primitives
 - N5 Local workspace metadata hardening
 
-The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests. N6 added desktop secure credential storage through a Windows DPAPI-backed provider layer, write-only credential UI flow, and no-secret metadata tests.
+The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests. N6 added desktop secure credential storage through a Windows DPAPI-backed provider layer, write-only credential UI flow, and no-secret metadata tests. N7 added the first read-only kintone access path for connection validation and app-list fetch, with main-process credential resolution, redacted bridge results, and app-list metadata persistence.
 
 Desktop runtime decision:
 
@@ -37,7 +37,6 @@ Desktop runtime decision:
 
 Current hard boundary:
 
-- No real kintone API calls yet.
 - No real scan runner yet.
 - No real snapshot capture yet.
 - No real CLI behavior yet.
@@ -70,20 +69,19 @@ Definitions for the next phase:
 
 ## Active next implementation batch
 
-Implement only N7 read-only kintone access next. Stop before N8-N10.
+Implement only N8 scan runner with fixture collectors first. Stop before N9-N10.
 
-N7 is required because the local metadata foundation and secure credential handling are ready, but the app still needs a read-only kintone access layer before scan orchestration can be built.
+N8 is required because the app can now validate credentials and fetch app lists, but it still needs a controlled scan orchestration layer before snapshot/report outputs can be generated safely.
 
-N7 focus:
+N8 focus:
 
-- Add shared read-only kintone client abstractions in `packages/core`.
-- Resolve credentials through the desktop platform layer without exposing secrets to metadata, logs, stdout, or stderr.
-- Add safe domain/auth validation and fixture-first app-list fetch paths.
-- Keep browser fallback unavailable/stubbed for real kintone access.
-- Add tests for success/failure mapping, redacted errors, and app-list ordering preservation where applicable.
-- Do not add write-back, deploy/import/sync/publish/apply/restore/rollback, scan runner, snapshot writer, report generation, packaging, or CLI behavior.
+- Add scan-run state models and orchestration boundaries around existing read-only access.
+- Use fixture collectors first; do not pull full real snapshot data until the runner state model and failure behavior are reviewed.
+- Keep writes limited to scan run metadata or clearly marked partial summaries if the N8 plan explicitly allows them.
+- Preserve redaction/no-secret behavior across run logs and bridge results.
+- Do not add reports, Developer Files, review packages, CLI behavior, packaging, or kintone write-back.
 
-Detailed N7 task breakdown and acceptance criteria live in `docs/CODEX_N7_READONLY_KINTONE_PLAN.md`.
+Create a dedicated N8 plan before implementation, using `docs/MVP1_SPEC.md`, `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md`, and `docs/ui-handoff/STATE_MATRIX.md` as source of truth.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
@@ -95,8 +93,8 @@ Detailed N7 task breakdown and acceptance criteria live in `docs/CODEX_N7_READON
 | N4 | Done | Core domain package | Initial shared pure TypeScript domain models, validators, constants, and safe helpers exist. |
 | N5 | Done | Local workspace storage hardening | Harden metadata persistence before secure credentials and kintone reads. |
 | N6 | Done | OS secure storage | Add real secure credential handling through the platform layer. |
-| N7 | Next | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
-| N8 | Later | Scan runner | Add scan orchestration with fixture collectors first. |
+| N7 | Done | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
+| N8 | Next | Scan runner | Add scan orchestration with fixture collectors first. |
 | N9 | Later | Reports and Developer Files | Generate derived outputs from Local Snapshot. |
 | N10 | Later | Windows packaging | Package the app for Windows after the core path is stable. |
 
@@ -150,25 +148,47 @@ Acceptance:
 - Metadata files do not serialize raw credential values.
 - Credential store status, store, forget, and credential-status transitions are covered by tests.
 
-## Later steps after N6 review
+## N7 read-only kintone access
 
-N6 has been completed and verified locally. Next steps:
+Status: complete. The desktop app can now explicitly validate a project connection and fetch/persist app-list metadata through read-only kintone API calls.
 
-- N7: Add read-only kintone client scaffolding and real connection/app-list tests.
+Completed scope:
+
+- Added shared read-only kintone client logic under `packages/core`.
+- Added password auth header construction for `X-Cybozu-Authorization`.
+- Added fake-transport tests for connection status mapping, redaction, pagination, and app-list order preservation.
+- Added Electron main-process credential resolution for global auth profiles and project-local auth.
+- Added bridge methods for connection validation and app-list fetch.
+- Added renderer wiring for Auth Profile Test and Apps Reload list.
+- Persisted successful app-list fetches with `appListFetchedAt` while preserving selected IDs that still exist.
+- Kept browser fallback unavailable for real kintone access.
+
+Acceptance:
+
+- Desktop validation returns stable `connected`, `unreachable`, `auth_failed`, `permission_denied`, `invalid_response`, or `no_credential` statuses.
+- Renderer never receives password values.
+- Fetch failures do not overwrite existing app-list metadata.
+- App-list response order is preserved.
+- No scan runner, snapshot output, reports, Developer Files, CLI behavior, or write-back APIs were introduced.
+
+## Later steps after N7 review
+
+N7 has been completed and verified locally. Next steps:
+
 - N8: Add scan runner with fixture collectors first.
 - N9: Generate Reports and Developer Files from snapshots only.
 - N10: Add Windows packaging.
 
 ## Codex report format
 
-When done with N7 read-only kintone access, report:
+When done with N8 scan runner planning/implementation, report:
 
 1. Files created/changed.
-2. Read-only client abstractions and credential-resolution behavior.
-3. Domain/auth validation behavior.
-4. App-list fetch behavior and fixture coverage.
-5. Redaction/no-secret behavior for errors/logs/stdout/stderr.
+2. Runner state model and UI state transitions.
+3. Fixture collector behavior and failure handling.
+4. Redaction/no-secret behavior for run logs and bridge results.
+5. Snapshot-write boundaries, if any.
 6. Browser fallback behavior.
 7. Tests added/updated and command results.
 8. Verification command results.
-9. What remains before scan runner, snapshots, reports, CLI behavior, and packaging.
+9. What remains before real collectors, reports, CLI behavior, and packaging.

@@ -1,6 +1,6 @@
 # N7 Read-Only Kintone Access Plan
 
-Status: planned.
+Status: complete.
 
 N7 is the next implementation phase after N6 secure credential storage. Its purpose is to add the first read-only kintone access layer needed by the desktop app, while stopping before scan orchestration, snapshot writes, report generation, Developer Files, review packages, CLI behavior, or packaging.
 
@@ -166,6 +166,35 @@ N7 is complete when:
 - App-list order from kintone is preserved in memory and local app-list metadata.
 - Failures are stable, redacted, and do not overwrite successful local metadata.
 - No scan runner, snapshot output, reports, Developer Files, CLI command behavior, or write-back APIs are introduced.
+
+## Completion notes
+
+Implemented in N7:
+
+- Added `packages/core/src/kintoneClient.ts` with read-only password-auth request helpers, fake-transport support, app-list pagination, response normalization, status mapping, and redaction helpers.
+- Verified official kintone endpoint/auth details before implementation:
+  - Password auth uses `X-Cybozu-Authorization` with base64 `login:password`.
+  - App list uses `GET /k/v1/apps.json`, supports password/session/OAuth auth, does not support API token auth, and returns at most 100 apps per request.
+- Added desktop main-process credential resolution in `desktop/kintoneAccess.cts`; credentials are loaded only through `readCredentialForInternalUse` and never returned to the renderer.
+- Added bridge methods:
+  - `validateKintoneConnection({ projectId })`
+  - `fetchKintoneAppList({ projectId })`
+- Added explicit renderer wiring:
+  - Auth profile Test now validates through the desktop bridge when desktop metadata is available.
+  - Apps Reload list now fetches and persists real app-list metadata through the desktop bridge.
+  - Browser fallback remains unavailable for real kintone access.
+- Updated app-list storage so successful fetches write `appListFetchedAt`; failed fetches do not replace existing app-list metadata.
+- Added fixture tests for auth header/redaction, pagination/order preservation, status mapping, credential resolution, no-credential handling, and app-list persistence.
+
+Still intentionally not implemented:
+
+- Scan runner orchestration.
+- Snapshot collector output.
+- Reports, Developer Files, and review package generation.
+- CLI command behavior.
+- API token/OAuth auth modes.
+- Browser runtime plugin config or asset capture.
+- Any kintone write-back/deploy/import/sync behavior.
 
 ## Verification commands
 
