@@ -6,7 +6,7 @@ This document points Codex to the current implementation specs for Kintone Site 
 
 The hi-fi UI skeleton, Windows desktop shell scaffold, typed platform bridge foundation, `packages/core`, local workspace metadata storage, N5 local metadata hardening, and N6 secure credential storage are now present on `develop`.
 
-The next implementation phase is **N7 read-only kintone access**. Do this before scan runner, snapshot writes, reports, developer files, CLI behavior, or packaging.
+The next implementation phase is **N7 read-only kintone access**. Start from `docs/CODEX_N7_READONLY_KINTONE_PLAN.md`. Do this before scan runner, snapshot writes, reports, developer files, CLI behavior, or packaging.
 
 The completed N5 hardening plan remains available at `docs/CODEX_N5_HARDENING_PLAN.md` for acceptance context. Do not continue implementing from the N5 prompt unless a review asks for a targeted N5 fix.
 
@@ -18,21 +18,22 @@ A CLI command contract exists in `docs/CLI_COMMAND_SPEC.md`. It defines the futu
 
 ## Source-of-truth order
 
-1. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — phase boundaries and N4-N10 roadmap
-2. `docs/CODEX_N5_HARDENING_PLAN.md` — completed N5 hardening acceptance context
-3. `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md` — original N4/N5 foundation plan and acceptance context
-4. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
-5. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
-6. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
-7. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
-8. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
-9. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
-10. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
-11. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
-12. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
-13. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
-14. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
-15. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
+1. `docs/CODEX_N7_READONLY_KINTONE_PLAN.md` — active N7 implementation plan and acceptance context
+2. `docs/CODEX_NEXT_WINDOWS_DESKTOP_PLAN.md` — phase boundaries and N4-N10 roadmap
+3. `docs/CODEX_N5_HARDENING_PLAN.md` — completed N5 hardening acceptance context
+4. `docs/CODEX_N4_N5_IMPLEMENTATION_PLAN.md` — original N4/N5 foundation plan and acceptance context
+5. `docs/ui-handoff/UI_IMPLEMENTATION_SPEC.md` — UX/UI product model and layout rules
+6. `docs/ui-handoff/DATA_CONTRACT.md` — canonical TypeScript-style data shapes
+7. `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md` — local snapshot storage contract
+8. `docs/ui-handoff/VIEW_MODEL_SPEC.md` — screen view models
+9. `docs/ui-handoff/SCREEN_SPEC.md` — screen behavior and states
+10. `docs/ui-handoff/COMPONENT_SPEC.md` — reusable component contract
+11. `docs/ui-handoff/DESIGN_TOKENS.md` — design token implementation
+12. `docs/ui-handoff/ROUTING_SPEC.md` — route map and guards
+13. `docs/ui-handoff/STATE_MATRIX.md` — state transitions
+14. `docs/ui-handoff/UX_COPY_SPEC.md` — fixed UI copy and forbidden verbs
+15. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
+16. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
 
 If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`, but do not implement CLI behavior in N7 unless explicitly scoped.
 

@@ -2,7 +2,7 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
-N6 secure credential storage is complete. For the next Codex implementation pass, plan and implement **N7 read-only kintone access** before any scan runner or snapshot write work.
+N6 secure credential storage is complete. For the next Codex implementation pass, plan and implement **N7 read-only kintone access** from `docs/CODEX_N7_READONLY_KINTONE_PLAN.md` before any scan runner or snapshot write work.
 
 `docs/CODEX_N5_HARDENING_PLAN.md` remains available as completed acceptance context. Do not reuse the N5 prompt unless a review asks for a targeted N5 fix.
 
@@ -82,6 +82,8 @@ N7 focus:
 - Keep browser fallback unavailable/stubbed for real kintone access.
 - Add tests for success/failure mapping, redacted errors, and app-list ordering preservation where applicable.
 - Do not add write-back, deploy/import/sync/publish/apply/restore/rollback, scan runner, snapshot writer, report generation, packaging, or CLI behavior.
+
+Detailed N7 task breakdown and acceptance criteria live in `docs/CODEX_N7_READONLY_KINTONE_PLAN.md`.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
