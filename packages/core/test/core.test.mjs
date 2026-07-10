@@ -30,6 +30,9 @@ import {
   validateConnectedSite,
   validateProject,
   validateWindowStateSnapshot,
+  createKintoneReadOnlyClient,
+  createPasswordAuthHeader,
+  redactKintoneSensitiveText,
 } from "../dist/index.js";
 
 test("domain, project name, path, and local id validators accept safe input", () => {
@@ -245,4 +248,62 @@ test("choose-later discovery draft keeps app selection empty and secret-free", (
   assert.deepEqual(draft.project.selectedAppIds, []);
   assert.equal(findSecretReferences(draft).length, 0);
   assert.match(stringifyDeterministic(draft), /"selectedAppIds": \[\]/);
+});
+
+test("kintone password auth header uses base64 username and password without exposing the password", () => {
+  assert.equal(createPasswordAuthHeader("demo@example.com", "secret"), "ZGVtb0BleGFtcGxlLmNvbTpzZWNyZXQ=");
+  assert.equal(redactKintoneSensitiveText("X-Cybozu-Authorization: ZGVtbzpwYXNz"), "X-Cybozu-Authorization: [REDACTED]");
+  assert.equal(redactKintoneSensitiveText("Authorization: Bearer abc.def.ghi"), "Authorization: [REDACTED]");
+});
+
+test("kintone app list client paginates apps and preserves kintone response order", async () => {
+  const requests = [];
+  const client = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    now: () => new Date("2026-07-10T05:00:00Z"),
+    transport: async (request) => {
+      requests.push(request);
+      const url = new URL(request.url);
+      const offset = Number(url.searchParams.get("offset"));
+      const firstPageApps = Array.from({ length: 100 }, (_, index) => ({
+        appId: String(index + 1),
+        name: `App ${index + 1}`,
+      }));
+      const secondPageApps = [
+        { appId: "201", name: "Zeta" },
+        { appId: "150", name: "Alpha" },
+      ];
+      return {
+        status: 200,
+        ok: true,
+        bodyText: JSON.stringify({ apps: offset === 0 ? firstPageApps : secondPageApps }),
+      };
+    },
+  });
+
+  const result = await client.fetchApps();
+
+  assert.equal(result.status, "connected");
+  assert.equal(result.fetchedAt, "2026-07-10T05:00:00Z");
+  assert.equal(result.apps.length, 102);
+  assert.deepEqual(result.apps.slice(-2).map((app) => app.id), ["201", "150"]);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].headers["X-Cybozu-Authorization"], "ZGVtb0BleGFtcGxlLmNvbTpzZWNyZXQ=");
+});
+
+test("kintone connection validation maps auth and permission failures", async () => {
+  const authClient = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    transport: async () => ({ status: 401, ok: false, bodyText: JSON.stringify({ message: "Invalid login" }) }),
+  });
+  const permissionClient = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    transport: async () => ({ status: 403, ok: false, bodyText: JSON.stringify({ message: "No app permission" }) }),
+  });
+
+  assert.equal((await authClient.validateConnection()).status, "auth_failed");
+  assert.equal((await permissionClient.validateConnection()).status, "permission_denied");
 });
