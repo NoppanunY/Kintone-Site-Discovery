@@ -2,7 +2,7 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
-N5 hardening is complete. For the next Codex implementation pass, plan and implement **N6 OS secure credential storage** before any read-only kintone access work.
+N6 secure credential storage is complete. For the next Codex implementation pass, plan and implement **N7 read-only kintone access** before any scan runner or snapshot write work.
 
 `docs/CODEX_N5_HARDENING_PLAN.md` remains available as completed acceptance context. Do not reuse the N5 prompt unless a review asks for a targeted N5 fix.
 
@@ -26,7 +26,7 @@ The `develop` branch has completed:
 - Initial N5 Local workspace metadata storage primitives
 - N5 Local workspace metadata hardening
 
-The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests.
+The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests. N6 added desktop secure credential storage through a Windows DPAPI-backed provider layer, write-only credential UI flow, and no-secret metadata tests.
 
 Desktop runtime decision:
 
@@ -40,7 +40,6 @@ Current hard boundary:
 - No real kintone API calls yet.
 - No real scan runner yet.
 - No real snapshot capture yet.
-- No real OS secure credential storage yet.
 - No real CLI behavior yet.
 - No deploy, import, write-back, Git client, AI, rollback, or safe deploy flow.
 
@@ -71,18 +70,18 @@ Definitions for the next phase:
 
 ## Active next implementation batch
 
-Implement only N6 OS secure credential storage next. Stop before N7-N10.
+Implement only N7 read-only kintone access next. Stop before N8-N10.
 
-N6 is required because the local metadata foundation is ready, but passwords still need a real secure credential provider before read-only kintone access can be built on top of it.
+N7 is required because the local metadata foundation and secure credential handling are ready, but the app still needs a read-only kintone access layer before scan orchestration can be built.
 
-N6 focus:
+N7 focus:
 
-- Add a desktop credential provider abstraction.
-- Store passwords only through the secure provider, never in project/app metadata.
-- Keep metadata limited to credential status and opaque keychain references.
-- Wire add/update auth flows to write-only credential handling.
-- Preserve browser fallback as unavailable/stubbed for secure storage.
-- Add tests for no-secret metadata serialization and credential-status transitions.
+- Add shared read-only kintone client abstractions in `packages/core`.
+- Resolve credentials through the desktop platform layer without exposing secrets to metadata, logs, stdout, or stderr.
+- Add safe domain/auth validation and fixture-first app-list fetch paths.
+- Keep browser fallback unavailable/stubbed for real kintone access.
+- Add tests for success/failure mapping, redacted errors, and app-list ordering preservation where applicable.
+- Do not add write-back, deploy/import/sync/publish/apply/restore/rollback, scan runner, snapshot writer, report generation, packaging, or CLI behavior.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
@@ -93,8 +92,8 @@ N6 focus:
 | P0 | Done | Contract and flow corrections | Initial model/route/wizard/sensitive-flow fixes are implemented. |
 | N4 | Done | Core domain package | Initial shared pure TypeScript domain models, validators, constants, and safe helpers exist. |
 | N5 | Done | Local workspace storage hardening | Harden metadata persistence before secure credentials and kintone reads. |
-| N6 | Next | OS secure storage | Add real secure credential handling through the platform layer. |
-| N7 | Later | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
+| N6 | Done | OS secure storage | Add real secure credential handling through the platform layer. |
+| N7 | Next | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
 | N8 | Later | Scan runner | Add scan orchestration with fixture collectors first. |
 | N9 | Later | Reports and Developer Files | Generate derived outputs from Local Snapshot. |
 | N10 | Later | Windows packaging | Package the app for Windows after the core path is stable. |
@@ -127,11 +126,32 @@ Acceptance:
 - Empty desktop metadata does not masquerade as sample/mock projects.
 - `pnpm typecheck`, `pnpm test`, `pnpm desktop:compile`, `git diff --check`, and `pnpm desktop:build` pass or have documented environment-only failures.
 
-## Later steps after N5 hardening review
+## N6 secure credential storage
 
-N5 has been completed and reviewed by local/manual checks. Next steps:
+Status: complete. Secure credential handling is available through the desktop platform layer and is ready to support N7 read-only kintone access.
 
-- N6: Implement OS secure storage through the platform layer.
+Completed scope:
+
+- Added `desktop/credentialStore.cts` as the secure credential provider abstraction.
+- Added a Windows DPAPI-backed provider that writes encrypted credential records under app data.
+- Added bridge APIs for credential store status, store, and forget.
+- Updated write-only auth UI paths so passwords are passed once to the desktop bridge and then cleared.
+- Kept project/app metadata limited to credential status and opaque keychain references.
+- Preserved browser fallback as unavailable for secure credential storage.
+- Added tests proving credential records do not contain raw fixture credentials and metadata stores only refs/status.
+
+Acceptance:
+
+- Add Auth Profile stores a password through the desktop credential provider before marking metadata as saved.
+- Project-local auth can store a password through the desktop credential provider before project metadata is created.
+- Edit Auth Profile can replace a password through the desktop credential provider.
+- Metadata files do not serialize raw credential values.
+- Credential store status, store, forget, and credential-status transitions are covered by tests.
+
+## Later steps after N6 review
+
+N6 has been completed and verified locally. Next steps:
+
 - N7: Add read-only kintone client scaffolding and real connection/app-list tests.
 - N8: Add scan runner with fixture collectors first.
 - N9: Generate Reports and Developer Files from snapshots only.
@@ -139,16 +159,14 @@ N5 has been completed and reviewed by local/manual checks. Next steps:
 
 ## Codex report format
 
-When done with N5 hardening, report:
+When done with N7 read-only kintone access, report:
 
 1. Files created/changed.
-2. Metadata validation changes.
-3. Onboarding persisted site/auth changes.
-4. App-list hydration and selected-app persistence changes.
-5. Project-local auth edit behavior.
-6. Open-folder allow-list behavior.
-7. ID collision strategy.
-8. No-secret serialization changes.
-9. Tests added/updated and command results.
-10. Verification command results.
-11. What remains before N6 OS secure credentials and N7 read-only kintone access.
+2. Read-only client abstractions and credential-resolution behavior.
+3. Domain/auth validation behavior.
+4. App-list fetch behavior and fixture coverage.
+5. Redaction/no-secret behavior for errors/logs/stdout/stderr.
+6. Browser fallback behavior.
+7. Tests added/updated and command results.
+8. Verification command results.
+9. What remains before scan runner, snapshots, reports, CLI behavior, and packaging.

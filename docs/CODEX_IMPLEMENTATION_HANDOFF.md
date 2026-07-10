@@ -4,15 +4,17 @@ This document points Codex to the current implementation specs for Kintone Site 
 
 ## Current status
 
-The hi-fi UI skeleton, Windows desktop shell scaffold, typed platform bridge foundation, `packages/core`, local workspace metadata storage, and N5 local metadata hardening are now present on `develop`.
+The hi-fi UI skeleton, Windows desktop shell scaffold, typed platform bridge foundation, `packages/core`, local workspace metadata storage, N5 local metadata hardening, and N6 secure credential storage are now present on `develop`.
 
-The next implementation phase is **N6 OS secure credential storage**. Do this before N7 read-only kintone access.
+The next implementation phase is **N7 read-only kintone access**. Do this before scan runner, snapshot writes, reports, developer files, CLI behavior, or packaging.
 
 The completed N5 hardening plan remains available at `docs/CODEX_N5_HARDENING_PLAN.md` for acceptance context. Do not continue implementing from the N5 prompt unless a review asks for a targeted N5 fix.
 
 The N5 pass hardened persisted metadata validation, onboarding persisted site/auth use, app-list hydration and selected app persistence, project-local auth edit behavior, folder-open path allow-listing, collision-safe IDs, and shared no-secret serialization.
 
-A CLI command contract exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the current implementation batch. Do not implement CLI behavior in N6.
+The N6 pass added a desktop credential provider abstraction, Windows DPAPI-backed encrypted credential records under app data, bridge APIs for store/forget/status, write-only password capture in auth UI paths, metadata keychainRef/status updates, and tests proving raw credential values stay out of metadata.
+
+A CLI command contract exists in `docs/CLI_COMMAND_SPEC.md`. It defines the future headless interface for automation/AI/testing, but it does **not** change the current implementation batch. Do not implement CLI behavior in N7 unless explicitly scoped.
 
 ## Source-of-truth order
 
@@ -32,7 +34,7 @@ A CLI command contract exists in `docs/CLI_COMMAND_SPEC.md`. It defines the futu
 14. `docs/ui-handoff/IMPLEMENTATION_TASKS.md` — Codex-ready task order
 15. `docs/CLI_COMMAND_SPEC.md` — future CLI command names, flags, JSON output, exit codes, and automation behavior
 
-If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`, but do not implement CLI behavior in N6.
+If older specs conflict with the UX/UI handoff, use the handoff for desktop UI, state naming, local snapshot UX, and storage behavior. The older specs remain useful for collector scope and product non-goals. For CLI behavior, use `docs/CLI_COMMAND_SPEC.md`, but do not implement CLI behavior in N7 unless explicitly scoped.
 
 ## Core product model
 
@@ -82,25 +84,26 @@ Do not implement:
 - Initial N4 Core domain package
 - Initial N5 Local workspace metadata storage primitives
 - N5 Local workspace metadata hardening
+- N6 OS secure credential storage
 
 ## Active next batch
 
 Implement only:
 
-- N6 OS secure credential storage through the desktop platform layer
+- N7 read-only kintone access scaffolding
 
 Specifically plan and implement:
 
-- a secure credential provider abstraction
-- Windows credential storage integration or a clearly isolated provider layer
-- write-only credential capture from desktop UI paths
-- credential status/keychain reference updates without writing secrets to metadata
-- tests proving metadata, logs, stdout/stderr, and serialized files contain no raw secrets
+- shared read-only kintone client abstractions in `packages/core`
+- safe domain/auth validation that uses stored credential references, not raw metadata secrets
+- fixture-first tests for app-list/site/auth validation paths
+- desktop bridge/UI wiring only where needed to call read-only validation or app-list fetch stubs
+- no write-back, deploy/import/sync/publish/apply/restore/rollback commands or APIs
 
-Stop after N6 secure credential storage is complete and reviewed before implementing real kintone reads, scan runner, local snapshot writes, reports/developer-file generation, CLI behavior, or Windows packaging.
+Stop after N7 read-only access scaffolding is complete and reviewed before implementing scan runner orchestration, local snapshot writes, reports/developer-file generation, CLI behavior, or Windows packaging.
 
 ## CLI note for the next batch
 
-For N6 secure credential storage, do **not** implement CLI behavior.
+For N7 read-only kintone access, do **not** implement CLI behavior unless explicitly requested as part of the same shared core API review.
 
 It is acceptable to keep an empty CLI scaffold if one already exists, but command logic must remain unwired until the shared core interfaces and local storage foundation are reviewed. Any future CLI implementation must follow `docs/CLI_COMMAND_SPEC.md`, including `--json`, stable exit codes, no `--password`, no secret output, and `--confirm-sensitive` for sensitive non-interactive scans.
