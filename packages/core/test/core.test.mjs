@@ -4,6 +4,7 @@ import {
   CAPTURE_CATEGORIES,
   defaultCategoryKeysForPreset,
   enabledCategoryKeysForDraft,
+  enabledCategoryKeysForScanDraft,
   evaluateScanRouteGuard,
   findSecretReferences,
   hasArmedSensitiveOptions,
@@ -31,8 +32,15 @@ import {
   validateProject,
   validateWindowStateSnapshot,
   createKintoneReadOnlyClient,
+  planRestMetadataCommands,
+  buildKintoneScanCollectorGroups,
+  calculateKintoneScanProgress,
+  formatKintoneScanLogLine,
   createPasswordAuthHeader,
   redactKintoneSensitiveText,
+  redactSensitiveData,
+  buildFixtureScanRun,
+  scanDraftFromLatestRun,
 } from "../dist/index.js";
 
 test("domain, project name, path, and local id validators accept safe input", () => {
@@ -54,7 +62,7 @@ test("preset defaults keep additional sensitive capture off", () => {
   const recommended = CAPTURE_CATEGORIES.filter((category) => category.tier === "recommended");
   const additional = CAPTURE_CATEGORIES.filter((category) => category.tier === "additional");
 
-  assert.ok(required.every((category) => category.locked && category.defaultEnabled));
+  assert.ok(required.every((category) => !category.locked && category.defaultEnabled));
   assert.ok(recommended.every((category) => category.defaultEnabled));
   assert.ok(additional.every((category) => !category.defaultEnabled && category.sensitive));
   assert.deepEqual(defaultCategoryKeysForPreset("quick"), required.map((category) => category.key));
@@ -75,6 +83,51 @@ test("sensitive confirmation derives from actual armed options", () => {
     runRoutePath: "/project/client/scan/run",
   });
   assert.deepEqual(guard, { ok: false, redirectTo: "/project/client/scan/run", reason: "confirm_without_sensitive_options" });
+});
+
+test("scan draft restores preset and configure from latest history run", () => {
+  const olderRun = buildFixtureScanRun({
+    projectId: "project_client",
+    siteId: "site_client",
+    authSelection: { kind: "global_profile", authProfileId: "auth_client" },
+    presetId: "quick",
+    selectedAppIds: ["101"],
+    startedAt: new Date("2026-07-10T04:00:00Z"),
+  });
+  const latestRun = buildFixtureScanRun({
+    projectId: "project_client",
+    siteId: "site_client",
+    authSelection: { kind: "global_profile", authProfileId: "auth_client" },
+    presetId: "full_discovery",
+    selectedAppIds: ["101"],
+    enabledCategoryKeys: ["app_settings", "form_fields", "plugin_assets"],
+    sensitiveOptions: [{ categoryKey: "plugin_assets", label: "Plugin desktop / config assets (JS/CSS/HTML)", enabled: true }],
+    startedAt: new Date("2026-07-10T05:00:00Z"),
+  });
+
+  const draft = scanDraftFromLatestRun([latestRun, olderRun]);
+
+  assert.equal(draft.hydratedFromRunId, latestRun.id);
+  assert.equal(draft.presetId, "full_discovery");
+  assert.deepEqual(draft.enabledCategoryKeys, ["app_settings", "form_fields", "plugin_assets"]);
+  assert.equal(draft.sensitiveOptions.find((option) => option.categoryKey === "plugin_assets")?.enabled, true);
+});
+
+test("scan draft category keys honor recommended toggles and sensitive opt-ins", () => {
+  const keys = enabledCategoryKeysForScanDraft({
+    presetId: "full_discovery",
+    categoryKeys: ["users_groups", "spaces"],
+    sensitiveOptions: [
+      { categoryKey: "plugin_assets", label: "Plugin desktop / config assets (JS/CSS/HTML)", enabled: true },
+      { categoryKey: "sample_records", label: "Sample records", enabled: false },
+    ],
+  });
+
+  assert.ok(!keys.includes("app_settings"));
+  assert.ok(keys.includes("users_groups"));
+  assert.ok(!keys.includes("plugin_config"));
+  assert.ok(keys.includes("plugin_assets"));
+  assert.ok(!keys.includes("sample_records"));
 });
 
 test("scan route guard allows setup without apps but blocks the run route", () => {
@@ -118,6 +171,8 @@ test("deterministic serialization sorts keys and refuses secret-bearing metadata
   assert.equal(findSecretReferences({ id: "project_client_crm_discovery_copy_20260708100000_abcde" }).length, 0);
   assert.equal(findSecretReferences({ linkedProjectIds: ["project_client_crm_discovery_copy_20260708100000_abcde"] }).length, 0);
   assert.equal(findSecretReferences({ id: "sk-1234567890abcdef" }).length, 1);
+  assert.equal(findSecretReferences({ openProjectTabs: [{ routePath: "/project/project_csi_20260710101704_h1wu5/scan" }] }).length, 0);
+  assert.equal(findSecretReferences({ redirectTarget: "/project/project_csi_20260710101704_h1wu5/scan" }).length, 1);
 });
 
 test("collision-safe local IDs include suffixes and avoid existing IDs", () => {
@@ -256,6 +311,23 @@ test("kintone password auth header uses base64 username and password without exp
   assert.equal(redactKintoneSensitiveText("Authorization: Bearer abc.def.ghi"), "Authorization: [REDACTED]");
 });
 
+test("redactor removes sensitive keys and token-like values before snapshot writes", () => {
+  const result = redactSensitiveData({
+    config: {
+      apiToken: "raw-token",
+      nested: {
+        authorization: "Bearer abcdefghijklmnop",
+      },
+      safeLabel: "Customer Care",
+    },
+  });
+
+  assert.equal(result.value.config.apiToken, "[REDACTED]");
+  assert.equal(result.value.config.nested.authorization, "[REDACTED]");
+  assert.equal(result.value.config.safeLabel, "Customer Care");
+  assert.deepEqual(result.findings.map((finding) => finding.path), ["config.apiToken", "config.nested.authorization"]);
+});
+
 test("kintone app list client paginates apps and preserves kintone response order", async () => {
   const requests = [];
   const client = createKintoneReadOnlyClient({
@@ -292,6 +364,75 @@ test("kintone app list client paginates apps and preserves kintone response orde
   assert.equal(requests[0].headers["X-Cybozu-Authorization"], "ZGVtb0BleGFtcGxlLmNvbTpzZWNyZXQ=");
 });
 
+test("kintone app list client resolves space names for visible apps", async () => {
+  const requests = [];
+  const client = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    transport: async (request) => {
+      requests.push(request);
+      const url = new URL(request.url);
+      if (url.pathname.endsWith("/space.json")) {
+        return {
+          status: 200,
+          ok: true,
+          bodyText: JSON.stringify({ id: url.searchParams.get("id"), name: "Customer Care" }),
+        };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        bodyText: JSON.stringify({
+          apps: [
+            { appId: "101", name: "Support Tickets", spaceId: "42" },
+            { appId: "103", name: "Support FAQ", spaceId: "42" },
+            { appId: "102", name: "Standalone" },
+          ],
+        }),
+      };
+    },
+  });
+
+  const result = await client.fetchApps();
+
+  assert.equal(result.status, "connected");
+  assert.equal(result.apps[0].spaceName, "Customer Care");
+  assert.equal(result.apps[1].spaceName, "Customer Care");
+  assert.equal(result.apps[2].spaceName, undefined);
+  assert.equal(result.message, "Fetched 3 apps from kintone. Resolved 1 space name.");
+  assert.equal(requests.some((request) => request.url.includes("/k/v1/spaces.json")), false);
+  assert.equal(requests.filter((request) => request.url.includes("/k/v1/space.json?id=42")).length, 1);
+});
+
+test("kintone app list client keeps space ID fallback when space lookup is inaccessible", async () => {
+  const requests = [];
+  const client = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    transport: async (request) => {
+      requests.push(request);
+      const url = new URL(request.url);
+      if (url.pathname.endsWith("/space.json")) {
+        return { status: 403, ok: false, bodyText: JSON.stringify({ message: "No space permission" }) };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        bodyText: JSON.stringify({ apps: [{ appId: "101", name: "Sales Management", spaceId: "77" }] }),
+      };
+    },
+  });
+
+  const result = await client.fetchApps();
+
+  assert.equal(result.status, "connected");
+  assert.equal(result.apps[0].spaceName, "Space ID 77");
+  assert.equal(result.message, "Fetched 1 app from kintone. Resolved 0 of 1 space names; unresolved private or inaccessible spaces are shown by Space ID.");
+  assert.equal(requests.some((request) => request.url.includes("/k/v1/space.json?id=77")), true);
+});
+
 test("kintone connection validation maps auth and permission failures", async () => {
   const authClient = createKintoneReadOnlyClient({
     domain: "client-a.cybozu.com",
@@ -306,4 +447,229 @@ test("kintone connection validation maps auth and permission failures", async ()
 
   assert.equal((await authClient.validateConnection()).status, "auth_failed");
   assert.equal((await permissionClient.validateConnection()).status, "permission_denied");
+});
+
+test("kintone REST command plan expands selected apps and enabled categories without API calls", () => {
+  const plan = planRestMetadataCommands(
+    {
+      selectedApps: [
+        { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: false, captureStatus: "not_captured" },
+        { id: "102", kintoneAppId: 102, name: "Support", isGuestSpace: false, hasPlugins: false, hasCustomization: false, captureStatus: "not_captured" },
+      ],
+      enabledCategoryKeys: ["app_settings", "sample_records", "plugin_config"],
+      sensitiveOptions: [{ categoryKey: "sample_records", label: "Sample records", enabled: true, limit: 12 }],
+    },
+    "2026-07-10T05:00:00Z",
+  );
+
+  assert.equal(plan.commands.length, 6);
+  assert.deepEqual(plan.commands.map((command) => command.endpointPath), [
+    "/k/v1/app/settings.json?app=101",
+    "/k/v1/preview/app/settings.json?app=101",
+    "/k/v1/records.json?app=101&totalCount=true&query=limit%2012",
+    "/k/v1/app/settings.json?app=102",
+    "/k/v1/preview/app/settings.json?app=102",
+    "/k/v1/records.json?app=102&totalCount=true&query=limit%2012",
+  ]);
+  assert.equal(plan.commands.every((command, index) => command.orderIndex === index && command.totalCommands === 6), true);
+  assert.equal(plan.skippedCaptures.length, 1);
+  assert.equal(plan.skippedCaptures[0].endpointKey, "plugin_config");
+});
+
+test("kintone REST command executor runs exactly one request and redacts the capture", async () => {
+  const requests = [];
+  const client = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    now: () => new Date("2026-07-10T05:00:00Z"),
+    transport: async (request) => {
+      requests.push(request);
+      return { status: 200, ok: true, bodyText: JSON.stringify({ name: "Sales", apiToken: "raw-token" }) };
+    },
+  });
+  const [command] = planRestMetadataCommands({
+    selectedApps: [{ id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: false, captureStatus: "not_captured" }],
+    enabledCategoryKeys: ["app_settings"],
+    sensitiveOptions: [],
+  }).commands;
+
+  const capture = await client.executeRestMetadataCommand(command);
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://client-a.cybozu.com/k/v1/app/settings.json?app=101");
+  assert.equal(capture.status, "captured");
+  assert.equal(capture.payload.apiToken, "[REDACTED]");
+  assert.equal(capture.redactions.length, 1);
+});
+
+test("kintone scan progress and collector groups are derived from real commands and captures", () => {
+  const plan = planRestMetadataCommands({
+    selectedApps: [
+      { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: false, captureStatus: "not_captured" },
+      { id: "102", kintoneAppId: 102, name: "Support", isGuestSpace: false, hasPlugins: false, hasCustomization: false, captureStatus: "not_captured" },
+    ],
+    enabledCategoryKeys: ["app_settings"],
+    sensitiveOptions: [],
+  });
+  const captures = [
+    {
+      categoryKey: "app_settings",
+      endpointKey: "app-settings",
+      label: "Sales · App settings",
+      kind: "required",
+      appId: "101",
+      kintoneAppId: 101,
+      state: "live",
+      endpointPath: "/k/v1/app/settings.json?app=101",
+      status: "captured",
+      httpStatus: 200,
+      payload: {},
+      redactions: [],
+      startedAt: "2026-07-10T05:00:00Z",
+      finishedAt: "2026-07-10T05:00:01Z",
+    },
+    {
+      categoryKey: "app_settings",
+      endpointKey: "app-settings-preview",
+      label: "Sales · App settings preview",
+      kind: "required",
+      appId: "101",
+      kintoneAppId: 101,
+      state: "preview",
+      endpointPath: "/k/v1/preview/app/settings.json?app=101",
+      status: "failed",
+      httpStatus: 403,
+      redactions: [],
+      message: "No permission",
+      startedAt: "2026-07-10T05:00:01Z",
+      finishedAt: "2026-07-10T05:00:02Z",
+    },
+  ];
+
+  const progress = calculateKintoneScanProgress(plan.commands, captures, "paused");
+  const groups = buildKintoneScanCollectorGroups(plan.commands, captures, plan.commands[2]);
+
+  assert.equal(progress.completedCount, 2);
+  assert.equal(progress.totalCount, 5);
+  assert.equal(progress.progressPercent, 40);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].label, "Sales");
+  assert.equal(groups[0].done, 1);
+  assert.equal(groups[0].failed, 1);
+  assert.equal(groups[0].status, "failed");
+  assert.equal(groups[1].label, "Support");
+  assert.equal(groups[1].running, 1);
+  assert.equal(groups[1].queued, 1);
+});
+
+test("kintone scan log formatter redacts secret-bearing text", () => {
+  const line = formatKintoneScanLogLine({
+    id: "line_1",
+    at: "2026-07-10T05:00:00Z",
+    tone: "run",
+    message: "GET /k/v1/app/settings.json Authorization: Bearer abc.def Cookie: sid=secret apiToken=raw-token",
+  });
+
+  assert.match(line.message, /Authorization: \[REDACTED\]/);
+  assert.match(line.message, /Cookie: \[REDACTED\]/);
+  assert.match(line.message, /apiToken=\[REDACTED\]/);
+  assert.doesNotMatch(line.message, /abc\.def|sid=secret|raw-token/);
+});
+
+test("kintone REST metadata collector captures selected endpoints and redacts payloads", async () => {
+  const requests = [];
+  const client = createKintoneReadOnlyClient({
+    domain: "client-a.cybozu.com",
+    auth: { username: "demo@example.com", password: "secret" },
+    now: () => new Date("2026-07-10T05:00:00Z"),
+    transport: async (request) => {
+      requests.push(request);
+      const url = new URL(request.url);
+      if (url.pathname.endsWith("/app/settings.json")) {
+        return { status: 200, ok: true, bodyText: JSON.stringify({ name: "Sales", apiToken: "raw-token" }) };
+      }
+      if (url.pathname.endsWith("/app/plugins.json")) {
+        return { status: 200, ok: true, bodyText: JSON.stringify({ plugins: [{ id: "plugin_a", name: "Approval Helper" }] }) };
+      }
+      if (url.pathname.endsWith("/records.json")) {
+        return { status: 200, ok: true, bodyText: JSON.stringify({ records: [{ $id: { value: "1" }, secretMemo: "hide me" }] }) };
+      }
+      return { status: 200, ok: true, bodyText: "{}" };
+    },
+  });
+
+  const collection = await client.collectRestMetadata({
+    projectId: "project_client",
+    siteId: "site_client",
+    presetId: "full_discovery",
+    selectedApps: [{ id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: true, hasCustomization: false, captureStatus: "not_captured" }],
+    enabledCategoryKeys: ["app_settings", "plugin_inventory", "plugin_config", "sample_records"],
+    sensitiveOptions: [{ categoryKey: "sample_records", label: "Sample records", enabled: true, limit: 25 }],
+  });
+
+  assert.equal(collection.status, "completed_with_warnings");
+  assert.equal(collection.result.requiredOk, 4);
+  assert.equal(collection.result.requiredTotal, 4);
+  assert.equal(collection.result.pluginsCaptured, 1);
+  assert.ok(collection.result.redaction.totalRedactions >= 2);
+  assert.ok(collection.captures.some((capture) => capture.endpointKey === "plugin_config" && capture.status === "skipped"));
+  assert.equal(collection.captures.find((capture) => capture.endpointKey === "app-settings")?.payload.apiToken, "[REDACTED]");
+  assert.equal(collection.captures.find((capture) => capture.endpointKey === "sample-records")?.payload.records[0].secretMemo, "[REDACTED]");
+  assert.ok(requests.some((request) => request.url.includes("/k/v1/app/settings.json?app=101")));
+  assert.ok(requests.some((request) => request.url.includes("/k/v1/records.json?app=101")));
+});
+
+test("fixture scan runner creates completed runs without snapshot output", () => {
+  const run = buildFixtureScanRun({
+    projectId: "project_client",
+    siteId: "site_client",
+    authSelection: { kind: "global_profile", authProfileId: "auth_client", displayName: "Client Admin" },
+    presetId: "quick",
+    selectedAppIds: ["201", "101"],
+    outcome: "completed",
+    startedAt: new Date("2026-07-10T05:00:00Z"),
+  });
+
+  assert.equal(run.id, "scan_20260710050000");
+  assert.equal(run.status, "completed");
+  assert.equal(run.snapshotId, undefined);
+  assert.deepEqual(run.selectedAppIds, ["201", "101"]);
+  assert.equal(run.result.requiredOk, run.result.requiredTotal);
+  assert.equal(run.result.collectors.every((collector) => collector.kind !== "required" || collector.status === "done"), true);
+});
+
+test("fixture scan runner maps optional skips to completed with warnings", () => {
+  const run = buildFixtureScanRun({
+    projectId: "project_client",
+    siteId: "site_client",
+    authSelection: { kind: "project_local", displayName: "Local Admin", username: "admin@example.com", authType: "password" },
+    presetId: "standard",
+    selectedAppIds: ["101"],
+    outcome: "warnings",
+    startedAt: new Date("2026-07-10T05:00:00Z"),
+  });
+
+  assert.equal(run.status, "completed_with_warnings");
+  assert.equal(run.result.optionalSkipped, 1);
+  assert.equal(run.result.requiredOk, run.result.requiredTotal);
+  assert.ok(run.result.collectors.some((collector) => collector.kind === "optional" && collector.status === "skipped"));
+});
+
+test("fixture scan runner fails on required collector failures without claiming partial snapshot data", () => {
+  const run = buildFixtureScanRun({
+    projectId: "project_client",
+    siteId: "site_client",
+    authSelection: { kind: "global_profile", authProfileId: "auth_client" },
+    presetId: "quick",
+    selectedAppIds: ["101", "102"],
+    outcome: "failed",
+    startedAt: new Date("2026-07-10T05:00:00Z"),
+  });
+
+  assert.equal(run.status, "failed");
+  assert.ok(run.result.requiredOk < run.result.requiredTotal);
+  assert.equal(run.result.error.code, "REQUIRED_COLLECTOR_FAILED");
+  assert.equal(run.result.error.partialDataKept, false);
+  assert.equal(run.result.partialSummaryPath, undefined);
+  assert.equal(run.snapshotId, undefined);
 });

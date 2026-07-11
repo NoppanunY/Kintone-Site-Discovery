@@ -72,6 +72,9 @@ function looksHighEntropySecret(value: string, path: string): boolean {
   if (!highEntropyValuePattern.test(value) || value.includes("://")) {
     return false;
   }
+  if (isRoutePath(path) && isSafeAppRoute(value)) {
+    return false;
+  }
   if (isLocalIdPath(path) && localIdValuePattern.test(value)) {
     return false;
   }
@@ -82,6 +85,14 @@ function looksHighEntropySecret(value: string, path: string): boolean {
 
 function isLocalIdPath(path: string): boolean {
   return /(?:^|\.)(?:id|[A-Za-z]+Id)$/.test(path) || /(?:^|\.)(?:id|[A-Za-z]+Id|[A-Za-z]+Ids)\[\d+\]$/.test(path);
+}
+
+function isRoutePath(path: string): boolean {
+  return /(?:^|\.)routePath$/.test(path);
+}
+
+function isSafeAppRoute(value: string): boolean {
+  return /^\/[A-Za-z0-9/_?=&.-]*$/.test(value);
 }
 
 export function assertNoSecretReferences(value: unknown): void {

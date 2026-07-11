@@ -47,6 +47,8 @@ export type ErrorCode =
   | "OUTPUT_WRITE_FAILED"
   | "REQUIRED_COLLECTOR_FAILED"
   | "PERMISSION_DENIED"
+  | "API_RESPONSE_INVALID"
+  | "API_NOT_AVAILABLE"
   | "SCAN_CANCELED"
   | "REPORT_NOT_FOUND"
   | "SNAPSHOT_INTEGRITY_FAILED"
@@ -239,6 +241,12 @@ export interface RedactionSummary {
   logPath: string;
 }
 
+export interface RedactionFinding {
+  path: string;
+  reason: string;
+  replacement: "[REDACTED]";
+}
+
 export interface ErrorStateModel {
   code: ErrorCode;
   title: string;
@@ -296,8 +304,28 @@ export interface ProjectTabSnapshot {
   routePath: string;
 }
 
+export type PersistedScanErrorMode = "pause_on_error" | "continue_on_error";
+
+export interface ProjectScanDraftSnapshot {
+  presetId: PresetId;
+  enabledCategoryKeys: string[];
+  sensitiveOptions: SensitiveCaptureOption[];
+  hydratedFromRunId?: Id;
+  dirty?: boolean;
+  errorMode?: PersistedScanErrorMode;
+  presetDrafts?: Partial<Record<PresetId, ProjectScanPresetDraftSnapshot>>;
+}
+
+export interface ProjectScanPresetDraftSnapshot {
+  enabledCategoryKeys: string[];
+  sensitiveOptions: SensitiveCaptureOption[];
+  hydratedFromRunId?: Id;
+  dirty?: boolean;
+}
+
 export interface WindowStateSnapshot {
   openProjectTabs: ProjectTabSnapshot[];
   activeTabId: Id | "home";
   restored: boolean;
+  scanDraftsByProjectId?: Record<Id, ProjectScanDraftSnapshot>;
 }

@@ -11,7 +11,10 @@ import type {
   ProjectAppList,
   ProjectAuthSelection,
   ProjectHistory,
+  ProjectScanDraftSnapshot,
+  ProjectScanPresetDraftSnapshot,
   ProjectTabSnapshot,
+  SensitiveCaptureOption,
   ValidationIssue,
   ValidationResult,
   WindowStateSnapshot,
@@ -351,6 +354,9 @@ export function validateAppSummary(value: unknown, path = "app"): ValidationResu
   if (typeof app.name !== "string" || app.name.trim().length === 0) {
     issues.push({ path: `${path}.name`, code: "required", message: "App name is required." });
   }
+  if (app.spaceName !== undefined && (typeof app.spaceName !== "string" || app.spaceName.trim().length === 0)) {
+    issues.push({ path: `${path}.spaceName`, code: "required", message: "Space name must be a non-empty string when present." });
+  }
   if (typeof app.isGuestSpace !== "boolean") {
     issues.push({ path: `${path}.isGuestSpace`, code: "invalid_type", message: "Guest-space flag must be a boolean." });
   }
@@ -525,6 +531,18 @@ export function validateWindowStateSnapshot(value: unknown, path = "windowState"
   if (typeof state.restored !== "boolean") {
     issues.push({ path: `${path}.restored`, code: "invalid_type", message: "Restored flag must be a boolean." });
   }
+  if (state.scanDraftsByProjectId !== undefined) {
+    if (!state.scanDraftsByProjectId || typeof state.scanDraftsByProjectId !== "object" || Array.isArray(state.scanDraftsByProjectId)) {
+      issues.push({ path: `${path}.scanDraftsByProjectId`, code: "invalid_type", message: "Scan drafts must be stored by project ID." });
+    } else {
+      Object.entries(state.scanDraftsByProjectId).forEach(([projectId, draft]) => {
+        const projectIdResult = validateLocalId(projectId, `${path}.scanDraftsByProjectId.${projectId}`);
+        if (!projectIdResult.ok) issues.push(...projectIdResult.issues);
+        const draftResult = validateProjectScanDraftSnapshot(draft, `${path}.scanDraftsByProjectId.${projectId}`);
+        if (!draftResult.ok) issues.push(...draftResult.issues);
+      });
+    }
+  }
 
   return collect(state, issues);
 }
@@ -574,6 +592,114 @@ function validateProjectTabSnapshot(value: unknown, path: string): ValidationRes
   return collect(tab, issues);
 }
 
+function validateProjectScanDraftSnapshot(value: unknown, path: string): ValidationResult<ProjectScanDraftSnapshot> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Project scan draft must be an object.");
+  }
+
+  const draft = value as ProjectScanDraftSnapshot;
+  const issues: ValidationIssue[] = [];
+  if (!isPresetId(draft.presetId)) {
+    issues.push({ path: `${path}.presetId`, code: "invalid_preset", message: "Scan preset is invalid." });
+  }
+  if (!Array.isArray(draft.enabledCategoryKeys)) {
+    issues.push({ path: `${path}.enabledCategoryKeys`, code: "invalid_type", message: "Enabled scan categories must be an array." });
+  } else {
+    issues.push(...validateCategoryKeyArray(draft.enabledCategoryKeys, `${path}.enabledCategoryKeys`));
+  }
+  if (!Array.isArray(draft.sensitiveOptions)) {
+    issues.push({ path: `${path}.sensitiveOptions`, code: "invalid_type", message: "Sensitive scan options must be an array." });
+  } else {
+    draft.sensitiveOptions.forEach((option, index) => {
+      const result = validateSensitiveCaptureOption(option, `${path}.sensitiveOptions[${index}]`);
+      if (!result.ok) issues.push(...result.issues);
+    });
+  }
+  if (draft.hydratedFromRunId !== undefined) {
+    const runId = validateLocalId(draft.hydratedFromRunId, `${path}.hydratedFromRunId`);
+    if (!runId.ok) issues.push(...runId.issues);
+  }
+  if (draft.dirty !== undefined && typeof draft.dirty !== "boolean") {
+    issues.push({ path: `${path}.dirty`, code: "invalid_type", message: "Scan draft dirty flag must be a boolean." });
+  }
+  if (draft.errorMode !== undefined && !isPersistedScanErrorMode(draft.errorMode)) {
+    issues.push({ path: `${path}.errorMode`, code: "invalid_error_mode", message: "Scan error mode is invalid." });
+  }
+  if (draft.presetDrafts !== undefined) {
+    if (!draft.presetDrafts || typeof draft.presetDrafts !== "object" || Array.isArray(draft.presetDrafts)) {
+      issues.push({ path: `${path}.presetDrafts`, code: "invalid_type", message: "Preset scan drafts must be an object." });
+    } else {
+      Object.entries(draft.presetDrafts).forEach(([presetId, presetDraft]) => {
+        if (!isPresetId(presetId)) {
+          issues.push({ path: `${path}.presetDrafts.${presetId}`, code: "invalid_preset", message: "Scan preset is invalid." });
+          return;
+        }
+        const result = validateProjectScanPresetDraftSnapshot(presetDraft, `${path}.presetDrafts.${presetId}`);
+        if (!result.ok) issues.push(...result.issues);
+      });
+    }
+  }
+
+  return collect(draft, issues);
+}
+
+function validateProjectScanPresetDraftSnapshot(value: unknown, path: string): ValidationResult<ProjectScanPresetDraftSnapshot> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Preset scan draft must be an object.");
+  }
+
+  const draft = value as ProjectScanPresetDraftSnapshot;
+  const issues: ValidationIssue[] = [];
+  if (!Array.isArray(draft.enabledCategoryKeys)) {
+    issues.push({ path: `${path}.enabledCategoryKeys`, code: "invalid_type", message: "Enabled scan categories must be an array." });
+  } else {
+    issues.push(...validateCategoryKeyArray(draft.enabledCategoryKeys, `${path}.enabledCategoryKeys`));
+  }
+  if (!Array.isArray(draft.sensitiveOptions)) {
+    issues.push({ path: `${path}.sensitiveOptions`, code: "invalid_type", message: "Sensitive scan options must be an array." });
+  } else {
+    draft.sensitiveOptions.forEach((option, index) => {
+      const result = validateSensitiveCaptureOption(option, `${path}.sensitiveOptions[${index}]`);
+      if (!result.ok) issues.push(...result.issues);
+    });
+  }
+  if (draft.hydratedFromRunId !== undefined) {
+    const runId = validateLocalId(draft.hydratedFromRunId, `${path}.hydratedFromRunId`);
+    if (!runId.ok) issues.push(...runId.issues);
+  }
+  if (draft.dirty !== undefined && typeof draft.dirty !== "boolean") {
+    issues.push({ path: `${path}.dirty`, code: "invalid_type", message: "Preset scan draft dirty flag must be a boolean." });
+  }
+
+  return collect(draft, issues);
+}
+
+function validateSensitiveCaptureOption(value: unknown, path: string): ValidationResult<SensitiveCaptureOption> {
+  if (!value || typeof value !== "object") {
+    return fail(path, "invalid_type", "Sensitive scan option must be an object.");
+  }
+
+  const option = value as SensitiveCaptureOption;
+  const issues: ValidationIssue[] = [];
+  if (!isCategoryKey(option.categoryKey)) {
+    issues.push({ path: `${path}.categoryKey`, code: "invalid_category_key", message: "Scan category key is invalid." });
+  }
+  if (typeof option.label !== "string" || option.label.trim().length === 0) {
+    issues.push({ path: `${path}.label`, code: "required", message: "Sensitive scan option label is required." });
+  }
+  if (typeof option.enabled !== "boolean") {
+    issues.push({ path: `${path}.enabled`, code: "invalid_type", message: "Sensitive scan option enabled flag must be a boolean." });
+  }
+  if (option.meta !== undefined && (typeof option.meta !== "string" || option.meta.includes("\u0000"))) {
+    issues.push({ path: `${path}.meta`, code: "invalid_type", message: "Sensitive scan option metadata must be a safe string." });
+  }
+  if (option.limit !== undefined && (!Number.isInteger(option.limit) || option.limit <= 0)) {
+    issues.push({ path: `${path}.limit`, code: "invalid_limit", message: "Sensitive scan option limit must be a positive integer." });
+  }
+
+  return collect(option, issues);
+}
+
 function validateLocalIdArray(values: unknown[], path: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   values.forEach((value, index) => {
@@ -583,6 +709,28 @@ function validateLocalIdArray(values: unknown[], path: string): ValidationIssue[
     }
   });
   return issues;
+}
+
+function validateCategoryKeyArray(values: unknown[], path: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  values.forEach((value, index) => {
+    if (!isCategoryKey(value)) {
+      issues.push({ path: `${path}[${index}]`, code: "invalid_category_key", message: "Scan category key is invalid." });
+    }
+  });
+  return issues;
+}
+
+function isPresetId(value: unknown): value is "quick" | "standard" | "full_discovery" {
+  return value === "quick" || value === "standard" || value === "full_discovery";
+}
+
+function isPersistedScanErrorMode(value: unknown): value is "pause_on_error" | "continue_on_error" {
+  return value === "pause_on_error" || value === "continue_on_error";
+}
+
+function isCategoryKey(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value);
 }
 
 function isIsoDateString(value: unknown): value is string {
