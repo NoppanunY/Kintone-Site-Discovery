@@ -183,7 +183,7 @@ export function AppTwoPanePicker({ apps, selectedAppIds, onSelectionChange, comp
                     <span className="grow">
                       <span className="h3">{app.name}</span>
                       <span className="small muted2">
-                        ID {app.kintoneAppId} · {app.hasPlugins ? "plugins" : "no plugins"} · {app.hasCustomization ? "customization" : "no customization"}
+                        ID {app.kintoneAppId} · {spaceNameForPicker(app)} · {app.hasPlugins ? "plugins" : "no plugins"} · {app.hasCustomization ? "customization" : "no customization"}
                       </span>
                     </span>
                     <StatusPill status={statusTone(app.captureStatus)} label={statusLabel(app.captureStatus)} dot />

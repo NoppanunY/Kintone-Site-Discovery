@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, ConfirmationModal } from "./components";
 import {
   additionalOptions,
+  baselineOptions,
   authProfileIdForSelection,
   authProfileModelFromDomain,
   connectedSiteModelFromDomain,
@@ -12,6 +13,7 @@ import {
   projectModelFromDomain,
   projectRows as mockProjectRows,
   profiles,
+  recommendedOptions,
 } from "./mockData";
 import { activeTabFromPath, isProjectRoute, navFromPath, projectIdFromPath, projectRouteByNavForProject, projectRouteIdFromPath } from "./router/routes";
 import { defaultSelectedAppIds, mockAppSummaries } from "./appPickerData";
@@ -25,14 +27,14 @@ import { OnboardingScreen, type OnboardingFinishDraft, type OnboardingFinishResu
 import { ProjectHomeScreen } from "./screens/ProjectHomeScreen";
 import { ReportsScreen } from "./screens/ReportsScreen";
 import { ScanResultScreen } from "./screens/ScanResultScreen";
-import { ScanRunningScreen } from "./screens/ScanRunningScreen";
+import { ScanRunningScreen, type ScanRunPanelProps } from "./screens/ScanRunningScreen";
 import { ScanSetupScreen } from "./screens/ScanSetupScreen";
 import { SensitiveOptionsScreen } from "./screens/SensitiveOptionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SiteOverviewScreen } from "./screens/SiteOverviewScreen";
 import { getPlatformBridge } from "./platform";
-import { createLocalId, evaluateScanRouteGuard, hasArmedSensitiveOptions, turnOffSensitiveOptions } from "@kintone-site-discovery/core";
-import type { AppSummary, AuthProfile, ConnectedSite, Project } from "@kintone-site-discovery/core";
+import { createDefaultScanDraft, createLocalId, enabledCategoryKeysForScanDraft, evaluateScanRouteGuard, hasArmedSensitiveOptions, scanDraftFromLatestRun } from "@kintone-site-discovery/core";
+import type { AppSummary, AuthProfile, ConnectedSite, KintoneScanErrorMode, PresetId, Project, ProjectScanDraftSnapshot, ProjectScanPresetDraftSnapshot, ScanDraft, ScanRun, SensitiveCaptureOption } from "@kintone-site-discovery/core";
 import type {
   AuthProfileModel,
   ConnectedSiteModel,
@@ -49,7 +51,20 @@ import type {
   TabModel,
   TopMenuModel,
 } from "./types";
-import type { KintoneBridgeConnectionStatus, ValidateKintoneConnectionResult, WorkspaceHomeSnapshot, WorkspaceMetadataIssue } from "./platform";
+import type {
+  CreateKintoneScanDebugSessionResult,
+  GetActiveKintoneScanRunResult,
+  GetKintoneScanRunProgressResult,
+  KintoneBridgeConnectionStatus,
+  PlatformRuntimeInfo,
+  ResumeKintoneScanRunResult,
+  RunNextKintoneScanDebugCommandResult,
+  StartKintoneScanRunResult,
+  ValidateKintoneConnectionResult,
+  WindowStateSnapshot,
+  WorkspaceHomeSnapshot,
+  WorkspaceMetadataIssue,
+} from "./platform";
 
 type OnboardingEntry = "new-project" | "add-site" | "add-auth";
 type WorkspaceMode = "loading" | "desktop_metadata" | "browser_fallback" | "empty";
@@ -109,6 +124,22 @@ interface RemovedMetadataIds {
   authProfiles: string[];
 }
 
+interface ProjectScanDraftState {
+  presetId: PresetId;
+  enabledCategoryKeys: string[];
+  sensitiveOptions: SensitiveOption[];
+  hydratedFromRunId?: string;
+  dirty: boolean;
+  presetDrafts: Record<PresetId, ProjectScanPresetDraftState>;
+}
+
+interface ProjectScanPresetDraftState {
+  enabledCategoryKeys: string[];
+  sensitiveOptions: SensitiveOption[];
+  hydratedFromRunId?: string;
+  dirty: boolean;
+}
+
 function delay(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -128,10 +159,14 @@ export function App() {
   const [mockFeedback, setMockFeedback] = useState<MockFeedbackState | null>(null);
   const [openProjectTabIds, setOpenProjectTabIds] = useState<string[]>([]);
   const [workspaceHome, setWorkspaceHome] = useState<WorkspaceHomeSnapshot | null>(null);
+  const [runtimeInfo, setRuntimeInfo] = useState<PlatformRuntimeInfo | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("loading");
   const [removedMetadataIds, setRemovedMetadataIds] = useState<RemovedMetadataIds>({ projects: [], sites: [], authProfiles: [] });
   const [selectedAppIdsByProject, setSelectedAppIdsByProject] = useState<Record<string, string[]>>({});
-  const [sensitiveOptionsByProject, setSensitiveOptionsByProject] = useState<Record<string, SensitiveOption[]>>({});
+  const [scanDraftsByProject, setScanDraftsByProject] = useState<Record<string, ProjectScanDraftState>>({});
+  const [scanErrorModeByProject, setScanErrorModeByProject] = useState<Record<string, KintoneScanErrorMode>>({});
+  const [scanRunsByProject, setScanRunsByProject] = useState<Record<string, ScanRun[]>>({});
+  const [scanHistoryLoadedByProject, setScanHistoryLoadedByProject] = useState<Record<string, boolean>>({});
   const [appsGuardMessage, setAppsGuardMessage] = useState<string | null>(null);
   const [appListLoadingProjectId, setAppListLoadingProjectId] = useState<string | null>(null);
   const [windowStateRestored, setWindowStateRestored] = useState(false);
@@ -160,9 +195,12 @@ export function App() {
           : home.projects.length === 0 && home.connectedSites.length === 0 && home.authProfiles.length === 0
             ? "empty"
             : "desktop_metadata";
+      setRuntimeInfo(runtimeInfo);
       setWorkspaceHome(home);
       setWorkspaceMode(nextMode);
       setSelectedAppIdsByProject(selectedAppIdsFromWorkspaceHome(home));
+      setScanDraftsByProject(scanDraftsByProjectFromWindowState(restoredWindowState));
+      setScanErrorModeByProject(scanErrorModesByProjectFromWindowState(restoredWindowState));
       if (restoredWindowState.restored && restoredWindowState.openProjectTabs.length > 0) {
         const restoredProjectIds = restoredWindowState.openProjectTabs.map((tab) => tab.projectId ?? tab.id).filter((id): id is string => Boolean(id));
         setOpenProjectTabIds(restoredProjectIds);
@@ -203,16 +241,29 @@ export function App() {
   const activeNav = navFromPath(pathname);
   const activeProjectId = projectRouteIdFromPath(pathname) ?? projectIdFromPath(pathname);
   const allowMockFallback = workspaceMode === "browser_fallback";
+  const canUseStepScan = runtimeInfo?.runtime === "electron" && runtimeInfo.bridgeStatus === "ready" && runtimeInfo.isPackaged === false;
   const activeProjectBase = getWorkspaceProjectContext(activeProjectId, workspaceView, allowMockFallback);
   const selectedAppIds = selectedAppIdsForProject(activeProjectBase.projectId, selectedAppIdsByProject, activeProjectBase.selectedApps);
   const canStartScan = selectedAppIds.length > 0;
   const activeProject = { ...activeProjectBase, selectedApps: selectedAppIds.length };
   const projectRoutes = projectRouteByNavForProject(activeProject.projectId);
+  const activeProjectScanRuns = scanRunsByProject[activeProject.projectId] ?? [];
+  const activeScanRun = scanRunForRoute(search, activeProjectScanRuns);
+  const activeProjectScanDraft = useMemo(() => scanDraftForProject(activeProject.projectId, scanDraftsByProject), [activeProject.projectId, scanDraftsByProject]);
+  const activeProjectScanPreset = activeProjectScanDraft.presetId;
+  const activeScanErrorMode = scanErrorModeByProject[activeProject.projectId] ?? "pause_on_error";
   const activeTabId = activeTabFromPath(pathname);
   const shellVariant = isProjectRoute(pathname) ? "site" : "home";
-  const sensitiveOptions = sensitiveOptionsForProject(activeProject.projectId, sensitiveOptionsByProject);
+  const baselineScanOptions = useMemo(() => baselineOptionsForScanDraft(activeProjectScanDraft), [activeProjectScanDraft]);
+  const recommendedScanOptions = useMemo(() => recommendedOptionsForScanDraft(activeProjectScanDraft), [activeProjectScanDraft]);
+  const sensitiveOptions = activeProjectScanDraft.sensitiveOptions;
   const armedSensitiveOptions = sensitiveOptions.filter((option) => option.value && option.sensitive);
   const armedSensitiveSignature = armedSensitiveOptions.map((option) => option.key).join("|");
+  const scanRunRoute = `${projectRoutes.scan}/run?start=1`;
+  const scanRerunRunRoute = `${projectRoutes.scan}/run?source=rerun&start=1`;
+  const scanConfirmSource = new URLSearchParams(search).get("source") === "rerun" ? "rerun" : "new";
+  const scanConfirmRunRoute = scanConfirmSource === "rerun" ? scanRerunRunRoute : scanRunRoute;
+  const scanStartRoute = armedSensitiveOptions.length > 0 ? `${projectRoutes.scan}/confirm` : scanRunRoute;
   const visibleTabs = tabsForWorkspaceProjects(openProjectTabIds, workspaceView);
   const activeProjectApps = appsForProject(activeProject.projectId, workspaceHome, workspaceMode);
   const showMockAction: MockActionHandler = (message, options = {}) => {
@@ -598,6 +649,186 @@ export function App() {
     return createConnectionResultFromStatus(target, result);
   }
 
+  function handleSetProjectScanPreset(projectIdValue: string, presetId: PresetId) {
+    setScanDraftsByProject((current) => {
+      const currentDraft = scanDraftForProject(projectIdValue, current);
+      return {
+        ...current,
+        [projectIdValue]: projectScanDraftStateWithActivePreset(currentDraft, presetId, true),
+      };
+    });
+  }
+
+  function handleSetProjectBaselineOptions(projectIdValue: string, nextBaselineOptions: SensitiveOption[]) {
+    setScanDraftsByProject((current) => {
+      const currentDraft = scanDraftForProject(projectIdValue, current);
+      return {
+        ...current,
+        [projectIdValue]: updateActivePresetDraft(currentDraft, nextBaselineOptions, recommendedOptionsForScanDraft(currentDraft), currentDraft.sensitiveOptions),
+      };
+    });
+  }
+
+  function handleSetProjectRecommendedOptions(projectIdValue: string, nextRecommendedOptions: SensitiveOption[]) {
+    setScanDraftsByProject((current) => {
+      const currentDraft = scanDraftForProject(projectIdValue, current);
+      return {
+        ...current,
+        [projectIdValue]: updateActivePresetDraft(currentDraft, baselineOptionsForScanDraft(currentDraft), nextRecommendedOptions, currentDraft.sensitiveOptions),
+      };
+    });
+  }
+
+  function handleSetProjectSensitiveOptions(projectIdValue: string, nextSensitiveOptions: SensitiveOption[]) {
+    setScanDraftsByProject((current) => {
+      const currentDraft = scanDraftForProject(projectIdValue, current);
+      return {
+        ...current,
+        [projectIdValue]: updateActivePresetDraft(currentDraft, baselineOptionsForScanDraft(currentDraft), recommendedOptionsForScanDraft(currentDraft), nextSensitiveOptions),
+      };
+    });
+  }
+
+  function handleSetProjectScanErrorMode(projectIdValue: string, errorMode: KintoneScanErrorMode) {
+    setScanErrorModeByProject((current) => ({
+      ...current,
+      [projectIdValue]: errorMode,
+    }));
+  }
+
+  function hydrateProjectScanDraftFromRuns(projectIdValue: string, runs: ScanRun[]) {
+    setScanDraftsByProject((current) => {
+      const currentDraft = current[projectIdValue];
+      if (currentDraft?.dirty) {
+        return current;
+      }
+      if (currentDraft?.hydratedFromRunId && runs[0]?.id === currentDraft.hydratedFromRunId) {
+        return current;
+      }
+      if (!runs[0] && currentDraft) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [projectIdValue]: mergeProjectScanDraftFromCoreDraft(currentDraft, scanDraftFromLatestRun(runs), false),
+      };
+    });
+  }
+
+  function activeKintoneScanRequest() {
+    const projectIdValue = activeProject.projectId;
+    const draft = scanDraftForProject(projectIdValue, scanDraftsByProject);
+    return {
+      projectId: projectIdValue,
+      presetId: draft.presetId,
+      selectedAppIds,
+      enabledCategoryKeys: draft.enabledCategoryKeys,
+      sensitiveOptions: toSensitiveCaptureOptions(draft.sensitiveOptions),
+      errorMode: scanErrorModeByProject[projectIdValue] ?? "pause_on_error",
+    };
+  }
+
+  async function recordCompletedScanRun(projectIdValue: string, run: ScanRun) {
+    await refreshWorkspaceHome();
+    setScanRunsByProject((current) => ({
+      ...current,
+      [projectIdValue]: [run, ...(current[projectIdValue] ?? []).filter((currentRun) => currentRun.id !== run.id)],
+    }));
+    setScanHistoryLoadedByProject((current) => ({ ...current, [projectIdValue]: true }));
+    setScanDraftsByProject((current) => ({
+      ...current,
+      [projectIdValue]: mergeProjectScanDraftFromCoreDraft(current[projectIdValue], scanDraftFromLatestRun([run]), false),
+    }));
+  }
+
+  async function handleStartKintoneScanRun(): Promise<StartKintoneScanRunResult> {
+    const result = await platform.startKintoneScanRun(activeKintoneScanRequest());
+
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+    }
+
+    return result;
+  }
+
+  async function handleGetKintoneScanRunProgress(sessionId: string): Promise<GetKintoneScanRunProgressResult> {
+    const result = await platform.getKintoneScanRunProgress({ sessionId });
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+    }
+    return result;
+  }
+
+  async function handleGetActiveKintoneScanRun(): Promise<GetActiveKintoneScanRunResult> {
+    return platform.getActiveKintoneScanRun({ projectId: activeProject.projectId });
+  }
+
+  async function handleResumeKintoneScanRun(sessionId: string): Promise<ResumeKintoneScanRunResult> {
+    const result = await platform.resumeKintoneScanRun({ sessionId });
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+    }
+    return result;
+  }
+
+  async function handleCancelKintoneScanRun(sessionId: string): Promise<void> {
+    const result = await platform.cancelKintoneScanRun({ sessionId });
+    showMockAction(result.message, { tone: result.ok ? "warn" : "err", sticky: !result.ok });
+  }
+
+  async function handleKintoneScanRunFinished(run: ScanRun): Promise<void> {
+    await recordCompletedScanRun(activeProject.projectId, run);
+  }
+
+  async function handleCreateKintoneScanDebugSession(): Promise<CreateKintoneScanDebugSessionResult> {
+    const result = await platform.createKintoneScanDebugSession(activeKintoneScanRequest());
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+    }
+    return result;
+  }
+
+  async function handleRunNextKintoneScanDebugCommand(sessionId: string): Promise<RunNextKintoneScanDebugCommandResult> {
+    const result = await platform.runNextKintoneScanDebugCommand({ sessionId });
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+    }
+    return result;
+  }
+
+  async function handleFinishKintoneScanDebugSession(sessionId: string): Promise<ScanRun | null> {
+    const projectIdValue = activeProject.projectId;
+    const result = await platform.finishKintoneScanDebugSession({ sessionId });
+    if (!result.ok || !result.run) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+      return null;
+    }
+
+    await recordCompletedScanRun(projectIdValue, result.run);
+    return result.run;
+  }
+
+  async function handleCancelKintoneScanDebugSession(sessionId: string): Promise<void> {
+    const result = await platform.cancelKintoneScanDebugSession({ sessionId });
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "warn" });
+    }
+  }
+
+  async function handleLoadProjectScanHistory(projectIdValue: string): Promise<ScanRun[]> {
+    const result = await platform.getProjectScanHistory({ projectId: projectIdValue });
+    setScanHistoryLoadedByProject((current) => ({ ...current, [projectIdValue]: true }));
+    if (!result.ok) {
+      showMockAction(result.message, { tone: "err", sticky: true });
+      return [];
+    }
+
+    setScanRunsByProject((current) => ({ ...current, [projectIdValue]: result.runs }));
+    hydrateProjectScanDraftFromRuns(projectIdValue, result.runs);
+    return result.runs;
+  }
+
   async function handleRemoveAuthProfile(authProfileIdValue: string) {
     setRemovedMetadataIds((current) => addRemovedMetadataId(current, "authProfiles", authProfileIdValue));
     const result = await platform.removeAuthProfile({ authProfileId: authProfileIdValue });
@@ -641,15 +872,34 @@ export function App() {
         activeProjectApps,
         selectedAppIds,
         canStartScan,
+        canUseStepScan,
         onSelectedAppIdsChange: handleSelectedAppIdsChange,
         onReloadAppList: handleReloadActiveAppList,
         isReloadingAppList: appListLoadingProjectId === activeProject.projectId,
+        activeScanRun,
+        activeProjectScanPreset,
+        activeScanErrorMode,
+        onSetProjectScanPreset: handleSetProjectScanPreset,
+        onSetProjectScanErrorMode: handleSetProjectScanErrorMode,
+        onStartKintoneScanRun: handleStartKintoneScanRun,
+        onGetKintoneScanRunProgress: handleGetKintoneScanRunProgress,
+        onGetActiveKintoneScanRun: handleGetActiveKintoneScanRun,
+        onResumeKintoneScanRun: handleResumeKintoneScanRun,
+        onCancelKintoneScanRun: handleCancelKintoneScanRun,
+        onKintoneScanRunFinished: handleKintoneScanRunFinished,
+        onCreateKintoneScanDebugSession: handleCreateKintoneScanDebugSession,
+        onRunNextKintoneScanDebugCommand: handleRunNextKintoneScanDebugCommand,
+        onFinishKintoneScanDebugSession: handleFinishKintoneScanDebugSession,
+        onCancelKintoneScanDebugSession: handleCancelKintoneScanDebugSession,
+        onLoadProjectScanHistory: handleLoadProjectScanHistory,
+        scanStartRoute,
+        scanConfirmRunRoute,
+        baselineOptions: baselineScanOptions,
+        onBaselineOptionsChange: (nextOptions) => handleSetProjectBaselineOptions(activeProject.projectId, nextOptions),
+        recommendedOptions: recommendedScanOptions,
+        onRecommendedOptionsChange: (nextOptions) => handleSetProjectRecommendedOptions(activeProject.projectId, nextOptions),
         sensitiveOptions,
-        onSensitiveOptionsChange: (nextOptions) =>
-          setSensitiveOptionsByProject((current) => ({
-            ...current,
-            [activeProject.projectId]: nextOptions,
-          })),
+        onSensitiveOptionsChange: (nextOptions) => handleSetProjectSensitiveOptions(activeProject.projectId, nextOptions),
         appsGuardMessage,
         clearAppsGuardMessage: () => setAppsGuardMessage(null),
         onOpenProjectFolderById: handleOpenProjectFolderById,
@@ -662,7 +912,28 @@ export function App() {
         onTestAuthProfile: handleTestAuthProfileConnection,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pathname, search, locationKey, workspaceView, workspaceMode, activeProjectApps, selectedAppIds, canStartScan, sensitiveOptions, appsGuardMessage, workspaceHome, appListLoadingProjectId],
+    [
+      pathname,
+      search,
+      locationKey,
+      workspaceView,
+      workspaceMode,
+      activeProjectApps,
+      selectedAppIds,
+      canStartScan,
+      canUseStepScan,
+      sensitiveOptions,
+      appsGuardMessage,
+      workspaceHome,
+      appListLoadingProjectId,
+      activeScanRun,
+      activeProjectScanPreset,
+      activeScanErrorMode,
+      baselineScanOptions,
+      recommendedScanOptions,
+      scanStartRoute,
+      scanConfirmRunRoute,
+    ],
   );
 
   useEffect(() => {
@@ -704,15 +975,25 @@ export function App() {
       })),
       activeTabId,
       restored: true,
+      scanDraftsByProjectId: windowStateScanDraftsFromAppState(scanDraftsByProject, scanErrorModeByProject),
     });
-  }, [activeTabId, openProjectTabIds, pathname, platform, windowStateRestored, workspaceView]);
+  }, [activeTabId, openProjectTabIds, pathname, platform, scanDraftsByProject, scanErrorModeByProject, windowStateRestored, workspaceView]);
+
+  useEffect(() => {
+    if (!isProjectRoute(pathname) || workspaceMode === "loading" || scanHistoryLoadedByProject[activeProject.projectId]) {
+      return;
+    }
+
+    void handleLoadProjectScanHistory(activeProject.projectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProject.projectId, pathname, scanHistoryLoadedByProject, workspaceMode]);
 
   function applyRouteGuard(path: string) {
     const routeProjectId = projectRouteIdFromPath(path) ?? activeProject.projectId;
     const routeProjectContext = getWorkspaceProjectContext(routeProjectId, workspaceView, allowMockFallback);
     const routeProjectRoutes = projectRouteByNavForProject(routeProjectContext.projectId);
     const routeSelectedAppIds = selectedAppIdsForProject(routeProjectContext.projectId, selectedAppIdsByProject, routeProjectContext.selectedApps);
-    const routeSensitiveOptions = sensitiveOptionsForProject(routeProjectId, sensitiveOptionsByProject);
+    const routeSensitiveOptions = scanDraftForProject(routeProjectId, scanDraftsByProject).sensitiveOptions;
     const routeArmedOptions = routeSensitiveOptions
       .filter((option) => option.value && option.sensitive)
       .map((option) => ({ categoryKey: option.key, label: option.label, enabled: true, meta: option.meta }));
@@ -796,24 +1077,12 @@ export function App() {
               confirmDisabled={!canStartScan}
               onCancel={() => navigate(projectRoutes.scan)}
               onTertiary={() => {
-                setSensitiveOptionsByProject((current) => ({
-                  ...current,
-                  [activeProject.projectId]: turnOffSensitiveOptions(sensitiveOptions.map((option) => ({ categoryKey: option.key, label: option.label, enabled: option.value, meta: option.meta }))).map(
-                    (option) => ({
-                      key: option.categoryKey,
-                      label: option.label,
-                      tier: "additional" as const,
-                      value: option.enabled,
-                      sensitive: true,
-                      meta: option.meta,
-                    }),
-                  ),
-                }));
-                navigate(canStartScan ? `${projectRoutes.scan}/run` : projectRoutes.scan);
+                handleSetProjectSensitiveOptions(activeProject.projectId, turnOffSensitiveUiOptions(sensitiveOptions));
+                navigate(canStartScan ? scanConfirmRunRoute : projectRoutes.scan);
               }}
               onConfirm={() => {
                 if (canStartScan) {
-                  navigate(`${projectRoutes.scan}/run`);
+                  navigate(scanConfirmRunRoute);
                 }
               }}
             />
@@ -1118,6 +1387,220 @@ function selectedAppIdsFromWorkspaceHome(home: WorkspaceHomeSnapshot): Record<st
   );
 }
 
+function scanRunForRoute(search: string, runs: ScanRun[]): ScanRun | null {
+  const requestedRunId = new URLSearchParams(search).get("run");
+  if (requestedRunId) {
+    return runs.find((run) => run.id === requestedRunId) ?? null;
+  }
+
+  return runs[0] ?? null;
+}
+
+function resultModeForScanRun(run: ScanRun) {
+  if (run.result?.status === "completed") {
+    return "completed";
+  }
+  if (run.result?.status === "failed") {
+    return "failed";
+  }
+  return "warnings";
+}
+
+function toSensitiveCaptureOptions(options: SensitiveOption[]): SensitiveCaptureOption[] {
+  return options.map((option) => ({
+    categoryKey: option.key,
+    label: option.label,
+    enabled: option.value,
+    meta: option.meta,
+    limit: option.limit,
+  }));
+}
+
+const scanPresetIds: PresetId[] = ["quick", "standard", "full_discovery"];
+
+function scanDraftForProject(projectIdValue: string, scanDraftsByProject: Record<string, ProjectScanDraftState>): ProjectScanDraftState {
+  return scanDraftsByProject[projectIdValue] ?? scanDraftStateFromCoreDraft(createDefaultScanDraft(), false);
+}
+
+function scanDraftsByProjectFromWindowState(state: WindowStateSnapshot): Record<string, ProjectScanDraftState> {
+  return Object.fromEntries(
+    Object.entries(state.scanDraftsByProjectId ?? {}).map(([projectIdValue, draft]) => [projectIdValue, scanDraftStateFromWindowState(draft)]),
+  );
+}
+
+function scanErrorModesByProjectFromWindowState(state: WindowStateSnapshot): Record<string, KintoneScanErrorMode> {
+  return Object.fromEntries(
+    Object.entries(state.scanDraftsByProjectId ?? {})
+      .filter((entry): entry is [string, ProjectScanDraftSnapshot & { errorMode: KintoneScanErrorMode }] => Boolean(entry[1].errorMode))
+      .map(([projectIdValue, draft]) => [projectIdValue, draft.errorMode]),
+  );
+}
+
+function windowStateScanDraftsFromAppState(
+  scanDraftsByProject: Record<string, ProjectScanDraftState>,
+  scanErrorModeByProject: Record<string, KintoneScanErrorMode>,
+): Record<string, ProjectScanDraftSnapshot> {
+  const projectIds = new Set([...Object.keys(scanDraftsByProject), ...Object.keys(scanErrorModeByProject)]);
+  return Object.fromEntries(
+    [...projectIds].map((projectIdValue) => {
+      const draft = scanDraftForProject(projectIdValue, scanDraftsByProject);
+      return [
+        projectIdValue,
+        {
+          presetId: draft.presetId,
+          enabledCategoryKeys: [...draft.enabledCategoryKeys],
+          sensitiveOptions: toSensitiveCaptureOptions(draft.sensitiveOptions),
+          hydratedFromRunId: draft.hydratedFromRunId,
+          dirty: draft.dirty,
+          errorMode: scanErrorModeByProject[projectIdValue] ?? "pause_on_error",
+          presetDrafts: Object.fromEntries(
+            scanPresetIds.map((presetId) => {
+              const presetDraft = draft.presetDrafts[presetId];
+              return [
+                presetId,
+                {
+                  enabledCategoryKeys: [...presetDraft.enabledCategoryKeys],
+                  sensitiveOptions: toSensitiveCaptureOptions(presetDraft.sensitiveOptions),
+                  hydratedFromRunId: presetDraft.hydratedFromRunId,
+                  dirty: presetDraft.dirty,
+                },
+              ];
+            }),
+          ),
+        },
+      ];
+    }),
+  );
+}
+
+function scanDraftStateFromWindowState(draft: ProjectScanDraftSnapshot): ProjectScanDraftState {
+  const presetDrafts = createDefaultPresetDrafts();
+  scanPresetIds.forEach((presetId) => {
+    const storedDraft = draft.presetDrafts?.[presetId];
+    if (storedDraft) {
+      presetDrafts[presetId] = scanPresetDraftStateFromWindowState(storedDraft);
+    }
+  });
+  if (!draft.presetDrafts?.[draft.presetId]) {
+    presetDrafts[draft.presetId] = {
+      enabledCategoryKeys: [...draft.enabledCategoryKeys],
+      sensitiveOptions: sensitiveOptionsFromCaptureOptions(draft.sensitiveOptions),
+      hydratedFromRunId: draft.hydratedFromRunId,
+      dirty: draft.dirty ?? true,
+    };
+  }
+  return projectScanDraftStateFromPresetDrafts(draft.presetId, presetDrafts);
+}
+
+function scanDraftStateFromCoreDraft(draft: ScanDraft, dirty: boolean): ProjectScanDraftState {
+  return mergeProjectScanDraftFromCoreDraft(undefined, draft, dirty);
+}
+
+function mergeProjectScanDraftFromCoreDraft(currentDraft: ProjectScanDraftState | undefined, draft: ScanDraft, dirty: boolean): ProjectScanDraftState {
+  const presetDrafts = currentDraft ? { ...currentDraft.presetDrafts } : createDefaultPresetDrafts();
+  presetDrafts[draft.presetId] = scanPresetDraftStateFromCoreDraft(draft, dirty);
+  return projectScanDraftStateFromPresetDrafts(draft.presetId, presetDrafts);
+}
+
+function projectScanDraftStateWithActivePreset(draft: ProjectScanDraftState, presetId: PresetId, dirty: boolean): ProjectScanDraftState {
+  const presetDrafts = { ...draft.presetDrafts };
+  const activeDraft = presetDrafts[presetId] ?? defaultPresetDraftState(presetId);
+  presetDrafts[presetId] = {
+    ...activeDraft,
+    dirty: dirty || activeDraft.dirty,
+  };
+  return projectScanDraftStateFromPresetDrafts(presetId, presetDrafts);
+}
+
+function projectScanDraftStateFromPresetDrafts(presetId: PresetId, presetDrafts: Record<PresetId, ProjectScanPresetDraftState>): ProjectScanDraftState {
+  const activeDraft = presetDrafts[presetId] ?? defaultPresetDraftState(presetId);
+  const normalizedPresetDrafts = { ...presetDrafts, [presetId]: activeDraft };
+  return {
+    presetId,
+    enabledCategoryKeys: [...activeDraft.enabledCategoryKeys],
+    sensitiveOptions: activeDraft.sensitiveOptions.map((option) => ({ ...option })),
+    hydratedFromRunId: activeDraft.hydratedFromRunId,
+    dirty: scanPresetIds.some((currentPresetId) => normalizedPresetDrafts[currentPresetId]?.dirty),
+    presetDrafts: normalizedPresetDrafts,
+  };
+}
+
+function updateActivePresetDraft(draft: ProjectScanDraftState, baseline: SensitiveOption[], recommended: SensitiveOption[], sensitive: SensitiveOption[]): ProjectScanDraftState {
+  const activeDraft: ProjectScanPresetDraftState = {
+    enabledCategoryKeys: enabledCategoryKeysFromUiSelections(draft.presetId, baseline, recommended, sensitive),
+    sensitiveOptions: sensitive.map((option) => ({ ...option })),
+    dirty: true,
+    hydratedFromRunId: undefined,
+  };
+  return projectScanDraftStateFromPresetDrafts(draft.presetId, {
+    ...draft.presetDrafts,
+    [draft.presetId]: activeDraft,
+  });
+}
+
+function createDefaultPresetDrafts(): Record<PresetId, ProjectScanPresetDraftState> {
+  return Object.fromEntries(scanPresetIds.map((presetId) => [presetId, defaultPresetDraftState(presetId)])) as Record<PresetId, ProjectScanPresetDraftState>;
+}
+
+function defaultPresetDraftState(presetId: PresetId): ProjectScanPresetDraftState {
+  return scanPresetDraftStateFromCoreDraft(createDefaultScanDraft(presetId), false);
+}
+
+function scanPresetDraftStateFromCoreDraft(draft: ScanDraft, dirty: boolean): ProjectScanPresetDraftState {
+  return {
+    enabledCategoryKeys: [...draft.enabledCategoryKeys],
+    sensitiveOptions: sensitiveOptionsFromCaptureOptions(draft.sensitiveOptions),
+    hydratedFromRunId: draft.hydratedFromRunId,
+    dirty,
+  };
+}
+
+function scanPresetDraftStateFromWindowState(draft: ProjectScanPresetDraftSnapshot): ProjectScanPresetDraftState {
+  return {
+    enabledCategoryKeys: [...draft.enabledCategoryKeys],
+    sensitiveOptions: sensitiveOptionsFromCaptureOptions(draft.sensitiveOptions),
+    hydratedFromRunId: draft.hydratedFromRunId,
+    dirty: draft.dirty ?? true,
+  };
+}
+
+function baselineOptionsForScanDraft(draft: ProjectScanDraftState): SensitiveOption[] {
+  const enabledKeys = new Set(draft.enabledCategoryKeys);
+  return baselineOptions.map((option) => ({ ...option, value: enabledKeys.has(option.key) }));
+}
+
+function recommendedOptionsForScanDraft(draft: ProjectScanDraftState): SensitiveOption[] {
+  const enabledKeys = new Set(draft.enabledCategoryKeys);
+  return recommendedOptions.map((option) => ({ ...option, value: enabledKeys.has(option.key) }));
+}
+
+function sensitiveOptionsFromCaptureOptions(options: SensitiveCaptureOption[]): SensitiveOption[] {
+  const optionsByKey = new Map(options.map((option) => [option.categoryKey, option]));
+  return additionalOptions.map((option) => {
+    const storedOption = optionsByKey.get(option.key);
+    return storedOption
+      ? {
+          ...option,
+          value: storedOption.enabled,
+          meta: storedOption.meta ?? option.meta,
+          limit: storedOption.limit ?? option.limit,
+        }
+      : { ...option };
+  });
+}
+
+function enabledCategoryKeysFromUiSelections(presetId: PresetId, baseline: SensitiveOption[], recommended: SensitiveOption[], sensitive: SensitiveOption[]): string[] {
+  return enabledCategoryKeysForScanDraft({
+    presetId,
+    categoryKeys: [...baseline, ...recommended].filter((option) => option.value).map((option) => option.key),
+    sensitiveOptions: toSensitiveCaptureOptions(sensitive),
+  });
+}
+
+function turnOffSensitiveUiOptions(options: SensitiveOption[]): SensitiveOption[] {
+  return options.map((option) => ({ ...option, value: false }));
+}
+
 function appsForProject(projectIdValue: string, home: WorkspaceHomeSnapshot | null, mode: WorkspaceMode): { apps: AppSummary[]; source: AppListSource } {
   const appList = home?.projectAppListsByProjectId[projectIdValue];
   if (appList && appList.apps.length > 0) {
@@ -1128,10 +1611,6 @@ function appsForProject(projectIdValue: string, home: WorkspaceHomeSnapshot | nu
     apps: mockAppSummaries,
     source: mode === "browser_fallback" ? "sample" : "sample",
   };
-}
-
-function sensitiveOptionsForProject(projectIdValue: string, sensitiveOptionsByProject: Record<string, SensitiveOption[]>): SensitiveOption[] {
-  return sensitiveOptionsByProject[projectIdValue] ?? additionalOptions;
 }
 
 function domainConnectedSiteForId(id: string, home: WorkspaceHomeSnapshot | null): ConnectedSite {
@@ -1317,9 +1796,32 @@ function renderScreen({
   activeProjectApps,
   selectedAppIds,
   canStartScan,
+  canUseStepScan,
   onSelectedAppIdsChange,
   onReloadAppList,
   isReloadingAppList,
+  activeScanRun,
+  activeProjectScanPreset,
+  activeScanErrorMode,
+  onSetProjectScanPreset,
+  onSetProjectScanErrorMode,
+  onStartKintoneScanRun,
+  onGetKintoneScanRunProgress,
+  onGetActiveKintoneScanRun,
+  onResumeKintoneScanRun,
+  onCancelKintoneScanRun,
+  onKintoneScanRunFinished,
+  onCreateKintoneScanDebugSession,
+  onRunNextKintoneScanDebugCommand,
+  onFinishKintoneScanDebugSession,
+  onCancelKintoneScanDebugSession,
+  onLoadProjectScanHistory,
+  scanStartRoute,
+  scanConfirmRunRoute,
+  baselineOptions,
+  onBaselineOptionsChange,
+  recommendedOptions,
+  onRecommendedOptionsChange,
   sensitiveOptions,
   onSensitiveOptionsChange,
   appsGuardMessage,
@@ -1347,9 +1849,32 @@ function renderScreen({
   activeProjectApps: { apps: AppSummary[]; source: AppListSource };
   selectedAppIds: string[];
   canStartScan: boolean;
+  canUseStepScan: boolean;
   onSelectedAppIdsChange: (selectedAppIds: string[]) => void;
   onReloadAppList: () => void;
   isReloadingAppList: boolean;
+  activeScanRun: ScanRun | null;
+  activeProjectScanPreset: PresetId;
+  activeScanErrorMode: KintoneScanErrorMode;
+  onSetProjectScanPreset: (projectId: string, presetId: PresetId) => void;
+  onSetProjectScanErrorMode: (projectId: string, errorMode: KintoneScanErrorMode) => void;
+  onStartKintoneScanRun: () => Promise<StartKintoneScanRunResult>;
+  onGetKintoneScanRunProgress: (sessionId: string) => Promise<GetKintoneScanRunProgressResult>;
+  onGetActiveKintoneScanRun: () => Promise<GetActiveKintoneScanRunResult>;
+  onResumeKintoneScanRun: (sessionId: string) => Promise<ResumeKintoneScanRunResult>;
+  onCancelKintoneScanRun: (sessionId: string) => Promise<void>;
+  onKintoneScanRunFinished: (run: ScanRun) => Promise<void>;
+  onCreateKintoneScanDebugSession: () => Promise<CreateKintoneScanDebugSessionResult>;
+  onRunNextKintoneScanDebugCommand: (sessionId: string) => Promise<RunNextKintoneScanDebugCommandResult>;
+  onFinishKintoneScanDebugSession: (sessionId: string) => Promise<ScanRun | null>;
+  onCancelKintoneScanDebugSession: (sessionId: string) => Promise<void>;
+  onLoadProjectScanHistory: (projectId: string) => Promise<ScanRun[]>;
+  scanStartRoute: string;
+  scanConfirmRunRoute: string;
+  baselineOptions: SensitiveOption[];
+  onBaselineOptionsChange: (options: SensitiveOption[]) => void;
+  recommendedOptions: SensitiveOption[];
+  onRecommendedOptionsChange: (options: SensitiveOption[]) => void;
   sensitiveOptions: SensitiveOption[];
   onSensitiveOptionsChange: (options: SensitiveOption[]) => void;
   appsGuardMessage: string | null;
@@ -1363,6 +1888,25 @@ function renderScreen({
   onRemoveAuthProfile: (authProfileId: string) => void;
   onTestAuthProfile: (authProfileId: string) => Promise<ConnectionTestResult>;
 }) {
+  const armedSensitiveOptions = sensitiveOptions.filter((option) => option.value && option.sensitive);
+  const autoScanPanelProps: Omit<ScanRunPanelProps, "variant" | "source" | "site" | "shouldStartNew" | "onCancel"> = {
+    mode: "auto",
+    presetId: activeProjectScanPreset,
+    onChangeSettings: () => navigate(projectRoutes.scan),
+    onStartRun: onStartKintoneScanRun,
+    onGetRunProgress: onGetKintoneScanRunProgress,
+    onGetActiveRun: onGetActiveKintoneScanRun,
+    onResumeRun: onResumeKintoneScanRun,
+    onCancelRun: onCancelKintoneScanRun,
+    onRunFinished: onKintoneScanRunFinished,
+    onCreateStepSession: onCreateKintoneScanDebugSession,
+    onRunNextStepCommand: onRunNextKintoneScanDebugCommand,
+    onFinishStepSession: onFinishKintoneScanDebugSession,
+    onCancelStepSession: onCancelKintoneScanDebugSession,
+    onViewResult: (run) => navigate(`${projectRoutes.scan}/result?run=${run.id}&state=${resultModeForScanRun(run)}`),
+    onViewFullScan: () => navigate(`${projectRoutes.scan}/run`),
+  };
+
   if (pathname === "/" || pathname === "/home/accounts" || pathname === "/home/sites") {
     const requestedAuthTest = new URLSearchParams(search).get("test");
     return (
@@ -1427,8 +1971,13 @@ function renderScreen({
     return (
       <SensitiveOptionsScreen
         site={activeProject}
+        presetId={activeProjectScanPreset}
         compact={pathname.endsWith("/scan/confirm")}
         canStartScan={canStartScan}
+        baselineOptions={baselineOptions}
+        onBaselineOptionsChange={onBaselineOptionsChange}
+        recommendedOptions={recommendedOptions}
+        onRecommendedOptionsChange={onRecommendedOptionsChange}
         additionalOptions={sensitiveOptions}
         onAdditionalOptionsChange={onSensitiveOptionsChange}
         onBack={() => navigate(projectRoutes.scan)}
@@ -1438,23 +1987,45 @@ function renderScreen({
             onMockAction("Choose at least one app before starting a scan.", { tone: "warn" });
             return;
           }
-          navigate(hasArmedSensitiveOptions(sensitiveOptions.map((option) => ({ categoryKey: option.key, label: option.label, enabled: option.value, meta: option.meta }))) ? `${projectRoutes.scan}/confirm` : `${projectRoutes.scan}/run`);
+          if (pathname.endsWith("/scan/confirm")) {
+            navigate(scanConfirmRunRoute);
+            return;
+          }
+          navigate(scanStartRoute);
         }}
       />
     );
   }
 
   if (pathname.endsWith("/scan/run")) {
-    const source = new URLSearchParams(search).get("source");
+    const params = new URLSearchParams(search);
+    const source = params.get("source");
+    const scanMode = params.get("mode") === "step" && canUseStepScan ? "step" : "auto";
+    const shouldStartNew = params.get("start") === "1";
     return (
       <ScanRunningScreen
+        mode={scanMode}
         source={source === "rerun" ? "rerun" : "new"}
         site={activeProject}
+        presetId={activeProjectScanPreset}
+        shouldStartNew={shouldStartNew}
         onCancel={() => {
-          onMockAction("Preview scan cancelled. No runner or snapshot was stopped because the runner is not connected yet.");
+          onMockAction("Scan view cancelled. No data was written back to kintone.");
           navigate(projectRoutes.scan);
         }}
         onChangeSettings={() => navigate(projectRoutes.scan)}
+        onStartRun={onStartKintoneScanRun}
+        onGetRunProgress={onGetKintoneScanRunProgress}
+        onGetActiveRun={onGetActiveKintoneScanRun}
+        onResumeRun={onResumeKintoneScanRun}
+        onCancelRun={onCancelKintoneScanRun}
+        onRunFinished={onKintoneScanRunFinished}
+        onCreateStepSession={onCreateKintoneScanDebugSession}
+        onRunNextStepCommand={onRunNextKintoneScanDebugCommand}
+        onFinishStepSession={onFinishKintoneScanDebugSession}
+        onCancelStepSession={onCancelKintoneScanDebugSession}
+        onViewResult={(run) => navigate(`${projectRoutes.scan}/result?run=${run.id}&state=${resultModeForScanRun(run)}`)}
+        onViewFullScan={() => navigate(`${projectRoutes.scan}/run`)}
       />
     );
   }
@@ -1475,6 +2046,7 @@ function renderScreen({
         onFixConnection={() => navigate("/home/accounts")}
         onPartialSummary={() => navigate(projectRoutes.snapshot)}
         onMockAction={onMockAction}
+        scanRun={activeScanRun}
       />
     );
   }
@@ -1484,8 +2056,21 @@ function renderScreen({
       <ScanSetupScreen
         site={activeProject}
         canStartScan={canStartScan}
-        onAdvanced={() => navigate(`${projectRoutes.scan}/advanced`)}
-        onStart={() => navigate(`${projectRoutes.scan}/run`)}
+        canUseStepScan={canUseStepScan}
+        selectedPresetId={activeProjectScanPreset}
+        onPresetChange={(presetId) => onSetProjectScanPreset(activeProject.projectId, presetId)}
+        onAdvanced={(presetId) => {
+          onSetProjectScanPreset(activeProject.projectId, presetId);
+          navigate(`${projectRoutes.scan}/advanced`);
+        }}
+        onStart={(presetId) => {
+          onSetProjectScanPreset(activeProject.projectId, presetId);
+          navigate(scanStartRoute);
+        }}
+        onStartStep={(presetId) => {
+          onSetProjectScanPreset(activeProject.projectId, presetId);
+          navigate(`${projectRoutes.scan}/run?mode=step&start=1`);
+        }}
         onChooseApps={() => navigate(projectRoutes.apps)}
         onMockAction={onMockAction}
       />
@@ -1497,8 +2082,9 @@ function renderScreen({
       <LocalSnapshotScreen
         site={activeProject}
         canStartScan={canStartScan}
-        onChangeSettings={() => navigate(projectRoutes.scan)}
-        onOpenFullScan={() => navigate(`${projectRoutes.scan}/run?source=rerun`)}
+        scanPanelProps={autoScanPanelProps}
+        armedSensitiveOptions={armedSensitiveOptions}
+        onOpenScanSetup={() => navigate(projectRoutes.scan)}
         onChooseApps={() => navigate(projectRoutes.apps)}
         onMockAction={onMockAction}
         onOpenFolder={onOpenProjectFolder}
@@ -1515,11 +2101,11 @@ function renderScreen({
   }
 
   if (pathname.includes("/history")) {
-    return <HistoryScreen site={activeProject} onMockAction={onMockAction} />;
+    return <HistoryScreen site={activeProject} onMockAction={onMockAction} onLoadHistory={() => onLoadProjectScanHistory(activeProject.projectId)} />;
   }
 
   if (pathname.endsWith("/settings")) {
-    return <SettingsScreen site={activeProject} onMockAction={onMockAction} />;
+    return <SettingsScreen site={activeProject} scanErrorMode={activeScanErrorMode} onScanErrorModeChange={(errorMode) => onSetProjectScanErrorMode(activeProject.projectId, errorMode)} onMockAction={onMockAction} />;
   }
 
   if (pathname.endsWith("/advanced")) {
@@ -1530,8 +2116,9 @@ function renderScreen({
     <SiteOverviewScreen
       site={activeProject}
       canStartScan={canStartScan}
-      onScanSettings={() => navigate(projectRoutes.scan)}
-      onOpenFullScan={() => navigate(`${projectRoutes.scan}/run`)}
+      scanPanelProps={autoScanPanelProps}
+      armedSensitiveOptions={armedSensitiveOptions}
+      onOpenScanSetup={() => navigate(projectRoutes.scan)}
       onChooseApps={() => navigate(projectRoutes.apps)}
       onSnapshot={() => navigate(projectRoutes.snapshot)}
       onReports={() => navigate(projectRoutes.reports)}

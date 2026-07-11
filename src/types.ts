@@ -171,6 +171,7 @@ export interface SensitiveOption {
   locked?: boolean;
   sensitive?: boolean;
   meta?: string;
+  limit?: number;
 }
 
 export interface EmptyStateModel {

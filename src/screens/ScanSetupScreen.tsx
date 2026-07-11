@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { PrimaryActionButton, ScanPresetCard, SecondaryActionButton } from "../components";
 import { presets } from "../mockData";
 import type { MockActionHandler, ScanPreset, SiteWorkspaceModel } from "../types";
@@ -7,14 +7,17 @@ import { PageHeader, ScanAppSelectionNotice } from "./shared";
 interface ScanSetupScreenProps {
   site: SiteWorkspaceModel;
   canStartScan: boolean;
-  onAdvanced: () => void;
-  onStart: () => void;
+  canUseStepScan: boolean;
+  selectedPresetId: ScanPreset["id"];
+  onPresetChange: (presetId: ScanPreset["id"]) => void;
+  onAdvanced: (presetId: ScanPreset["id"]) => void;
+  onStart: (presetId: ScanPreset["id"]) => void;
+  onStartStep: (presetId: ScanPreset["id"]) => void;
   onChooseApps: () => void;
   onMockAction: MockActionHandler;
 }
 
-export function ScanSetupScreen({ site, canStartScan, onAdvanced, onStart, onChooseApps, onMockAction }: ScanSetupScreenProps) {
-  const [selectedPresetId, setSelectedPresetId] = useState<ScanPreset["id"]>("standard");
+export function ScanSetupScreen({ site, canStartScan, canUseStepScan, selectedPresetId, onPresetChange, onAdvanced, onStart, onStartStep, onChooseApps, onMockAction }: ScanSetupScreenProps) {
   const presetCards = useMemo(() => presets.map((preset) => ({ ...preset, selected: preset.id === selectedPresetId })), [selectedPresetId]);
   const selectedPreset = presetCards.find((preset) => preset.id === selectedPresetId);
 
@@ -24,20 +27,26 @@ export function ScanSetupScreen({ site, canStartScan, onAdvanced, onStart, onCho
       return;
     }
 
-    if (selectedPresetId === "full_discovery") {
-      onAdvanced();
+    if (selectedPreset?.opensConfig) {
+      onAdvanced(selectedPresetId);
       return;
     }
 
-    onStart();
+    onStart(selectedPresetId);
   }
 
-  function handleAdvancedOptions() {
-    if (selectedPresetId !== "full_discovery") {
-      setSelectedPresetId("full_discovery");
-      onMockAction("Advanced options are for Full Discovery. Switching to Full Discovery configuration.");
+  function handleStepStart() {
+    if (!canStartScan) {
+      onMockAction("Choose at least one app before starting a step scan.", { tone: "warn" });
+      return;
     }
-    onAdvanced();
+
+    onStartStep(selectedPresetId);
+  }
+
+  function handleAdvancedOptions(presetId = selectedPresetId) {
+    onPresetChange(presetId);
+    onAdvanced(presetId);
   }
 
   return (
@@ -50,18 +59,19 @@ export function ScanSetupScreen({ site, canStartScan, onAdvanced, onStart, onCho
       {!canStartScan ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
       <div className="preset-grid" role="radiogroup" aria-label="Scan preset">
         {presetCards.map((preset) => (
-          <ScanPresetCard key={preset.id} preset={preset} onSelect={setSelectedPresetId} onConfigure={handleAdvancedOptions} />
+          <ScanPresetCard key={preset.id} preset={preset} onSelect={onPresetChange} onConfigure={handleAdvancedOptions} />
         ))}
       </div>
       <div className="between">
         <div>
-          <SecondaryActionButton label="▾ Show advanced options" variant="ghost" onClick={handleAdvancedOptions} />
+          <SecondaryActionButton label="▾ Configure selected preset" variant="ghost" onClick={() => handleAdvancedOptions()} />
           <div className="small muted2" style={{ marginTop: 4 }}>
-            Advanced options apply to Full Discovery only.
+            Each preset keeps its own category configuration.
           </div>
         </div>
         <div className="rowc">
-          <span className="small muted2">17 required categories · always on 🔒</span>
+          <span className="small muted2">Baseline, recommended, and sensitive categories are configurable</span>
+          {canUseStepScan ? <SecondaryActionButton label="Step scan" disabled={!canStartScan} onClick={handleStepStart} /> : null}
           <PrimaryActionButton label={selectedPreset?.opensConfig ? "Configure & review →" : "Review & start →"} disabled={!canStartScan} onClick={handleReviewStart} />
         </div>
       </div>

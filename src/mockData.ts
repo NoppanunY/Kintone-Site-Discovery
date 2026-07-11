@@ -12,6 +12,7 @@ import type {
   SiteWorkspaceModel,
   TabModel,
 } from "./types";
+import { CAPTURE_CATEGORIES } from "@kintone-site-discovery/core";
 import type { AuthProfile, ConnectedSite, Project, ProjectAppList } from "@kintone-site-discovery/core";
 
 export const projectId = "client-crm-discovery";
@@ -214,48 +215,48 @@ export const presets: ScanPreset[] = [
   {
     id: "quick",
     title: "Quick Scan",
-    description: "Structure only — apps, fields, views, permissions, plugin inventory. Fastest.",
-    badge: "Required only",
+    description: "Baseline structure and inventory. Fastest, and still configurable.",
+    badge: "Baseline",
   },
   {
     id: "standard",
     title: "Standard Scan",
-    description: "Quick + users and groups, spaces, JS/CSS files, plugin saved config, dependency and preview-vs-live diff.",
+    description: "Baseline + users and groups, spaces, JS/CSS files, plugin saved config, dependency and preview-vs-live diff.",
     badge: "Recommended",
     selected: true,
   },
   {
     id: "full_discovery",
     title: "Full Discovery",
-    description: "Standard + opt-in captures. Opens Configure sensitive options — nothing sensitive turns on until you configure and confirm.",
+    description: "Standard + opt-in captures. Nothing sensitive turns on until you configure and confirm.",
     opensConfig: true,
   },
 ];
 
-export const requiredOptions: SensitiveOption[] = [
-  {
-    key: "required",
-    label: "17 categories",
-    tier: "required",
-    value: true,
-    locked: true,
-    meta: "App settings · form fields and layout · views · process · permissions · notifications · plugin inventory · customization metadata · live + preview",
-  },
-];
+export const baselineOptions: SensitiveOption[] = CAPTURE_CATEGORIES.filter((category) => category.tier === "required").map((category) => ({
+  key: category.key,
+  label: category.label,
+  tier: "required",
+  value: category.defaultEnabled,
+  locked: false,
+  meta: "Baseline category. Turning it off may make some reports incomplete.",
+}));
+
+export const requiredOptions = baselineOptions;
 
 export const recommendedOptions: SensitiveOption[] = [
-  { key: "users", label: "Users, groups and departments", tier: "recommended", value: true },
+  { key: "users_groups", label: "Users, groups and departments", tier: "recommended", value: true },
   { key: "spaces", label: "Spaces and members", tier: "recommended", value: true },
-  { key: "customization", label: "App customization JS / CSS files", tier: "recommended", value: true },
-  { key: "plugin-config", label: "Plugin saved config", tier: "recommended", value: true },
-  { key: "dependencies", label: "Dependency detection · preview-vs-live diff", tier: "recommended", value: true },
+  { key: "app_customization_files", label: "App customization JS / CSS files", tier: "recommended", value: true },
+  { key: "plugin_config", label: "Plugin saved config", tier: "recommended", value: true },
+  { key: "dependencies_preview_diff", label: "Dependency detection · preview-vs-live diff", tier: "recommended", value: true },
 ];
 
 export const additionalOptions: SensitiveOption[] = [
-  { key: "plugin-assets", label: "Plugin desktop / config assets (JS/CSS/HTML)", tier: "additional", value: false, sensitive: true },
-  { key: "sample-records", label: "Sample records · redacted · max 25", tier: "additional", value: false, sensitive: true },
-  { key: "comments", label: "Record comments · attachment metadata", tier: "additional", value: false, sensitive: true },
-  { key: "full-record", label: "Full record capture · browser screenshots", tier: "additional", value: false, sensitive: true },
+  { key: "plugin_assets", label: "Plugin desktop / config assets (JS/CSS/HTML)", tier: "additional", value: false, sensitive: true },
+  { key: "sample_records", label: "Sample records · redacted · max 25", tier: "additional", value: false, sensitive: true },
+  { key: "record_comments", label: "Record comments · attachment metadata", tier: "additional", value: false, sensitive: true },
+  { key: "full_records", label: "Full record capture · browser screenshots", tier: "additional", value: false, sensitive: true },
 ];
 
 export function connectedSiteModelFromDomain(site: ConnectedSite): ConnectedSiteModel {

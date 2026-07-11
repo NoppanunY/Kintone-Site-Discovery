@@ -5,7 +5,7 @@ import { StatusPill } from "./StatusPill";
 interface ScanPresetCardProps {
   preset: ScanPreset;
   onSelect: (id: ScanPreset["id"]) => void;
-  onConfigure?: () => void;
+  onConfigure?: (id: ScanPreset["id"]) => void;
 }
 
 export function ScanPresetCard({ preset, onSelect, onConfigure }: ScanPresetCardProps) {
@@ -31,16 +31,15 @@ export function ScanPresetCard({ preset, onSelect, onConfigure }: ScanPresetCard
       <p className="body muted">{preset.description}</p>
       <div className="between">
         {preset.badge ? <StatusPill status={preset.id === "quick" ? "idle" : "info"} label={preset.badge} /> : <span />}
-        {preset.opensConfig ? (
-          <SecondaryActionButton
-            label="Configure ›"
-            size="sm"
-            onClick={(event) => {
-              event.stopPropagation();
-              onConfigure?.();
-            }}
-          />
-        ) : null}
+        <SecondaryActionButton
+          label="Configure ›"
+          size="sm"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(preset.id);
+            onConfigure?.(preset.id);
+          }}
+        />
       </div>
     </div>
   );

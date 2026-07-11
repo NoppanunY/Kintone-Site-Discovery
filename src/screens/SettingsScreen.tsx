@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import type { MockActionHandler, SiteWorkspaceModel } from "../types";
+import type { KintoneScanErrorMode } from "@kintone-site-discovery/core";
 
 const subnav = ["General", "Authentication", "Scan defaults", "Output folder", "Privacy & redaction"] as const;
 type SettingsSection = (typeof subnav)[number];
@@ -13,11 +14,22 @@ const initialSettings = {
   fullRecordCapture: false,
 };
 
-export function SettingsScreen({ site, onMockAction }: { site: SiteWorkspaceModel; onMockAction: MockActionHandler }) {
+export function SettingsScreen({
+  site,
+  scanErrorMode,
+  onScanErrorModeChange,
+  onMockAction,
+}: {
+  site: SiteWorkspaceModel;
+  scanErrorMode: KintoneScanErrorMode;
+  onScanErrorModeChange: (errorMode: KintoneScanErrorMode) => void;
+  onMockAction: MockActionHandler;
+}) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("Scan defaults");
   const [settings, setSettings] = useState(initialSettings);
   const [savedSettings, setSavedSettings] = useState(initialSettings);
   const dirty = Object.entries(settings).some(([key, value]) => savedSettings[key as keyof typeof savedSettings] !== value);
+  const pauseOnError = scanErrorMode === "pause_on_error";
 
   function updateSetting<Key extends keyof typeof settings>(key: Key, value: (typeof settings)[Key]) {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -30,6 +42,12 @@ export function SettingsScreen({ site, onMockAction }: { site: SiteWorkspaceMode
   function saveSettings() {
     setSavedSettings(settings);
     onMockAction("Scan default settings saved in preview state only. No config file was written.");
+  }
+
+  function togglePauseOnError() {
+    const nextMode: KintoneScanErrorMode = pauseOnError ? "continue_on_error" : "pause_on_error";
+    onScanErrorModeChange(nextMode);
+    onMockAction(nextMode === "pause_on_error" ? "Scan runs will pause when an API error is found." : "Scan runs will continue after API errors.");
   }
 
   return (
@@ -81,6 +99,21 @@ export function SettingsScreen({ site, onMockAction }: { site: SiteWorkspaceMode
                   <div className="small muted2">The minimum for a useful snapshot</div>
                 </div>
                 <StatusPill status="info" label="Always on" />
+              </div>
+              <div className="li">
+                <button
+                  type="button"
+                  className={`toggle ${pauseOnError ? "on" : ""}`}
+                  role="switch"
+                  aria-checked={pauseOnError}
+                  aria-label="Pause on API error"
+                  onClick={togglePauseOnError}
+                />
+                <div className="grow">
+                  <div className="h3">Pause on API error</div>
+                  <div className="small muted2">Stop the scan so a developer can inspect the failed request.</div>
+                </div>
+                <StatusPill status={pauseOnError ? "warn" : "idle"} label={pauseOnError ? "Pause" : "Continue"} />
               </div>
               <div className="li">
                 <button

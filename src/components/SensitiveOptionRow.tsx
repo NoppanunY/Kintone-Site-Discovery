@@ -7,7 +7,7 @@ interface SensitiveOptionRowProps {
 }
 
 export function SensitiveOptionRow({ option, onChange }: SensitiveOptionRowProps) {
-  const locked = option.locked || option.tier === "required";
+  const locked = Boolean(option.locked);
   return (
     <div className="option-row">
       {locked ? (

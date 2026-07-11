@@ -2,14 +2,16 @@ import { useState } from "react";
 import { ConnectionTestPanel, PrimaryActionButton, SecondaryActionButton, StatusPill } from "../components";
 import { createFailedConnectionResult, createPassedConnectionResult, createTestingConnectionResult } from "../mockConnection";
 import { overviewKpisForSite } from "../mockData";
-import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler, SiteWorkspaceModel } from "../types";
-import { KpiGrid, PageHeader, ScanAppSelectionNotice } from "./shared";
+import type { ConnectionTestResult, ConnectionTestTarget, MockActionHandler, SensitiveOption, SiteWorkspaceModel } from "../types";
+import { ScanRunPanel, type ScanRunPanelProps } from "./ScanRunningScreen";
+import { KpiGrid, PageHeader, ScanAppSelectionNotice, SensitiveScanConfirmationModal } from "./shared";
 
 interface SiteOverviewScreenProps {
   site: SiteWorkspaceModel;
   canStartScan: boolean;
-  onScanSettings: () => void;
-  onOpenFullScan: () => void;
+  scanPanelProps: Omit<ScanRunPanelProps, "variant" | "source" | "site" | "shouldStartNew" | "onCancel">;
+  armedSensitiveOptions: SensitiveOption[];
+  onOpenScanSetup: () => void;
   onChooseApps: () => void;
   onSnapshot: () => void;
   onReports: () => void;
@@ -18,19 +20,11 @@ interface SiteOverviewScreenProps {
   onOpenProjectFolder: () => void;
 }
 
-type OverviewScanState = "idle" | "running" | "succeeded" | "failed" | "canceled";
-
-const collectorRows = [
-  { status: "Done", tone: "ok" as const, label: "REST metadata" },
-  { status: "Done", tone: "ok" as const, label: "App and plugin inventory" },
-  { status: "Running", tone: "run" as const, label: "Browser plugin saved config" },
-  { status: "Queued", tone: "idle" as const, label: "Snapshot generation" },
-];
-
-export function SiteOverviewScreen({ site, canStartScan, onScanSettings, onOpenFullScan, onChooseApps, onSnapshot, onReports, onDeveloperFiles, onMockAction, onOpenProjectFolder }: SiteOverviewScreenProps) {
+export function SiteOverviewScreen({ site, canStartScan, scanPanelProps, armedSensitiveOptions, onOpenScanSetup, onChooseApps, onSnapshot, onReports, onDeveloperFiles, onMockAction, onOpenProjectFolder }: SiteOverviewScreenProps) {
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
-  const [scanState, setScanState] = useState<OverviewScanState>("idle");
-  const [showScanDetails, setShowScanDetails] = useState(false);
+  const [inlineScanKey, setInlineScanKey] = useState(0);
+  const [showInlineScan, setShowInlineScan] = useState(false);
+  const [showSensitiveConfirmation, setShowSensitiveConfirmation] = useState(false);
   const connectionTarget: ConnectionTestTarget = {
     siteName: site.name,
     domain: site.domain,
@@ -53,8 +47,18 @@ export function SiteOverviewScreen({ site, canStartScan, onScanSettings, onOpenF
       return;
     }
 
-    setScanState("running");
-    setShowScanDetails(false);
+    if (armedSensitiveOptions.length > 0) {
+      setShowSensitiveConfirmation(true);
+      return;
+    }
+
+    startInlineScan();
+  }
+
+  function startInlineScan() {
+    setShowSensitiveConfirmation(false);
+    setInlineScanKey((key) => key + 1);
+    setShowInlineScan(true);
   }
 
   return (
@@ -62,26 +66,31 @@ export function SiteOverviewScreen({ site, canStartScan, onScanSettings, onOpenF
       <PageHeader
         breadcrumb={`${site.projectName} · ${site.name}`}
         title="Overview"
-        titleMeta={scanState === "running" ? <StatusPill status="run" label="Scanning" dot /> : null}
-        subtitle={scanState === "running" ? `Preview scan · Standard Scan · ${site.selectedApps} apps · no kintone request or snapshot write` : `${site.domain} · ${site.profile}`}
+        subtitle={`${site.domain} · ${site.profile}`}
         actions={
-          scanState === "running" ? (
-            <>
-              <SecondaryActionButton label="Change settings" onClick={onScanSettings} />
-              <PrimaryActionButton label="Cancel scan" tone="danger" onClick={() => setScanState("canceled")} />
-            </>
-          ) : (
-            <>
-              <StatusPill status={site.tone} label={site.status} dot />
-              {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
-              {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
-              <SecondaryActionButton label="Test connection" onClick={() => runConnectionTest("passed")} />
-              <PrimaryActionButton label="◎ Run scan" disabled={!canStartScan} onClick={startOverviewScan} />
-            </>
-          )
+          <>
+            <StatusPill status={site.tone} label={site.status} dot />
+            {connectionResult?.status === "testing" ? <StatusPill status="run" label="Testing..." dot /> : null}
+            {connectionResult?.status === "passed" ? <span className="inline-test-status">Last test passed just now</span> : null}
+            <SecondaryActionButton label="Test connection" onClick={() => runConnectionTest("passed")} />
+            <PrimaryActionButton label="◎ Run scan" disabled={!canStartScan || showInlineScan} onClick={startOverviewScan} />
+          </>
         }
       />
       {!canStartScan ? <ScanAppSelectionNotice onChooseApps={onChooseApps} /> : null}
+      {showSensitiveConfirmation ? <SensitiveScanConfirmationModal canStartScan={canStartScan} armedOptions={armedSensitiveOptions} onCancel={() => setShowSensitiveConfirmation(false)} onConfirm={startInlineScan} /> : null}
+      {showInlineScan ? (
+        <ScanRunPanel
+          key={inlineScanKey}
+          {...scanPanelProps}
+          variant="compact"
+          source="new"
+          site={site}
+          shouldStartNew
+          onCancel={() => setShowInlineScan(false)}
+          onChangeSettings={onOpenScanSetup}
+        />
+      ) : null}
       {connectionResult?.status === "failed" ? (
         <ConnectionTestPanel
           result={connectionResult}
@@ -89,18 +98,6 @@ export function SiteOverviewScreen({ site, canStartScan, onScanSettings, onOpenF
           onDismiss={() => setConnectionResult(null)}
         />
       ) : null}
-      <OverviewScanStatus
-        state={scanState}
-        showDetails={showScanDetails}
-        onToggleDetails={() => setShowScanDetails((shown) => !shown)}
-        onRetry={startOverviewScan}
-        onChangeSettings={onScanSettings}
-        onOpenFullScan={onOpenFullScan}
-        canStartScan={canStartScan}
-        onDismiss={() => setScanState("idle")}
-        onFinishMock={() => setScanState("succeeded")}
-        onFailMock={() => setScanState("failed")}
-      />
       <KpiGrid items={overviewKpisForSite(site)} />
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div className="between">
@@ -146,92 +143,11 @@ export function SiteOverviewScreen({ site, canStartScan, onScanSettings, onOpenF
               </div>
             </div>
             <div className="btn-row">
-              <PrimaryActionButton label="Run scan" disabled={!canStartScan} onClick={startOverviewScan} />
+              <PrimaryActionButton label="Run scan" disabled={!canStartScan || showInlineScan} onClick={startOverviewScan} />
               <SecondaryActionButton label="Open project folder" variant="ghost" onClick={onOpenProjectFolder} />
             </div>
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-function OverviewScanStatus({
-  state,
-  showDetails,
-  onToggleDetails,
-  onRetry,
-  onChangeSettings,
-  onOpenFullScan,
-  canStartScan,
-  onDismiss,
-  onFinishMock,
-  onFailMock,
-}: {
-  state: OverviewScanState;
-  showDetails: boolean;
-  onToggleDetails: () => void;
-  onRetry: () => void;
-  onChangeSettings: () => void;
-  onOpenFullScan: () => void;
-  canStartScan: boolean;
-  onDismiss: () => void;
-  onFinishMock: () => void;
-  onFailMock: () => void;
-}) {
-  if (state === "idle") {
-    return null;
-  }
-
-  if (state === "running") {
-    return (
-      <div className="snapshot-rerun">
-        <div className="snapshot-rerun__top">
-          <div className="rowc">
-            <StatusPill status="run" label="Scanning" dot />
-            <span className="small muted">62% · plugin saved config</span>
-          </div>
-          <div className="rowc">
-            <SecondaryActionButton label="Full scanning" size="sm" disabled={!canStartScan} onClick={onOpenFullScan} />
-            <SecondaryActionButton label={showDetails ? "Hide details" : "Details"} size="sm" variant="ghost" onClick={onToggleDetails} />
-          </div>
-        </div>
-        <div className="progress" aria-label="Scan progress">
-          <i style={{ width: "62%" }} />
-        </div>
-        <div className="small muted2">Preview only. No kintone request is sent and no snapshot folder is written.</div>
-        {showDetails ? (
-          <div className="snapshot-rerun__details">
-            {collectorRows.map((row) => (
-              <div className="snapshot-rerun__row" key={row.label}>
-                <StatusPill status={row.tone} label={row.status} dot />
-                <span className="body">{row.label}</span>
-              </div>
-            ))}
-            <div className="snapshot-rerun__mock-actions">
-              <SecondaryActionButton label="Finish preview run" size="sm" onClick={onFinishMock} />
-              <SecondaryActionButton label="Fail preview run" size="sm" variant="ghost" onClick={onFailMock} />
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  const failed = state === "failed";
-  const succeeded = state === "succeeded";
-  return (
-    <div className={`snapshot-status-line ${succeeded ? "snapshot-status-line--ok" : failed ? "snapshot-status-line--err" : "snapshot-status-line--idle"}`}>
-      <div className="rowc">
-        <StatusPill status={succeeded ? "ok" : failed ? "err" : "idle"} label={succeeded ? "Completed" : failed ? "Failed" : "Canceled"} dot />
-        <span className="small muted">
-          {succeeded ? "Preview scan completed. No snapshot was written." : failed ? "Preview scan failed. Current snapshot was not replaced." : "Preview scan canceled. Current snapshot was not replaced."}
-        </span>
-      </div>
-      <div className="rowc">
-        {succeeded ? null : <SecondaryActionButton label="Retry" size="sm" disabled={!canStartScan} onClick={onRetry} />}
-        {failed ? <SecondaryActionButton label="Change settings" size="sm" onClick={onChangeSettings} /> : null}
-        <SecondaryActionButton label="Dismiss" size="sm" variant="ghost" onClick={onDismiss} />
       </div>
     </div>
   );

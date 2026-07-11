@@ -1,6 +1,7 @@
 import type { KpiModel } from "../types";
+import type { SensitiveOption } from "../types";
 import type { ReactNode } from "react";
-import { SecondaryActionButton, WarningBanner } from "../components";
+import { ConfirmationModal, SecondaryActionButton, WarningBanner } from "../components";
 
 export function PageHeader({
   breadcrumb,
@@ -53,5 +54,39 @@ export function ScanAppSelectionNotice({ onChooseApps }: { onChooseApps: () => v
         <SecondaryActionButton label="Choose apps" size="sm" onClick={onChooseApps} />
       </div>
     </WarningBanner>
+  );
+}
+
+export function SensitiveScanConfirmationModal({
+  canStartScan,
+  armedOptions,
+  onCancel,
+  onConfirm,
+}: {
+  canStartScan: boolean;
+  armedOptions: SensitiveOption[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="modal-overlay metadata-modal-overlay">
+      <ConfirmationModal
+        title="Confirm sensitive capture"
+        body={
+          canStartScan
+            ? "This scan will capture data that may include proprietary code or personal information. It stays local and redacted."
+            : "Sensitive options can be reviewed now, but choose at least one app before starting the scan."
+        }
+        items={armedOptions.map((option) => option.label)}
+        requireAck
+        ackLabel="I understand these outputs may contain sensitive data."
+        confirmLabel="Confirm & start scan"
+        cancelLabel="Cancel"
+        tone="warn"
+        confirmDisabled={!canStartScan}
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
+    </div>
   );
 }
