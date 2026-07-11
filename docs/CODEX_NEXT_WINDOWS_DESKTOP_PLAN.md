@@ -2,7 +2,7 @@
 
 This plan tracks the implementation batches after the hi-fi renderer skeleton and Windows desktop scaffold.
 
-N7 read-only kintone access is complete. For the next Codex implementation pass, plan and implement **N8 scan runner with fixture collectors first** before any real snapshot/report packaging work.
+N8 fixture scan runner is complete. N9 is now the real read-only REST snapshot path so the desktop Scan flow can pull kintone data and write append-only local snapshots. Reports and Developer Files move to the next phase after N9 snapshots are stable.
 
 `docs/CODEX_N5_HARDENING_PLAN.md` remains available as completed acceptance context. Do not reuse the N5 prompt unless a review asks for a targeted N5 fix.
 
@@ -26,7 +26,7 @@ The `develop` branch has completed:
 - Initial N5 Local workspace metadata storage primitives
 - N5 Local workspace metadata hardening
 
-The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests. N6 added desktop secure credential storage through a Windows DPAPI-backed provider layer, write-only credential UI flow, and no-secret metadata tests. N7 added the first read-only kintone access path for connection validation and app-list fetch, with main-process credential resolution, redacted bridge results, and app-list metadata persistence.
+The N4/N5 implementation added `packages/core`, workspace package wiring, desktop workspace storage, workspace bridge APIs, metadata-backed Home/New Project/Open Project flows, app selection guards, sensitive option guards, hardened metadata validation, app-list selection persistence, open-folder allow-listing, no-secret serialization, collision-safe IDs, and tests. N6 added desktop secure credential storage through a Windows DPAPI-backed provider layer, write-only credential UI flow, and no-secret metadata tests. N7 added the first read-only kintone access path for connection validation and app-list fetch, with main-process credential resolution, redacted bridge results, and app-list metadata persistence. N8 added a fixture-first scan runner, persisted `history.json` scan runs, result/history UI wiring, and explicit no-snapshot boundaries. N9 replaces the desktop Scan button with a read-only REST snapshot run that writes local snapshot artifacts.
 
 Desktop runtime decision:
 
@@ -37,8 +37,9 @@ Desktop runtime decision:
 
 Current hard boundary:
 
-- No real scan runner yet.
-- No real snapshot capture yet.
+- Real REST snapshot capture exists for selected app metadata.
+- Browser runtime plugin saved config and browser network asset capture are not implemented yet.
+- Reports and Developer Files are not generated from snapshots yet.
 - No real CLI behavior yet.
 - No deploy, import, write-back, Git client, AI, rollback, or safe deploy flow.
 
@@ -69,19 +70,17 @@ Definitions for the next phase:
 
 ## Active next implementation batch
 
-Implement only N8 scan runner with fixture collectors first. Stop before N9-N10.
+Implement Reports and Developer Files only after reviewing the N9 snapshot writer boundary. Stop before CLI and packaging.
 
-N8 is required because the app can now validate credentials and fetch app lists, but it still needs a controlled scan orchestration layer before snapshot/report outputs can be generated safely.
+The app can now validate credentials, fetch app lists, run a read-only REST metadata scan, write a local snapshot folder, update the current pointer, and persist scan history.
 
-N8 focus:
+Next focus:
 
-- Add scan-run state models and orchestration boundaries around existing read-only access.
-- Use fixture collectors first; do not pull full real snapshot data until the runner state model and failure behavior are reviewed.
-- Keep writes limited to scan run metadata or clearly marked partial summaries if the N8 plan explicitly allows them.
-- Preserve redaction/no-secret behavior across run logs and bridge results.
-- Do not add reports, Developer Files, review packages, CLI behavior, packaging, or kintone write-back.
+- Generate Reports and Developer Files only from snapshots.
+- Preserve redaction/no-secret behavior across generated artifacts.
+- Do not add CLI behavior, packaging, or kintone write-back.
 
-Create a dedicated N8 plan before implementation, using `docs/MVP1_SPEC.md`, `docs/ui-handoff/SNAPSHOT_STORAGE_SPEC.md`, and `docs/ui-handoff/STATE_MATRIX.md` as source of truth.
+Completed N8 task breakdown and acceptance criteria live in `docs/CODEX_N8_SCAN_RUNNER_PLAN.md`.
 
 | Step | Status | Name | Goal |
 |---|---:|---|---|
@@ -94,9 +93,10 @@ Create a dedicated N8 plan before implementation, using `docs/MVP1_SPEC.md`, `do
 | N5 | Done | Local workspace storage hardening | Harden metadata persistence before secure credentials and kintone reads. |
 | N6 | Done | OS secure storage | Add real secure credential handling through the platform layer. |
 | N7 | Done | Read-only kintone access | Add domain/auth validation and read-only API scaffolding. |
-| N8 | Next | Scan runner | Add scan orchestration with fixture collectors first. |
-| N9 | Later | Reports and Developer Files | Generate derived outputs from Local Snapshot. |
-| N10 | Later | Windows packaging | Package the app for Windows after the core path is stable. |
+| N8 | Done | Scan runner | Add scan orchestration with fixture collectors first. |
+| N9 | Done | Real REST Snapshot | Pull selected app metadata through read-only REST APIs and write local snapshots. |
+| N10 | Next | Reports and Developer Files | Generate derived outputs from Local Snapshot. |
+| N11 | Later | Windows packaging | Package the app for Windows after the core path is stable. |
 
 ## N5 hardening - local metadata safety
 
@@ -171,13 +171,13 @@ Acceptance:
 - App-list response order is preserved.
 - No scan runner, snapshot output, reports, Developer Files, CLI behavior, or write-back APIs were introduced.
 
-## Later steps after N7 review
+## Later steps after N9 review
 
-N7 has been completed and verified locally. Next steps:
+N9 has been implemented in the current working tree. Next steps:
 
-- N8: Add scan runner with fixture collectors first.
-- N9: Generate Reports and Developer Files from snapshots only.
-- N10: Add Windows packaging.
+- Review the real REST snapshot folder shape with a live kintone scan.
+- N10: Generate Reports and Developer Files from snapshots only.
+- N11: Add Windows packaging.
 
 ## Codex report format
 
