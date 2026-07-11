@@ -1,4 +1,24 @@
-import type { AppSummary, AuthProfile, ConnectedSite, CredentialStatus, KintoneConnectionStatus, Project, ProjectAppList, ProjectAuthSelection } from "@kintone-site-discovery/core";
+import type {
+  AppSummary,
+  AuthProfile,
+  ConnectedSite,
+  CredentialStatus,
+  FixtureScanOutcome,
+  KintoneRestCapture,
+  KintoneRestCommand,
+  KintoneConnectionStatus,
+  KintoneScanCollectorGroup,
+  KintoneScanErrorMode,
+  KintoneScanLogLine,
+  KintoneScanSessionStatus,
+  PresetId,
+  Project,
+  ProjectAppList,
+  ProjectAuthSelection,
+  ProjectScanDraftSnapshot,
+  ScanRun,
+  SensitiveCaptureOption,
+} from "@kintone-site-discovery/core";
 
 export type DesktopRuntime = "electron" | "browser";
 
@@ -47,6 +67,7 @@ export interface WindowStateSnapshot {
   openProjectTabs: ProjectTabSnapshot[];
   activeTabId: string;
   restored: boolean;
+  scanDraftsByProjectId?: Record<string, ProjectScanDraftSnapshot>;
 }
 
 export interface WorkspaceMetadataIssue {
@@ -152,6 +173,136 @@ export interface FetchKintoneAppListResult extends BridgeResult {
   httpStatus?: number;
 }
 
+export interface StartFixtureScanRunRequest {
+  projectId: string;
+  presetId: PresetId;
+  selectedAppIds: string[];
+  enabledCategoryKeys: string[];
+  sensitiveOptions: SensitiveCaptureOption[];
+  outcome?: FixtureScanOutcome;
+}
+
+export interface StartFixtureScanRunResult extends BridgeResult {
+  run?: ScanRun;
+}
+
+export interface StartKintoneScanRunRequest {
+  projectId: string;
+  presetId: PresetId;
+  selectedAppIds: string[];
+  enabledCategoryKeys: string[];
+  sensitiveOptions: SensitiveCaptureOption[];
+  errorMode?: KintoneScanErrorMode;
+}
+
+export interface StartKintoneScanRunResult extends BridgeResult {
+  sessionId?: string;
+  progress?: KintoneScanProgressState;
+  run?: ScanRun;
+}
+
+export type CreateKintoneScanDebugSessionRequest = StartKintoneScanRunRequest;
+
+export interface KintoneScanProgressState {
+  sessionId: string;
+  projectId: string;
+  siteId: string;
+  status: KintoneScanSessionStatus;
+  errorMode: KintoneScanErrorMode;
+  commands: KintoneRestCommand[];
+  captures: KintoneRestCapture[];
+  collectorGroups: KintoneScanCollectorGroup[];
+  logLines: KintoneScanLogLine[];
+  currentCommand?: KintoneRestCommand;
+  nextCommand?: KintoneRestCommand;
+  completedCount: number;
+  totalCount: number;
+  progressPercent: number;
+  done: boolean;
+  run?: ScanRun;
+  message?: string;
+}
+
+export interface GetKintoneScanRunProgressRequest {
+  sessionId: string;
+}
+
+export interface GetKintoneScanRunProgressResult extends BridgeResult {
+  progress?: KintoneScanProgressState;
+}
+
+export interface GetActiveKintoneScanRunRequest {
+  projectId: string;
+}
+
+export interface GetActiveKintoneScanRunResult extends BridgeResult {
+  progress?: KintoneScanProgressState;
+}
+
+export interface ResumeKintoneScanRunRequest {
+  sessionId: string;
+}
+
+export interface ResumeKintoneScanRunResult extends BridgeResult {
+  progress?: KintoneScanProgressState;
+}
+
+export interface CancelKintoneScanRunRequest {
+  sessionId: string;
+}
+
+export interface CancelKintoneScanRunResult extends BridgeResult {
+  progress?: KintoneScanProgressState;
+}
+
+export interface KintoneScanDebugSessionState {
+  sessionId: string;
+  commands: KintoneRestCommand[];
+  captures: KintoneRestCapture[];
+  nextCommand?: KintoneRestCommand;
+  completedCount: number;
+  totalCount: number;
+  done: boolean;
+}
+
+export interface CreateKintoneScanDebugSessionResult extends BridgeResult {
+  session?: KintoneScanDebugSessionState;
+}
+
+export interface RunNextKintoneScanDebugCommandRequest {
+  sessionId: string;
+}
+
+export interface RunNextKintoneScanDebugCommandResult extends BridgeResult {
+  session?: KintoneScanDebugSessionState;
+  command?: KintoneRestCommand;
+  capture?: KintoneRestCapture;
+}
+
+export interface FinishKintoneScanDebugSessionRequest {
+  sessionId: string;
+}
+
+export interface FinishKintoneScanDebugSessionResult extends BridgeResult {
+  run?: ScanRun;
+}
+
+export interface CancelKintoneScanDebugSessionRequest {
+  sessionId: string;
+}
+
+export interface CancelKintoneScanDebugSessionResult extends BridgeResult {
+  sessionId?: string;
+}
+
+export interface GetProjectScanHistoryRequest {
+  projectId: string;
+}
+
+export interface GetProjectScanHistoryResult extends BridgeResult {
+  runs: ScanRun[];
+}
+
 export interface RemoveProjectFromAppRequest {
   projectId: string;
 }
@@ -228,4 +379,15 @@ export interface PlatformBridge {
   forgetCredential(request: ForgetCredentialRequest): Promise<ForgetCredentialResult>;
   validateKintoneConnection(request: ValidateKintoneConnectionRequest): Promise<ValidateKintoneConnectionResult>;
   fetchKintoneAppList(request: FetchKintoneAppListRequest): Promise<FetchKintoneAppListResult>;
+  startKintoneScanRun(request: StartKintoneScanRunRequest): Promise<StartKintoneScanRunResult>;
+  getKintoneScanRunProgress(request: GetKintoneScanRunProgressRequest): Promise<GetKintoneScanRunProgressResult>;
+  getActiveKintoneScanRun(request: GetActiveKintoneScanRunRequest): Promise<GetActiveKintoneScanRunResult>;
+  resumeKintoneScanRun(request: ResumeKintoneScanRunRequest): Promise<ResumeKintoneScanRunResult>;
+  cancelKintoneScanRun(request: CancelKintoneScanRunRequest): Promise<CancelKintoneScanRunResult>;
+  createKintoneScanDebugSession(request: CreateKintoneScanDebugSessionRequest): Promise<CreateKintoneScanDebugSessionResult>;
+  runNextKintoneScanDebugCommand(request: RunNextKintoneScanDebugCommandRequest): Promise<RunNextKintoneScanDebugCommandResult>;
+  finishKintoneScanDebugSession(request: FinishKintoneScanDebugSessionRequest): Promise<FinishKintoneScanDebugSessionResult>;
+  cancelKintoneScanDebugSession(request: CancelKintoneScanDebugSessionRequest): Promise<CancelKintoneScanDebugSessionResult>;
+  startFixtureScanRun(request: StartFixtureScanRunRequest): Promise<StartFixtureScanRunResult>;
+  getProjectScanHistory(request: GetProjectScanHistoryRequest): Promise<GetProjectScanHistoryResult>;
 }

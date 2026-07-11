@@ -4,6 +4,12 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
   BridgeResult,
+  CancelKintoneScanRunRequest,
+  CancelKintoneScanRunResult,
+  CancelKintoneScanDebugSessionRequest,
+  CancelKintoneScanDebugSessionResult,
+  CreateKintoneScanDebugSessionRequest,
+  CreateKintoneScanDebugSessionResult,
   CreateProjectRequest,
   CreateProjectResult,
   CredentialStoreStatus,
@@ -11,12 +17,24 @@ import type {
   ForgetCredentialResult,
   FetchKintoneAppListRequest,
   FetchKintoneAppListResult,
+  FinishKintoneScanDebugSessionRequest,
+  FinishKintoneScanDebugSessionResult,
+  GetActiveKintoneScanRunRequest,
+  GetActiveKintoneScanRunResult,
+  GetKintoneScanRunProgressRequest,
+  GetKintoneScanRunProgressResult,
+  GetProjectScanHistoryRequest,
+  GetProjectScanHistoryResult,
   FolderSelectionRequest,
   FolderSelectionResult,
   OpenFolderRequest,
   OpenProjectResult,
   PlatformRuntimeInfo,
   ProjectTabSnapshot,
+  ResumeKintoneScanRunRequest,
+  ResumeKintoneScanRunResult,
+  RunNextKintoneScanDebugCommandRequest,
+  RunNextKintoneScanDebugCommandResult,
   RemoveAuthProfileRequest,
   RemoveAuthProfileResult,
   RemoveConnectedSiteRequest,
@@ -27,6 +45,10 @@ import type {
   SaveConnectedSiteResult,
   StoreCredentialRequest,
   StoreCredentialResult,
+  StartFixtureScanRunRequest,
+  StartFixtureScanRunResult,
+  StartKintoneScanRunRequest,
+  StartKintoneScanRunResult,
   UpdateProjectAppListRequest,
   UpdateProjectAppListResult,
   UpdateProjectMetadataRequest,
@@ -300,6 +322,50 @@ function registerPlatformBridgeHandlers() {
     return getKintoneAccessService().fetchKintoneAppList(request);
   });
 
+  ipcMain.handle("platform:startKintoneScanRun", (_event, request: StartKintoneScanRunRequest): Promise<StartKintoneScanRunResult> => {
+    return getKintoneAccessService().startKintoneScanRun(request);
+  });
+
+  ipcMain.handle("platform:getKintoneScanRunProgress", (_event, request: GetKintoneScanRunProgressRequest): Promise<GetKintoneScanRunProgressResult> => {
+    return getKintoneAccessService().getKintoneScanRunProgress(request);
+  });
+
+  ipcMain.handle("platform:getActiveKintoneScanRun", (_event, request: GetActiveKintoneScanRunRequest): Promise<GetActiveKintoneScanRunResult> => {
+    return getKintoneAccessService().getActiveKintoneScanRun(request);
+  });
+
+  ipcMain.handle("platform:resumeKintoneScanRun", (_event, request: ResumeKintoneScanRunRequest): Promise<ResumeKintoneScanRunResult> => {
+    return getKintoneAccessService().resumeKintoneScanRun(request);
+  });
+
+  ipcMain.handle("platform:cancelKintoneScanRun", (_event, request: CancelKintoneScanRunRequest): Promise<CancelKintoneScanRunResult> => {
+    return getKintoneAccessService().cancelKintoneScanRun(request);
+  });
+
+  ipcMain.handle("platform:createKintoneScanDebugSession", (_event, request: CreateKintoneScanDebugSessionRequest): Promise<CreateKintoneScanDebugSessionResult> => {
+    return getKintoneAccessService().createKintoneScanDebugSession(request);
+  });
+
+  ipcMain.handle("platform:runNextKintoneScanDebugCommand", (_event, request: RunNextKintoneScanDebugCommandRequest): Promise<RunNextKintoneScanDebugCommandResult> => {
+    return getKintoneAccessService().runNextKintoneScanDebugCommand(request);
+  });
+
+  ipcMain.handle("platform:finishKintoneScanDebugSession", (_event, request: FinishKintoneScanDebugSessionRequest): Promise<FinishKintoneScanDebugSessionResult> => {
+    return getKintoneAccessService().finishKintoneScanDebugSession(request);
+  });
+
+  ipcMain.handle("platform:cancelKintoneScanDebugSession", (_event, request: CancelKintoneScanDebugSessionRequest): Promise<CancelKintoneScanDebugSessionResult> => {
+    return getKintoneAccessService().cancelKintoneScanDebugSession(request);
+  });
+
+  ipcMain.handle("platform:startFixtureScanRun", (_event, request: StartFixtureScanRunRequest): Promise<StartFixtureScanRunResult> => {
+    return storage.startFixtureScanRun(request);
+  });
+
+  ipcMain.handle("platform:getProjectScanHistory", (_event, request: GetProjectScanHistoryRequest): Promise<GetProjectScanHistoryResult> => {
+    return storage.getProjectScanHistory(request.projectId);
+  });
+
   platformBridgeHandlersRegistered = true;
 }
 
@@ -317,6 +383,7 @@ function getKintoneAccessService() {
   kintoneAccessService ??= createKintoneAccessService({
     storage: getWorkspaceStorage(),
     credentialStore: getCredentialStore(),
+    allowDebugSessions: !app.isPackaged,
   });
   return kintoneAccessService;
 }

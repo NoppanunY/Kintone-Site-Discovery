@@ -172,6 +172,7 @@ const browserFallbackBridge: PlatformBridge = {
       openProjectTabs: [],
       activeTabId: "home",
       restored: false,
+      scanDraftsByProjectId: {},
     };
   },
 
@@ -237,6 +238,96 @@ const browserFallbackBridge: PlatformBridge = {
       code: "FALLBACK",
       status: "no_credential",
       message: "Read-only kintone access requires the desktop runtime bridge.",
+    };
+  },
+
+  async startKintoneScanRun() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Real kintone scan runs require the desktop runtime bridge.",
+    };
+  },
+
+  async getKintoneScanRunProgress() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Scan progress requires the desktop runtime bridge.",
+    };
+  },
+
+  async getActiveKintoneScanRun() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Active scan sessions require the desktop runtime bridge.",
+    };
+  },
+
+  async resumeKintoneScanRun() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Resuming scan sessions requires the desktop runtime bridge.",
+    };
+  },
+
+  async cancelKintoneScanRun() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Cancelling scan sessions requires the desktop runtime bridge.",
+    };
+  },
+
+  async createKintoneScanDebugSession() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Step scan debug sessions require the desktop dev runtime bridge.",
+    };
+  },
+
+  async runNextKintoneScanDebugCommand() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Step scan debug sessions require the desktop dev runtime bridge.",
+    };
+  },
+
+  async finishKintoneScanDebugSession() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Step scan debug sessions require the desktop dev runtime bridge.",
+    };
+  },
+
+  async cancelKintoneScanDebugSession(request) {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Step scan debug sessions require the desktop dev runtime bridge.",
+      sessionId: request.sessionId,
+    };
+  },
+
+  async startFixtureScanRun() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Fixture scan runner persistence requires the desktop runtime bridge.",
+    };
+  },
+
+  async getProjectScanHistory() {
+    return {
+      ok: false,
+      code: "FALLBACK",
+      message: "Scan history requires the desktop runtime bridge.",
+      runs: [],
     };
   },
 };

@@ -11,6 +11,10 @@ import type {
   RemoveProjectFromAppResult,
   SaveAuthProfileResult,
   SaveConnectedSiteResult,
+  GetProjectScanHistoryResult,
+  StartKintoneScanRunResult,
+  StartFixtureScanRunRequest,
+  StartFixtureScanRunResult,
   UpdateProjectAppListResult,
   UpdateProjectMetadataRequest,
   UpdateProjectMetadataResult,
@@ -28,8 +32,12 @@ import type {
   Project,
   ProjectAppList,
   ProjectHistory,
+  ScanRun,
+  SnapshotAuthSelection,
+  SnapshotManifest,
   ValidationResult,
 } from "../packages/core/src/types.js";
+import type { AppSummary as CoreAppSummary, KintoneRestCollectionResult } from "../packages/core/src/index.js";
 
 const schemaVersion = 1;
 type CoreModule = typeof import("../packages/core/src/index.js");
@@ -39,6 +47,19 @@ const coreModulePromise: Promise<CoreModule> = import("../packages/core/src/inde
 interface WorkspaceStorageOptions {
   appDataRoot: string;
   now?: () => Date;
+}
+
+interface WriteKintoneSnapshotScanRunInput {
+  projectId: string;
+  siteId: string;
+  siteDomain: string;
+  authSelection: SnapshotAuthSelection;
+  presetId: ScanRun["presetId"];
+  selectedAppIds: string[];
+  enabledCategoryKeys: string[];
+  sensitiveOptions: ScanRun["sensitiveOptions"];
+  selectedApps: CoreAppSummary[];
+  collection: KintoneRestCollectionResult;
 }
 
 interface JsonReadResult<T> {
@@ -318,6 +339,171 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     }
   }
 
+  async function startFixtureScanRun(request: StartFixtureScanRunRequest): Promise<StartFixtureScanRunResult> {
+    const readResult = await readProjectForProjectId(request.projectId);
+    if (!readResult.ok || !readResult.project || !readResult.connectedSite) {
+      return { ok: false, code: "INVALID_INPUT", message: readResult.message ?? "Project metadata was not found." };
+    }
+
+    if (request.selectedAppIds.length === 0) {
+      return { ok: false, code: "INVALID_INPUT", message: "Choose at least one app before starting a fixture scan." };
+    }
+
+    const appList = readResult.appList;
+    const availableIds = new Set(appList?.apps.map((app) => app.id) ?? []);
+    const unknownAppId = request.selectedAppIds.find((appId) => !availableIds.has(appId));
+    if (unknownAppId) {
+      return { ok: false, code: "INVALID_INPUT", message: `Selected app ID is not present in the project app list: ${unknownAppId}` };
+    }
+
+    const core = await coreModulePromise;
+    const authSelection = snapshotAuthSelection(readResult.project.authSelection, await readAuthProfiles());
+    const run = core.buildFixtureScanRun({
+      projectId: readResult.project.id,
+      siteId: readResult.project.siteId,
+      authSelection,
+      presetId: request.presetId,
+      selectedAppIds: request.selectedAppIds,
+      enabledCategoryKeys: request.enabledCategoryKeys,
+      sensitiveOptions: request.sensitiveOptions,
+      outcome: request.outcome,
+      startedAt: now(),
+    });
+
+    try {
+      await appendProjectHistoryRun(readResult.project.folderPath, run);
+      return { ok: true, code: "OK", message: "Fixture scan run completed and was written to history.", run };
+    } catch (error) {
+      return { ok: false, code: "IO_ERROR", message: errorMessage(error), run };
+    }
+  }
+
+  async function writeKintoneSnapshotScanRun(input: WriteKintoneSnapshotScanRunInput): Promise<StartKintoneScanRunResult> {
+    const readResult = await readProjectForProjectId(input.projectId);
+    if (!readResult.ok || !readResult.project || !readResult.connectedSite) {
+      return { ok: false, code: "INVALID_INPUT", message: readResult.message ?? "Project metadata was not found." };
+    }
+
+    const snapshotId = await nextSnapshotId(readResult.project.folderPath, input.collection.startedAt);
+    const scanRunId = snapshotId.replace(/^snap_/, "scan_");
+    const snapshotRelativePath = path.join("snapshots", snapshotId);
+    const snapshotFinalPath = path.join(readResult.project.folderPath, snapshotRelativePath);
+    const snapshotPartialPath = `${snapshotFinalPath}.partial`;
+    const redactionLogPath = path.join("logs", "redaction-log.jsonl");
+    const result = {
+      ...input.collection.result,
+      redaction: {
+        ...input.collection.result.redaction,
+        logPath: redactionLogPath,
+      },
+      ...(input.collection.result.status === "failed" ? { partialSummaryPath: path.join(snapshotRelativePath, "manifest.json") } : {}),
+    };
+    const run: ScanRun = {
+      id: scanRunId,
+      projectId: input.projectId,
+      siteId: input.siteId,
+      authSelection: input.authSelection,
+      presetId: input.presetId,
+      selectedAppIds: [...input.selectedAppIds],
+      enabledCategoryKeys: [...input.enabledCategoryKeys],
+      sensitiveOptions: input.sensitiveOptions,
+      startedAt: input.collection.startedAt,
+      finishedAt: input.collection.finishedAt,
+      status: input.collection.status,
+      snapshotId,
+      result,
+    };
+
+    try {
+      await ensureDir(snapshotPartialPath);
+      const captureIndex = await writeSnapshotDataFiles(snapshotPartialPath, input.collection);
+      await writeSnapshotJsonAtomic(path.join(snapshotPartialPath, "data", "app-list.json"), {
+        schemaVersion,
+        capturedAt: input.collection.finishedAt,
+        apps: input.selectedApps,
+      });
+      await writeSnapshotJsonAtomic(path.join(snapshotPartialPath, "data", "collector-results.json"), {
+        schemaVersion,
+        scanRunId,
+        captures: captureIndex,
+      });
+      await writeRedactionLog(path.join(snapshotPartialPath, redactionLogPath), input.collection);
+
+      const manifest: SnapshotManifest = {
+        snapshotId,
+        scanRunId,
+        projectId: input.projectId,
+        siteId: input.siteId,
+        siteDomain: input.siteDomain,
+        authSelection: input.authSelection,
+        schemaVersion,
+        capturedAt: input.collection.finishedAt,
+        status: input.collection.status,
+        isCurrent: input.collection.status !== "failed",
+        presetId: input.presetId,
+        enabledCategoryKeys: [...input.enabledCategoryKeys],
+        appIds: [...input.selectedAppIds],
+        counts: {
+          apps: result.appsCaptured,
+          plugins: result.pluginsCaptured,
+          files: captureIndex.filter((capture) => capture.storedPath).length,
+          records: countCapturedRecords(input.collection),
+        },
+        sizeBytesOnDisk: 0,
+        integrity: { verified: true, algorithm: "sha256", checkedAt: input.collection.finishedAt },
+        fileOrder: [],
+        redaction: result.redaction,
+        reports: [],
+        developerFiles: [],
+      };
+      await writeJsonAtomic(path.join(snapshotPartialPath, "manifest.json"), manifest);
+      const sizeBytesOnDisk = await directorySizeBytes(snapshotPartialPath);
+      await writeJsonAtomic(path.join(snapshotPartialPath, "manifest.json"), { ...manifest, sizeBytesOnDisk });
+      await fs.rename(snapshotPartialPath, snapshotFinalPath);
+
+      const finalizedRun: ScanRun = {
+        ...run,
+        result: {
+          ...run.result!,
+          durationMs: input.collection.durationMs,
+        },
+      };
+      if (input.collection.status !== "failed") {
+        await writeJsonAtomic(path.join(readResult.project.folderPath, "current.json"), {
+          projectId: input.projectId,
+          siteId: input.siteId,
+          currentSnapshotId: snapshotId,
+          currentSnapshotPath: snapshotRelativePath,
+          updatedAt: input.collection.finishedAt,
+        }, (core, value) => core.validateCurrentSnapshotPointer(value));
+      }
+      await updateAppListCaptureStatus(readResult.project.folderPath, input.selectedAppIds, input.collection.status, input.collection.finishedAt);
+      await appendProjectHistoryRun(readResult.project.folderPath, finalizedRun);
+      return {
+        ok: true,
+        code: "OK",
+        message: input.collection.status === "failed" ? "Scan failed; partial snapshot data was written for inspection." : "Scan completed and local snapshot was written.",
+        run: finalizedRun,
+      };
+    } catch (error) {
+      return { ok: false, code: "IO_ERROR", message: errorMessage(error), run };
+    }
+  }
+
+  async function getProjectScanHistory(projectId: string): Promise<GetProjectScanHistoryResult> {
+    const readResult = await readProjectForProjectId(projectId);
+    if (!readResult.ok || !readResult.project) {
+      return { ok: false, code: "INVALID_INPUT", message: readResult.message ?? "Project metadata was not found.", runs: [] };
+    }
+
+    const historyRead = await readJson<ProjectHistory>(path.join(readResult.project.folderPath, "history.json"), defaultProjectHistory(), "project", true, (core, value) => core.validateProjectHistory(value));
+    if (historyRead.issue) {
+      return { ok: false, code: "IO_ERROR", message: historyRead.issue.message, runs: [] };
+    }
+
+    return { ok: true, code: "OK", message: "Project scan history loaded.", runs: (historyRead.value?.runs ?? []) as ScanRun[] };
+  }
+
   async function removeProjectFromApp(projectId: string): Promise<RemoveProjectFromAppResult> {
     const appIndex = await readAppIndex();
     const nextProjects = appIndex.recentProjects.filter((item) => item.projectId !== projectId);
@@ -333,6 +519,21 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     } catch (error) {
       return { ok: false, code: "IO_ERROR", message: errorMessage(error), projectId };
     }
+  }
+
+  async function readProjectForProjectId(projectId: string): Promise<OpenProjectResult> {
+    const idValidation = (await coreModulePromise).validateLocalId(projectId, "projectId");
+    if (!idValidation.ok) {
+      return { ok: false, message: formatValidationIssues(idValidation.issues) };
+    }
+
+    const appIndex = await readAppIndex();
+    const entry = appIndex.recentProjects.find((item) => item.projectId === projectId);
+    if (!entry) {
+      return { ok: false, message: "Project is not in the app metadata index." };
+    }
+
+    return readProjectAt(entry.folderPath);
   }
 
   async function updateConnectedSite(site: ConnectedSite): Promise<SaveConnectedSiteResult> {
@@ -434,7 +635,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     const filePath = path.join(appDataRoot, windowStateFile);
     const exists = await fileExists(filePath);
     const read = await readJson<WindowStateSnapshot>(filePath, defaultWindowState(false), "app", false, (core, value) => core.validateWindowStateSnapshot(value));
-    return { ...(read.value ?? defaultWindowState(false)), restored: exists && !read.issue };
+    return { ...defaultWindowState(false), ...(read.value ?? {}), restored: exists && !read.issue };
   }
 
   async function writeWindowState(state: WindowStateSnapshot) {
@@ -443,6 +644,7 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
       openProjectTabs: state.openProjectTabs,
       activeTabId: state.activeTabId,
       restored: true,
+      scanDraftsByProjectId: state.scanDraftsByProjectId ?? {},
     }, (core, value) => core.validateWindowStateSnapshot(value));
   }
 
@@ -679,6 +881,9 @@ export function createWorkspaceStorage({ appDataRoot, now = () => new Date() }: 
     readOpenProjectTabs,
     writeOpenProjectTabs,
     validateOpenLocalFolder,
+    writeKintoneSnapshotScanRun,
+    startFixtureScanRun,
+    getProjectScanHistory,
   };
 }
 
@@ -753,7 +958,11 @@ function defaultAppIndex(): AppIndex {
 }
 
 function defaultWindowState(restored: boolean): WindowStateSnapshot {
-  return { openProjectTabs: [], activeTabId: "home", restored };
+  return { openProjectTabs: [], activeTabId: "home", restored, scanDraftsByProjectId: {} };
+}
+
+function defaultProjectHistory(): ProjectHistory {
+  return { schemaVersion, runs: [] };
 }
 
 function pushIssue(errors: WorkspaceMetadataIssue[], issue: WorkspaceMetadataIssue | undefined) {
@@ -810,6 +1019,160 @@ function addUnique(items: string[], value: string) {
 
 function removeValue(items: string[], value: string) {
   return items.filter((item) => item !== value);
+}
+
+function snapshotAuthSelection(authSelection: Project["authSelection"], profiles: AuthProfile[]): SnapshotAuthSelection {
+  if (authSelection.kind === "global_profile") {
+    return {
+      kind: "global_profile",
+      authProfileId: authSelection.authProfileId,
+      displayName: profiles.find((profile) => profile.id === authSelection.authProfileId)?.displayName,
+    };
+  }
+
+  return {
+    kind: "project_local",
+    displayName: authSelection.displayName,
+    username: authSelection.username,
+    authType: authSelection.authType,
+  };
+}
+
+async function appendProjectHistoryRun(projectFolderPath: string, run: ScanRun) {
+  const filePath = path.join(projectFolderPath, "history.json");
+  const current = (await readJson<ProjectHistory>(filePath, defaultProjectHistory(), "project", false, (core, value) => core.validateProjectHistory(value))).value ?? defaultProjectHistory();
+  const next: ProjectHistory = {
+    schemaVersion,
+    runs: [run, ...current.runs],
+  };
+  await writeJsonAtomic(filePath, next, (core, value) => core.validateProjectHistory(value));
+}
+
+async function writeSnapshotDataFiles(snapshotFolderPath: string, collection: KintoneRestCollectionResult) {
+  const captureIndex = [];
+  for (const capture of collection.captures) {
+    let storedPath: string | undefined;
+    if (capture.status === "captured" && capture.payload !== undefined) {
+      storedPath = captureDataRelativePath(capture);
+      await writeSnapshotJsonAtomic(path.join(snapshotFolderPath, storedPath), {
+        schemaVersion,
+        _meta: {
+          categoryKey: capture.categoryKey,
+          endpointKey: capture.endpointKey,
+          endpointPath: capture.endpointPath,
+          appId: capture.appId,
+          kintoneAppId: capture.kintoneAppId,
+          state: capture.state,
+          collectedAt: capture.finishedAt,
+        },
+        data: capture.payload,
+      });
+    }
+
+    const { payload: _payload, ...metadata } = capture;
+    captureIndex.push({
+      ...metadata,
+      ...(storedPath ? { storedPath } : {}),
+    });
+  }
+
+  return captureIndex;
+}
+
+async function writeSnapshotJsonAtomic(filePath: string, value: unknown) {
+  const core = await coreModulePromise;
+  await ensureDir(path.dirname(filePath));
+  const tempPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  await fs.writeFile(tempPath, core.stringifyDeterministic(value, { assertNoSecrets: false }), "utf8");
+  await fs.rename(tempPath, filePath);
+}
+
+async function writeRedactionLog(filePath: string, collection: KintoneRestCollectionResult) {
+  const lines = collection.captures.flatMap((capture) =>
+    capture.redactions.map((finding) =>
+      JSON.stringify({
+        at: capture.finishedAt,
+        type: "other",
+        appId: capture.appId,
+        source: capture.endpointKey,
+        path: finding.path,
+        reason: finding.reason,
+        replacement: finding.replacement,
+      }),
+    ),
+  );
+  await ensureDir(path.dirname(filePath));
+  await fs.writeFile(filePath, lines.length > 0 ? `${lines.join("\n")}\n` : "", "utf8");
+}
+
+function captureDataRelativePath(capture: KintoneRestCollectionResult["captures"][number]) {
+  const fileName = `${safeSnapshotFileName(capture.endpointKey)}.json`;
+  if (capture.appId) {
+    return path.join("data", "apps", capture.appId, capture.state, fileName);
+  }
+  return path.join("data", "site", capture.state, fileName);
+}
+
+function safeSnapshotFileName(value: string) {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "capture";
+}
+
+async function nextSnapshotId(projectFolderPath: string, startedAt: string) {
+  const snapshotsPath = path.join(projectFolderPath, "snapshots");
+  const base = `snap_${timestampId(new Date(startedAt))}`;
+  let candidate = base;
+  for (let suffix = 2; await fileExists(path.join(snapshotsPath, candidate)) || await fileExists(path.join(snapshotsPath, `${candidate}.partial`)); suffix += 1) {
+    candidate = `${base}_${suffix}`;
+  }
+  return candidate;
+}
+
+function timestampId(date: Date) {
+  return date.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+}
+
+async function directorySizeBytes(folderPath: string): Promise<number> {
+  const entries = await fs.readdir(folderPath, { withFileTypes: true });
+  let total = 0;
+  for (const entry of entries) {
+    const entryPath = path.join(folderPath, entry.name);
+    if (entry.isDirectory()) {
+      total += await directorySizeBytes(entryPath);
+    } else if (entry.isFile()) {
+      total += (await fs.stat(entryPath)).size;
+    }
+  }
+  return total;
+}
+
+function countCapturedRecords(collection: KintoneRestCollectionResult) {
+  return collection.captures
+    .filter((capture) => capture.status === "captured" && capture.endpointKey === "sample-records" && capture.payload && typeof capture.payload === "object")
+    .reduce((count, capture) => {
+      const records = (capture.payload as { records?: unknown }).records;
+      return count + (Array.isArray(records) ? records.length : 0);
+    }, 0);
+}
+
+async function updateAppListCaptureStatus(projectFolderPath: string, selectedAppIds: string[], status: ScanRun["status"], capturedAt: string) {
+  const filePath = path.join(projectFolderPath, "app-list.json");
+  const current = (await readJson<ProjectAppList>(filePath, null, "project", true, (core, value) => core.validateProjectAppList(value))).value;
+  if (!current) {
+    return;
+  }
+
+  const selectedIds = new Set(selectedAppIds);
+  const captureStatus = status === "completed" ? "in_snapshot" : "last_scan_warning";
+  const apps = current.apps.map((app) =>
+    selectedIds.has(app.id)
+      ? {
+          ...app,
+          captureStatus,
+          lastCapturedAt: capturedAt,
+        }
+      : app,
+  );
+  await writeJsonAtomic(filePath, { ...current, apps }, (core, value) => core.validateProjectAppList(value));
 }
 
 function toIso(date: Date) {

@@ -101,12 +101,45 @@ test("window state persists open tabs", async () => {
     openProjectTabs: [{ id: "project_client_crm", title: "Client CRM", projectId: "project_client_crm", routePath: "/project/project_client_crm/overview" }],
     activeTabId: "project_client_crm",
     restored: true,
+    scanDraftsByProjectId: {
+      project_client_crm: {
+        presetId: "full_discovery",
+        enabledCategoryKeys: ["app_settings", "plugin_config", "sample_records"],
+        sensitiveOptions: [{ categoryKey: "sample_records", label: "Sample records", enabled: true, meta: "redacted max 10", limit: 10 }],
+        dirty: true,
+        errorMode: "continue_on_error",
+        presetDrafts: {
+          quick: {
+            enabledCategoryKeys: ["app_settings"],
+            sensitiveOptions: [],
+            dirty: true,
+          },
+          standard: {
+            enabledCategoryKeys: ["app_settings", "users_groups"],
+            sensitiveOptions: [],
+            dirty: true,
+          },
+          full_discovery: {
+            enabledCategoryKeys: ["app_settings", "plugin_config", "sample_records"],
+            sensitiveOptions: [{ categoryKey: "sample_records", label: "Sample records", enabled: true, meta: "redacted max 10", limit: 10 }],
+            dirty: true,
+          },
+        },
+      },
+    },
   });
 
   const restored = await storage.readWindowState();
   assert.equal(restored.restored, true);
   assert.equal(restored.activeTabId, "project_client_crm");
   assert.equal(restored.openProjectTabs.length, 1);
+  assert.equal(restored.scanDraftsByProjectId.project_client_crm.presetId, "full_discovery");
+  assert.equal(restored.scanDraftsByProjectId.project_client_crm.errorMode, "continue_on_error");
+  assert.deepEqual(restored.scanDraftsByProjectId.project_client_crm.enabledCategoryKeys, ["app_settings", "plugin_config", "sample_records"]);
+  assert.equal(restored.scanDraftsByProjectId.project_client_crm.sensitiveOptions[0].enabled, true);
+  assert.deepEqual(restored.scanDraftsByProjectId.project_client_crm.presetDrafts.quick.enabledCategoryKeys, ["app_settings"]);
+  assert.deepEqual(restored.scanDraftsByProjectId.project_client_crm.presetDrafts.standard.enabledCategoryKeys, ["app_settings", "users_groups"]);
+  assert.equal(restored.scanDraftsByProjectId.project_client_crm.presetDrafts.full_discovery.sensitiveOptions[0].enabled, true);
 });
 
 test("storage updates project metadata and preserves local project folder", async () => {
@@ -412,6 +445,71 @@ test("project-local auth remains project-local when metadata is edited", async (
 
   assert.equal(update.ok, true);
   assert.equal(readBack.project.authSelection.kind, "project_local");
+});
+
+test("fixture scan runs append project history without updating current snapshot", async () => {
+  const { root, storage } = await createTempStorage();
+  const apps = [
+    { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: false, hasCustomization: false, captureStatus: "not_captured" },
+    { id: "102", kintoneAppId: 102, name: "Support", isGuestSpace: false, hasPlugins: false, hasCustomization: false, captureStatus: "not_captured" },
+  ];
+  const created = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "global_profile", authProfileId: "auth_client_a" },
+    authProfile: sampleAuthProfile(),
+    appSummaries: apps,
+  });
+
+  const runResult = await storage.startFixtureScanRun({
+    projectId: created.project.id,
+    presetId: "standard",
+    selectedAppIds: ["102", "101"],
+    enabledCategoryKeys: ["app_settings", "form_fields", "plugin_inventory", "plugin_config"],
+    sensitiveOptions: [],
+    outcome: "warnings",
+  });
+  const history = await storage.getProjectScanHistory(created.project.id);
+  const current = JSON.parse(await fs.readFile(path.join(created.project.folderPath, "current.json"), "utf8"));
+  const snapshotItems = await fs.readdir(path.join(created.project.folderPath, "snapshots"));
+
+  assert.equal(runResult.ok, true);
+  assert.equal(runResult.run.status, "completed_with_warnings");
+  assert.deepEqual(runResult.run.selectedAppIds, ["102", "101"]);
+  assert.equal(history.ok, true);
+  assert.equal(history.runs.length, 1);
+  assert.equal(history.runs[0].id, runResult.run.id);
+  assert.equal(current.currentSnapshotId, null);
+  assert.equal(current.currentSnapshotPath, null);
+  assert.deepEqual(snapshotItems, []);
+});
+
+test("fixture scan run rejects selected app ids outside the project app list", async () => {
+  const { root, storage } = await createTempStorage();
+  const created = await storage.createProject({
+    name: "Client CRM",
+    folderPath: path.join(root, "Client CRM"),
+    connectedSite: sampleConnectedSite(),
+    authSelection: { kind: "global_profile", authProfileId: "auth_client_a" },
+    authProfile: sampleAuthProfile(),
+    appSummaries: [
+      { id: "101", kintoneAppId: 101, name: "Sales", isGuestSpace: false, hasPlugins: false, hasCustomization: false, captureStatus: "not_captured" },
+    ],
+  });
+
+  const runResult = await storage.startFixtureScanRun({
+    projectId: created.project.id,
+    presetId: "quick",
+    selectedAppIds: ["999"],
+    enabledCategoryKeys: ["app_settings"],
+    sensitiveOptions: [],
+  });
+  const history = await storage.getProjectScanHistory(created.project.id);
+
+  assert.equal(runResult.ok, false);
+  assert.equal(runResult.code, "INVALID_INPUT");
+  assert.equal(history.runs.length, 0);
 });
 
 test("empty desktop metadata returns an empty home snapshot", async () => {

@@ -26,6 +26,17 @@ const platformBridge: PlatformBridge = {
   forgetCredential: (request) => ipcRenderer.invoke("platform:forgetCredential", request),
   validateKintoneConnection: (request) => ipcRenderer.invoke("platform:validateKintoneConnection", request),
   fetchKintoneAppList: (request) => ipcRenderer.invoke("platform:fetchKintoneAppList", request),
+  startKintoneScanRun: (request) => ipcRenderer.invoke("platform:startKintoneScanRun", request),
+  getKintoneScanRunProgress: (request) => ipcRenderer.invoke("platform:getKintoneScanRunProgress", request),
+  getActiveKintoneScanRun: (request) => ipcRenderer.invoke("platform:getActiveKintoneScanRun", request),
+  resumeKintoneScanRun: (request) => ipcRenderer.invoke("platform:resumeKintoneScanRun", request),
+  cancelKintoneScanRun: (request) => ipcRenderer.invoke("platform:cancelKintoneScanRun", request),
+  createKintoneScanDebugSession: (request) => ipcRenderer.invoke("platform:createKintoneScanDebugSession", request),
+  runNextKintoneScanDebugCommand: (request) => ipcRenderer.invoke("platform:runNextKintoneScanDebugCommand", request),
+  finishKintoneScanDebugSession: (request) => ipcRenderer.invoke("platform:finishKintoneScanDebugSession", request),
+  cancelKintoneScanDebugSession: (request) => ipcRenderer.invoke("platform:cancelKintoneScanDebugSession", request),
+  startFixtureScanRun: (request) => ipcRenderer.invoke("platform:startFixtureScanRun", request),
+  getProjectScanHistory: (request) => ipcRenderer.invoke("platform:getProjectScanHistory", request),
 };
 
 contextBridge.exposeInMainWorld("kintoneDiscoveryPlatform", platformBridge);
