@@ -44,6 +44,7 @@ The following are explicitly out of scope for MVP 1:
 - [Data Model and Storage Specification](docs/DATA_MODEL.md)
 - [Workspace, Profile, Account, and Site Tab Specification](docs/WORKSPACE_PROFILE_SPEC.md)
 - [JavaScript and CSS File Order Preservation Specification](docs/FILE_ORDER_SPEC.md)
+- [Browser Snapshot / HTML Capture Specification](docs/BROWSER_SNAPSHOT_SPEC.md)
 - [CLI Command Specification](docs/CLI_COMMAND_SPEC.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 - [Codex Implementation Handoff](docs/CODEX_IMPLEMENTATION_HANDOFF.md)
