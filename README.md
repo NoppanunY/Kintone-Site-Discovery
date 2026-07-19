@@ -49,6 +49,10 @@ The following are explicitly out of scope for MVP 1:
 - [Codex Implementation Handoff](docs/CODEX_IMPLEMENTATION_HANDOFF.md)
 - [UX/UI Implementation Handoff](docs/ui-handoff/README.md)
 
+## Ideas and proposals
+
+Unapproved product and technical ideas are stored separately under [docs/ideas](docs/ideas/README.md). Documents in that directory are non-binding and must not be treated as committed scope or implementation instructions until they are accepted and promoted into the main specifications.
+
 ## Product principle
 
 > Pull kintone data safely, store it locally as a complete snapshot, and make that snapshot easy to inspect.
